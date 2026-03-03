@@ -10,7 +10,7 @@ import pytest
 from baton.cli import main as cli_main
 from baton.config import load_circuit
 from baton.lifecycle import LifecycleManager
-from baton.schemas import CollapseLevel, NodeStatus
+from baton.schemas import CollapseLevel, NodeStatus, RoutingConfig, RoutingStrategy, RoutingTarget
 
 
 def _init_project(d: Path) -> None:
@@ -109,6 +109,90 @@ class TestLifecycleSlotMock:
             assert mgr.state.adapters["api"].status == NodeStatus.LISTENING
             assert "api" not in mgr.state.live_nodes
             assert mgr.state.collapse_level == CollapseLevel.FULL_MOCK
+        finally:
+            await mgr.down()
+
+
+class TestLifecycleSlotAB:
+    async def test_slot_ab_creates_routing(self, project_dir: Path):
+        d = project_dir / "p"
+        _init_project(d)
+        mgr = LifecycleManager(d)
+        try:
+            await mgr.up(mock=True)
+            await mgr.slot_ab(
+                "api",
+                "python3 -m http.server $BATON_SERVICE_PORT",
+                "python3 -m http.server $BATON_SERVICE_PORT",
+                split=(80, 20),
+            )
+            adapter = mgr.adapters["api"]
+            assert adapter.routing is not None
+            assert adapter.routing.strategy == RoutingStrategy.WEIGHTED
+            assert len(adapter.routing.targets) == 2
+            assert mgr.state.adapters["api"].status == NodeStatus.ACTIVE
+            assert mgr.state.adapters["api"].routing_config is not None
+        finally:
+            await mgr.down()
+
+
+class TestLifecycleRoutingLock:
+    async def test_lock_prevents_slot(self, project_dir: Path):
+        d = project_dir / "p"
+        _init_project(d)
+        mgr = LifecycleManager(d)
+        try:
+            await mgr.up(mock=True)
+            await mgr.slot_ab(
+                "api",
+                "python3 -m http.server $BATON_SERVICE_PORT",
+                "python3 -m http.server $BATON_SERVICE_PORT",
+            )
+            mgr.lock_routing("api")
+            with pytest.raises(RuntimeError, match="locked"):
+                await mgr.slot("api", "python3 -m http.server $BATON_SERVICE_PORT")
+        finally:
+            await mgr.down()
+
+    async def test_unlock_allows_slot(self, project_dir: Path):
+        d = project_dir / "p"
+        _init_project(d)
+        mgr = LifecycleManager(d)
+        try:
+            await mgr.up(mock=True)
+            await mgr.slot_ab(
+                "api",
+                "python3 -m http.server $BATON_SERVICE_PORT",
+                "python3 -m http.server $BATON_SERVICE_PORT",
+            )
+            mgr.lock_routing("api")
+            mgr.unlock_routing("api")
+            # Should not raise after unlock -- clear routing first
+            adapter = mgr.adapters["api"]
+            adapter.clear_routing()
+            await mgr.slot("api", "python3 -m http.server $BATON_SERVICE_PORT")
+            assert mgr.state.adapters["api"].status == NodeStatus.ACTIVE
+        finally:
+            await mgr.down()
+
+    async def test_lock_prevents_swap(self, project_dir: Path):
+        d = project_dir / "p"
+        _init_project(d)
+        mgr = LifecycleManager(d)
+        try:
+            await mgr.up(mock=True)
+            await mgr.slot("api", "python3 -m http.server $BATON_SERVICE_PORT")
+            config = RoutingConfig(
+                strategy=RoutingStrategy.WEIGHTED,
+                targets=[
+                    RoutingTarget(name="a", port=37001, weight=80),
+                    RoutingTarget(name="b", port=37002, weight=20),
+                ],
+                locked=True,
+            )
+            mgr.adapters["api"].set_routing(config)
+            with pytest.raises(RuntimeError, match="locked"):
+                await mgr.swap("api", "python3 -m http.server $BATON_SERVICE_PORT")
         finally:
             await mgr.down()
 

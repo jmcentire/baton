@@ -13,12 +13,19 @@ from baton.schemas import (
     CustodianAction,
     CustodianEvent,
     DeploymentTarget,
+    DependencySpec,
     EdgeSpec,
     HealthCheck,
     HealthVerdict,
+    NodeRole,
     NodeSpec,
     NodeStatus,
     ProxyMode,
+    RoutingConfig,
+    RoutingRule,
+    RoutingStrategy,
+    RoutingTarget,
+    ServiceManifest,
     ServiceSlot,
     SignalRecord,
 )
@@ -333,3 +340,234 @@ class TestEnums:
     def test_custodian_action_values(self):
         assert CustodianAction.RESTART_SERVICE == "restart_service"
         assert CustodianAction.ESCALATE == "escalate"
+
+    def test_node_role_values(self):
+        assert NodeRole.SERVICE == "service"
+        assert NodeRole.INGRESS == "ingress"
+        assert NodeRole.EGRESS == "egress"
+
+
+# -- NodeRole on NodeSpec --
+
+
+class TestNodeRole:
+    def test_default_role(self):
+        n = NodeSpec(name="api", port=8001)
+        assert n.role == NodeRole.SERVICE
+
+    def test_ingress_role(self):
+        n = NodeSpec(name="gateway", port=8001, role="ingress")
+        assert n.role == NodeRole.INGRESS
+
+    def test_egress_role(self):
+        n = NodeSpec(name="stripe", port=8001, role="egress")
+        assert n.role == NodeRole.EGRESS
+
+
+# -- DependencySpec --
+
+
+class TestDependencySpec:
+    def test_valid(self):
+        d = DependencySpec(name="payments")
+        assert d.name == "payments"
+        assert d.expected_api == ""
+        assert d.optional is False
+
+    def test_with_expected_api(self):
+        d = DependencySpec(name="db", expected_api="specs/db.yaml")
+        assert d.expected_api == "specs/db.yaml"
+
+    def test_optional(self):
+        d = DependencySpec(name="cache", optional=True)
+        assert d.optional is True
+
+    def test_frozen(self):
+        d = DependencySpec(name="payments")
+        with pytest.raises(ValidationError):
+            d.name = "other"
+
+    def test_empty_name_rejected(self):
+        with pytest.raises(ValidationError):
+            DependencySpec(name="")
+
+
+# -- ServiceManifest --
+
+
+class TestServiceManifest:
+    def test_minimal(self):
+        m = ServiceManifest(name="api")
+        assert m.name == "api"
+        assert m.version == "0.0.0"
+        assert m.role == NodeRole.SERVICE
+        assert m.dependencies == []
+        assert m.port == 0
+
+    def test_full(self):
+        m = ServiceManifest(
+            name="payments",
+            version="2.0.0",
+            api_spec="specs/api.yaml",
+            mock_spec="specs/mock.yaml",
+            command="./run.sh",
+            port=8080,
+            proxy_mode="tcp",
+            role="egress",
+            dependencies=[DependencySpec(name="db")],
+            metadata={"team": "platform"},
+        )
+        assert m.version == "2.0.0"
+        assert m.proxy_mode == "tcp"
+        assert m.role == NodeRole.EGRESS
+        assert len(m.dependencies) == 1
+        assert m.metadata["team"] == "platform"
+
+    def test_frozen(self):
+        m = ServiceManifest(name="api")
+        with pytest.raises(ValidationError):
+            m.name = "other"
+
+    def test_name_validation(self):
+        with pytest.raises(ValidationError):
+            ServiceManifest(name="Bad-Name")
+        with pytest.raises(ValidationError):
+            ServiceManifest(name="")
+        with pytest.raises(ValidationError):
+            ServiceManifest(name="1starts-with-num")
+
+
+# -- Routing Models --
+
+
+class TestRoutingStrategy:
+    def test_values(self):
+        assert RoutingStrategy.SINGLE == "single"
+        assert RoutingStrategy.WEIGHTED == "weighted"
+        assert RoutingStrategy.HEADER == "header"
+        assert RoutingStrategy.CANARY == "canary"
+
+
+class TestRoutingTarget:
+    def test_valid(self):
+        t = RoutingTarget(name="a", port=8001)
+        assert t.name == "a"
+        assert t.host == "127.0.0.1"
+        assert t.port == 8001
+        assert t.weight == 100
+
+    def test_custom_weight(self):
+        t = RoutingTarget(name="b", port=8002, weight=30)
+        assert t.weight == 30
+
+    def test_frozen(self):
+        t = RoutingTarget(name="a", port=8001)
+        with pytest.raises(ValidationError):
+            t.name = "other"
+
+
+class TestRoutingRule:
+    def test_valid(self):
+        r = RoutingRule(header="X-Cohort", value="beta", target="b")
+        assert r.header == "X-Cohort"
+        assert r.value == "beta"
+        assert r.target == "b"
+
+    def test_frozen(self):
+        r = RoutingRule(header="X-Cohort", value="beta", target="b")
+        with pytest.raises(ValidationError):
+            r.header = "other"
+
+
+class TestRoutingConfig:
+    def test_weighted_valid(self):
+        cfg = RoutingConfig(
+            strategy=RoutingStrategy.WEIGHTED,
+            targets=[
+                RoutingTarget(name="a", port=8001, weight=80),
+                RoutingTarget(name="b", port=8002, weight=20),
+            ],
+        )
+        assert cfg.strategy == RoutingStrategy.WEIGHTED
+        assert len(cfg.targets) == 2
+
+    def test_weighted_bad_sum(self):
+        with pytest.raises(ValidationError, match="sum to 100"):
+            RoutingConfig(
+                strategy=RoutingStrategy.WEIGHTED,
+                targets=[
+                    RoutingTarget(name="a", port=8001, weight=80),
+                    RoutingTarget(name="b", port=8002, weight=30),
+                ],
+            )
+
+    def test_canary_valid(self):
+        cfg = RoutingConfig(
+            strategy=RoutingStrategy.CANARY,
+            targets=[
+                RoutingTarget(name="stable", port=8001, weight=90),
+                RoutingTarget(name="canary", port=8002, weight=10),
+            ],
+        )
+        assert cfg.strategy == RoutingStrategy.CANARY
+
+    def test_header_valid(self):
+        cfg = RoutingConfig(
+            strategy=RoutingStrategy.HEADER,
+            targets=[
+                RoutingTarget(name="a", port=8001),
+                RoutingTarget(name="b", port=8002),
+            ],
+            rules=[RoutingRule(header="X-Cohort", value="beta", target="b")],
+            default_target="a",
+        )
+        assert cfg.strategy == RoutingStrategy.HEADER
+        assert cfg.default_target == "a"
+
+    def test_header_requires_rules(self):
+        with pytest.raises(ValidationError, match="requires at least one rule"):
+            RoutingConfig(
+                strategy=RoutingStrategy.HEADER,
+                targets=[RoutingTarget(name="a", port=8001)],
+                default_target="a",
+            )
+
+    def test_header_requires_default(self):
+        with pytest.raises(ValidationError, match="requires a default_target"):
+            RoutingConfig(
+                strategy=RoutingStrategy.HEADER,
+                targets=[RoutingTarget(name="a", port=8001)],
+                rules=[RoutingRule(header="X-Cohort", value="beta", target="a")],
+            )
+
+    def test_duplicate_target_names(self):
+        with pytest.raises(ValidationError, match="Duplicate target names"):
+            RoutingConfig(
+                strategy=RoutingStrategy.WEIGHTED,
+                targets=[
+                    RoutingTarget(name="a", port=8001, weight=50),
+                    RoutingTarget(name="a", port=8002, weight=50),
+                ],
+            )
+
+    def test_locked(self):
+        cfg = RoutingConfig(
+            strategy=RoutingStrategy.WEIGHTED,
+            targets=[
+                RoutingTarget(name="a", port=8001, weight=80),
+                RoutingTarget(name="b", port=8002, weight=20),
+            ],
+            locked=True,
+        )
+        assert cfg.locked is True
+
+    def test_frozen(self):
+        cfg = RoutingConfig(
+            strategy=RoutingStrategy.WEIGHTED,
+            targets=[
+                RoutingTarget(name="a", port=8001, weight=80),
+                RoutingTarget(name="b", port=8002, weight=20),
+            ],
+        )
+        with pytest.raises(ValidationError):
+            cfg.locked = True

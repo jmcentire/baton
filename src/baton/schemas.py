@@ -28,6 +28,12 @@ class ProxyMode(StrEnum):
     TCP = "tcp"
 
 
+class NodeRole(StrEnum):
+    SERVICE = "service"
+    INGRESS = "ingress"
+    EGRESS = "egress"
+
+
 class CollapseLevel(StrEnum):
     FULL_MOCK = "full_mock"
     PARTIAL = "partial"
@@ -49,6 +55,13 @@ class CustodianAction(StrEnum):
     ESCALATE = "escalate"
 
 
+class RoutingStrategy(StrEnum):
+    SINGLE = "single"
+    WEIGHTED = "weighted"
+    HEADER = "header"
+    CANARY = "canary"
+
+
 # -- Circuit Definition (frozen) --
 
 
@@ -62,6 +75,7 @@ class NodeSpec(BaseModel):
     port: int = Field(ge=1024, le=65535)
     proxy_mode: ProxyMode = ProxyMode.HTTP
     contract: str = ""
+    role: NodeRole = NodeRole.SERVICE
     management_port: int = 0
     metadata: dict[str, str] = Field(default_factory=dict)
 
@@ -89,6 +103,16 @@ class EdgeSpec(BaseModel):
         if self.source == self.target:
             raise ValueError(f"Self-loop not allowed: {self.source}")
         return self
+
+
+class DependencySpec(BaseModel):
+    """A service's declared dependency on another service."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str = Field(min_length=1)
+    expected_api: str = ""
+    optional: bool = False
 
 
 class CircuitSpec(BaseModel):
@@ -141,6 +165,89 @@ class CircuitSpec(BaseModel):
         return [e.source for e in self.edges if e.target == name]
 
 
+# -- Service Manifest (frozen) --
+
+
+class ServiceManifest(BaseModel):
+    """Self-description of a service for circuit derivation."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str = Field(min_length=1, pattern=r"^[a-z][a-z0-9_-]*$")
+    version: str = "0.0.0"
+    api_spec: str = ""
+    mock_spec: str = ""
+    command: str = ""
+    port: int = Field(default=0, ge=0, le=65535)
+    proxy_mode: ProxyMode = ProxyMode.HTTP
+    role: NodeRole = NodeRole.SERVICE
+    dependencies: list[DependencySpec] = Field(default_factory=list)
+    metadata: dict[str, str] = Field(default_factory=dict)
+
+
+# -- Routing (frozen) --
+
+
+class RoutingTarget(BaseModel):
+    """A backend target for routing."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str = Field(min_length=1)
+    host: str = "127.0.0.1"
+    port: int = Field(ge=1, le=65535)
+    weight: int = Field(default=100, ge=0, le=100)
+
+
+class RoutingRule(BaseModel):
+    """Route by header value to a named target."""
+
+    model_config = ConfigDict(frozen=True)
+
+    header: str = Field(min_length=1)
+    value: str = Field(min_length=1)
+    target: str = Field(min_length=1)
+
+
+class RoutingConfig(BaseModel):
+    """Routing configuration for an adapter."""
+
+    model_config = ConfigDict(frozen=True)
+
+    strategy: RoutingStrategy = RoutingStrategy.SINGLE
+    targets: list[RoutingTarget] = Field(default_factory=list)
+    rules: list[RoutingRule] = Field(default_factory=list)
+    default_target: str = ""
+    locked: bool = False
+
+    @model_validator(mode="after")
+    def weights_sum_to_100(self) -> RoutingConfig:
+        if self.strategy in (RoutingStrategy.WEIGHTED, RoutingStrategy.CANARY):
+            total = sum(t.weight for t in self.targets)
+            if total != 100:
+                raise ValueError(
+                    f"Weights must sum to 100 for {self.strategy} strategy, got {total}"
+                )
+        return self
+
+    @model_validator(mode="after")
+    def header_requires_rules(self) -> RoutingConfig:
+        if self.strategy == RoutingStrategy.HEADER:
+            if not self.rules:
+                raise ValueError("Header strategy requires at least one rule")
+            if not self.default_target:
+                raise ValueError("Header strategy requires a default_target")
+        return self
+
+    @model_validator(mode="after")
+    def no_duplicate_target_names(self) -> RoutingConfig:
+        names = [t.name for t in self.targets]
+        if len(names) != len(set(names)):
+            dupes = [n for n in names if names.count(n) > 1]
+            raise ValueError(f"Duplicate target names: {set(dupes)}")
+        return self
+
+
 # -- Runtime State (mutable) --
 
 
@@ -163,6 +270,7 @@ class AdapterState(BaseModel):
     last_health_check: str = ""
     last_health_verdict: HealthVerdict = HealthVerdict.UNKNOWN
     consecutive_failures: int = 0
+    routing_config: dict | None = None
 
 
 class CircuitState(BaseModel):

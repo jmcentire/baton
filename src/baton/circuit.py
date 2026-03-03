@@ -17,13 +17,14 @@ def add_node(
     port: int = 0,
     proxy_mode: str = "http",
     contract: str = "",
+    role: str = "service",
 ) -> CircuitSpec:
     """Add a node to the circuit. Auto-assigns port if not specified."""
     if circuit.node_by_name(name) is not None:
         raise ValueError(f"Node '{name}' already exists")
     if port == 0:
         port = _next_port(circuit)
-    node = NodeSpec(name=name, port=port, proxy_mode=proxy_mode, contract=contract)
+    node = NodeSpec(name=name, port=port, proxy_mode=proxy_mode, contract=contract, role=role)
     return CircuitSpec(
         name=circuit.name,
         version=circuit.version,
@@ -94,6 +95,7 @@ def set_contract(circuit: CircuitSpec, node_name: str, contract_path: str) -> Ci
                 port=n.port,
                 proxy_mode=n.proxy_mode,
                 contract=contract_path,
+                role=n.role,
                 management_port=n.management_port,
                 metadata=dict(n.metadata),
             ))

@@ -19,7 +19,9 @@ from baton.schemas import (
     CircuitSpec,
     CircuitState,
     CollapseLevel,
+    NodeRole,
     NodeStatus,
+    RoutingConfig,
     ServiceSlot,
 )
 from baton.state import ensure_baton_dir, load_state, save_state
@@ -115,7 +117,16 @@ class LifecycleManager:
         if adapter is None:
             raise ValueError(f"Node '{node_name}' not found in running circuit")
 
+        if adapter.routing and adapter.routing.locked:
+            raise RuntimeError(f"Cannot slot into '{node_name}': routing config is locked")
+
         node = adapter.node
+        if node.role == NodeRole.EGRESS:
+            raise ValueError(
+                f"Cannot slot a live service into egress node '{node_name}'. "
+                "Egress nodes represent external services and should use mock configuration."
+            )
+
         # Service listens on a dynamically assigned port
         service_port = node.port + 20000
         if service_port > 65535:
@@ -160,6 +171,9 @@ class LifecycleManager:
         adapter = self._adapters.get(node_name)
         if adapter is None:
             raise ValueError(f"Node '{node_name}' not found in running circuit")
+
+        if adapter.routing and adapter.routing.locked:
+            raise RuntimeError(f"Cannot swap in '{node_name}': routing config is locked")
 
         old_pid = self._process_mgr.get_pid(node_name)
 
@@ -224,6 +238,194 @@ class LifecycleManager:
             if node_name in self._state.live_nodes:
                 self._state.live_nodes.remove(node_name)
             self._state.collapse_level = self._compute_collapse_level()
+            self._state.updated_at = _now_iso()
+            save_state(self._state, self.project_dir)
+
+    async def slot_ab(
+        self,
+        node_name: str,
+        command_a: str,
+        command_b: str,
+        split: tuple[int, int] = (80, 20),
+    ) -> None:
+        """Start two instances and configure weighted routing.
+
+        Instance A runs on node.port + 20000, Instance B on node.port + 20001.
+        """
+        adapter = self._adapters.get(node_name)
+        if adapter is None:
+            raise ValueError(f"Node '{node_name}' not found in running circuit")
+
+        if adapter.routing and adapter.routing.locked:
+            raise RuntimeError(f"Cannot slot_ab into '{node_name}': routing config is locked")
+
+        node = adapter.node
+        port_a = node.port + 20000
+        if port_a > 65535:
+            port_a = node.port + 5000
+        port_b = port_a + 1
+
+        env_a = {
+            "BATON_SERVICE_PORT": str(port_a),
+            "BATON_NODE_NAME": node_name,
+        }
+        env_b = {
+            "BATON_SERVICE_PORT": str(port_b),
+            "BATON_NODE_NAME": node_name,
+        }
+
+        key_a = f"{node_name}__a"
+        key_b = f"{node_name}__b"
+
+        info_a = await self._process_mgr.start(key_a, command_a, env=env_a)
+        info_b = await self._process_mgr.start(key_b, command_b, env=env_b)
+        await asyncio.sleep(0.5)
+
+        from baton.routing import ab_split
+        config = ab_split("127.0.0.1", port_a, port_b, pct_a=split[0])
+        adapter.set_routing(config)
+
+        if self._state:
+            self._state.adapters[node_name] = AdapterState(
+                node_name=node_name,
+                status=NodeStatus.ACTIVE,
+                service=ServiceSlot(
+                    command=f"{command_a} | {command_b}",
+                    is_mock=False,
+                    pid=info_a.pid,
+                    started_at=_now_iso(),
+                ),
+                routing_config=config.model_dump(),
+            )
+            if node_name not in self._state.live_nodes:
+                self._state.live_nodes.append(node_name)
+            self._state.collapse_level = self._compute_collapse_level()
+            self._state.updated_at = _now_iso()
+            save_state(self._state, self.project_dir)
+
+        logger.info(
+            f"Slotted A/B into [{node_name}] "
+            f"(a={info_a.pid}:{port_a}, b={info_b.pid}:{port_b}, split={split})"
+        )
+
+    async def route_ab(
+        self,
+        node_name: str,
+        command_b: str,
+        split: tuple[int, int] = (80, 20),
+    ) -> None:
+        """Add a second instance to an existing service and configure weighted routing.
+
+        Reuses the already-running service as instance A. Starts command_b as instance B.
+        If no service is running, raises ValueError.
+        """
+        adapter = self._adapters.get(node_name)
+        if adapter is None:
+            raise ValueError(f"Node '{node_name}' not found in running circuit")
+
+        if adapter.routing and adapter.routing.locked:
+            raise RuntimeError(f"Cannot route_ab on '{node_name}': routing config is locked")
+
+        node = adapter.node
+        port_a = node.port + 20000
+        if port_a > 65535:
+            port_a = node.port + 5000
+
+        # Verify instance A is running
+        if not self._process_mgr.is_running(node_name) and not adapter.backend.is_configured:
+            raise ValueError(
+                f"No service running on '{node_name}'. Use 'baton slot' first, "
+                "or use 'slot_ab' to start both instances."
+            )
+
+        # If service is running under the base name, move it to __a key
+        if self._process_mgr.is_running(node_name):
+            key_a = f"{node_name}__a"
+            if node_name in self._process_mgr._processes:
+                self._process_mgr._processes[key_a] = self._process_mgr._processes.pop(node_name)
+
+        port_b = port_a + 1
+        env_b = {
+            "BATON_SERVICE_PORT": str(port_b),
+            "BATON_NODE_NAME": node_name,
+        }
+
+        key_b = f"{node_name}__b"
+        info_b = await self._process_mgr.start(key_b, command_b, env=env_b)
+        await asyncio.sleep(0.5)
+
+        from baton.routing import ab_split
+        config = ab_split("127.0.0.1", port_a, port_b, pct_a=split[0])
+        adapter.set_routing(config)
+
+        if self._state:
+            self._state.adapters[node_name].routing_config = config.model_dump()
+            self._state.adapters[node_name].status = NodeStatus.ACTIVE
+            self._state.updated_at = _now_iso()
+            save_state(self._state, self.project_dir)
+
+        logger.info(
+            f"Route A/B on [{node_name}] (a=:{port_a}, b={info_b.pid}:{port_b}, split={split})"
+        )
+
+    def set_routing(self, node_name: str, config: RoutingConfig) -> None:
+        """Set routing configuration on a node's adapter."""
+        adapter = self._adapters.get(node_name)
+        if adapter is None:
+            raise ValueError(f"Node '{node_name}' not found in running circuit")
+        adapter.set_routing(config)
+
+        if self._state and node_name in self._state.adapters:
+            self._state.adapters[node_name].routing_config = config.model_dump()
+            self._state.updated_at = _now_iso()
+            save_state(self._state, self.project_dir)
+
+    def lock_routing(self, node_name: str) -> None:
+        """Lock routing config to prevent changes. Bypasses adapter lock via direct assignment."""
+        adapter = self._adapters.get(node_name)
+        if adapter is None:
+            raise ValueError(f"Node '{node_name}' not found in running circuit")
+
+        current = adapter.routing
+        if current is None:
+            raise ValueError(f"No routing config to lock on '{node_name}'")
+
+        locked = RoutingConfig(
+            strategy=current.strategy,
+            targets=list(current.targets),
+            rules=list(current.rules),
+            default_target=current.default_target,
+            locked=True,
+        )
+        # Direct assignment bypasses the lock check
+        adapter._routing = locked
+
+        if self._state and node_name in self._state.adapters:
+            self._state.adapters[node_name].routing_config = locked.model_dump()
+            self._state.updated_at = _now_iso()
+            save_state(self._state, self.project_dir)
+
+    def unlock_routing(self, node_name: str) -> None:
+        """Unlock routing config to allow changes."""
+        adapter = self._adapters.get(node_name)
+        if adapter is None:
+            raise ValueError(f"Node '{node_name}' not found in running circuit")
+
+        current = adapter.routing
+        if current is None:
+            raise ValueError(f"No routing config to unlock on '{node_name}'")
+
+        unlocked = RoutingConfig(
+            strategy=current.strategy,
+            targets=list(current.targets),
+            rules=list(current.rules),
+            default_target=current.default_target,
+            locked=False,
+        )
+        adapter._routing = unlocked
+
+        if self._state and node_name in self._state.adapters:
+            self._state.adapters[node_name].routing_config = unlocked.model_dump()
             self._state.updated_at = _now_iso()
             save_state(self._state, self.project_dir)
 

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Baton - Circuit Orchestration</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --text: #e0e0e8;
+    --muted: #8888a0;
+    --accent: #6c8cff;
+    --accent2: #a78bfa;
+    --green: #4ade80;
+    --orange: #fb923c;
+    --code-bg: #0d0d14;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+  /* Nav */
+  nav {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 0;
+  }
+  nav .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  nav .logo {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  nav .links { display: flex; gap: 24px; }
+  nav .links a { color: var(--muted); font-size: 14px; }
+  nav .links a:hover { color: var(--text); text-decoration: none; }
+
+  /* Hero */
+  .hero {
+    padding: 80px 0 60px;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -1.5px;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero .subtitle {
+    font-size: 20px;
+    color: var(--muted);
+    max-width: 600px;
+    margin: 0 auto 32px;
+  }
+  .hero .cta {
+    display: inline-flex;
+    gap: 12px;
+  }
+  .hero .cta a {
+    display: inline-block;
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .hero .cta .primary {
+    background: var(--accent);
+    color: #000;
+  }
+  .hero .cta .primary:hover { opacity: 0.9; text-decoration: none; }
+  .hero .cta .secondary {
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .hero .cta .secondary:hover { border-color: var(--muted); text-decoration: none; }
+
+  /* Install */
+  .install {
+    text-align: center;
+    margin-bottom: 60px;
+  }
+  .install code {
+    display: inline-block;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-family: var(--mono);
+    font-size: 15px;
+    color: var(--green);
+  }
+
+  /* Features */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    padding: 40px 0;
+  }
+  .feature {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+  }
+  .feature .icon {
+    font-size: 24px;
+    margin-bottom: 12px;
+    display: block;
+    color: var(--accent);
+    font-family: var(--mono);
+  }
+  .feature h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .feature p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* Code example */
+  .example {
+    padding: 60px 0;
+  }
+  .example h2 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+  .example .desc {
+    color: var(--muted);
+    margin-bottom: 24px;
+    font-size: 15px;
+  }
+  .code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .code-block .comment { color: #4a4a6a; }
+  .code-block .cmd { color: var(--green); }
+  .code-block .flag { color: var(--orange); }
+  .code-block .arg { color: var(--accent2); }
+
+  /* Diagram */
+  .diagram-section {
+    padding: 40px 0 60px;
+  }
+  .diagram-section h2 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 24px;
+  }
+  .diagram {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 32px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--muted);
+  }
+
+  /* Concepts */
+  .concepts {
+    padding: 40px 0 60px;
+  }
+  .concepts h2 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 24px;
+  }
+  .concept-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .concept {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .concept h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--accent);
+  }
+  .concept p {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <div class="logo">baton</div>
+    <div class="links">
+      <a href="https://github.com/jmcentire/baton">GitHub</a>
+      <a href="https://pypi.org/project/baton-orchestrator/">PyPI</a>
+      <a href="https://github.com/jmcentire/baton#commands">Docs</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="container">
+    <h1>Circuit Orchestration</h1>
+    <p class="subtitle">
+      Pre-wired topologies with smart adapters, mock collapse, A/B routing, and self-healing. Define the board. Slot services in.
+    </p>
+    <div class="cta">
+      <a href="https://github.com/jmcentire/baton#quickstart" class="primary">Get Started</a>
+      <a href="https://github.com/jmcentire/baton" class="secondary">View Source</a>
+    </div>
+  </div>
+</section>
+
+<section class="install">
+  <div class="container">
+    <code>pip install baton-orchestrator</code>
+  </div>
+</section>
+
+<section>
+  <div class="container features">
+    <div class="feature">
+      <span class="icon">[ ]</span>
+      <h3>Circuit-First Design</h3>
+      <p>Topology is a first-class artifact. Define nodes, edges, and contracts in baton.yaml. Services slot in and out of a fixed board.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">&lt;-&gt;</span>
+      <h3>Smart Adapters</h3>
+      <p>Every node gets an async reverse proxy. Health checks, metrics, hot-swap with drain, and per-request routing -- all built in.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">{ }</span>
+      <h3>Mock Collapse</h3>
+      <p>Auto-generate mock servers from OpenAPI specs. Start fully mocked, slot in services one at a time, collapse back when done.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">A|B</span>
+      <h3>A/B Routing</h3>
+      <p>Weighted splits, canary rollouts, header-based routing. Config locking prevents accidental overrides during tests.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">+/-</span>
+      <h3>Hot-Swap</h3>
+      <p>Replace running services with zero downtime. Drain connections from old instance, start new, switch. Atomic and safe.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">!!!</span>
+      <h3>Self-Healing</h3>
+      <p>Custodian monitors health every 5 seconds. Auto-restarts failed services, replaces with mocks, escalates when repairs fail.</p>
+    </div>
+  </div>
+</section>
+
+<section class="example">
+  <div class="container">
+    <h2>Five minutes to a running circuit</h2>
+    <p class="desc">Define your topology, boot with mocks, slot in real services, run A/B tests.</p>
+    <div class="code-block">
+<span class="comment"># Define the circuit</span>
+<span class="cmd">baton init</span> <span class="arg">myproject</span>
+<span class="cmd">baton node add</span> <span class="arg">api</span> <span class="flag">--port</span> <span class="arg">8001</span>
+<span class="cmd">baton node add</span> <span class="arg">service</span> <span class="flag">--port</span> <span class="arg">8002</span>
+<span class="cmd">baton edge add</span> <span class="arg">api service</span>
+
+<span class="comment"># Boot with mocks -- entire circuit in one process</span>
+<span class="cmd">baton up</span> <span class="flag">--mock</span>
+
+<span class="comment"># Slot in a real service (mock replaced, zero downtime)</span>
+<span class="cmd">baton slot</span> <span class="arg">api</span> <span class="arg">"python app.py"</span>
+
+<span class="comment"># A/B test a new version (80/20 split)</span>
+<span class="cmd">baton route ab</span> <span class="arg">api</span> <span class="arg">"python app_v2.py"</span> <span class="flag">--split</span> <span class="arg">80/20</span>
+
+<span class="comment"># Lock routing to prevent accidental changes</span>
+<span class="cmd">baton route lock</span> <span class="arg">api</span>
+
+<span class="comment"># Monitor health</span>
+<span class="cmd">baton watch</span>
+
+<span class="comment"># Deploy to GCP Cloud Run</span>
+<span class="cmd">baton deploy</span> <span class="flag">--provider</span> <span class="arg">gcp</span> <span class="flag">--project</span> <span class="arg">my-project</span>
+    </div>
+  </div>
+</section>
+
+<section class="diagram-section">
+  <div class="container">
+    <h2>How it works</h2>
+    <div class="diagram">
+  baton.yaml                    Runtime
+  ----------                    -------
+
+  nodes:                        <span style="color:var(--accent)">Adapter :8001</span>     <span style="color:var(--accent)">Adapter :8002</span>
+    - api:8001          -->     +-------------+     +-------------+
+    - service:8002              | <span style="color:var(--green)">reverse proxy</span> |---->| <span style="color:var(--green)">reverse proxy</span> |
+  edges:                        |  /health    |     |  /health    |
+    - api -> service            |  /metrics   |     |  /metrics   |
+                                |  /routing   |     |  /routing   |
+                                +------+------+     +------+------+
+                                       |                   |
+                                  <span style="color:var(--orange)">slot()</span>              <span style="color:var(--orange)">slot()</span>
+                                       |                   |
+                                  +---------+         +---------+
+                                  | <span style="color:var(--accent2)">Service</span> |         | <span style="color:var(--accent2)">Service</span> |
+                                  | or Mock |         | or Mock |
+                                  +---------+         +---------+
+
+  Collapse levels:  <span style="color:var(--muted)">full_mock</span>  ------>  <span style="color:var(--orange)">partial</span>  ------>  <span style="color:var(--green)">full_live</span>
+    </div>
+  </div>
+</section>
+
+<section class="concepts">
+  <div class="container">
+    <h2>Core Concepts</h2>
+    <div class="concept-grid">
+      <div class="concept">
+        <h4>Circuit</h4>
+        <p>The board. Nodes + edges + contracts. Defined in baton.yaml.</p>
+      </div>
+      <div class="concept">
+        <h4>Adapter</h4>
+        <p>Async reverse proxy at each node. Handles routing, health, metrics.</p>
+      </div>
+      <div class="concept">
+        <h4>Slot / Swap</h4>
+        <p>Insert or replace a service. Hot-swap drains before switching.</p>
+      </div>
+      <div class="concept">
+        <h4>Collapse</h4>
+        <p>Compress circuit. Full mock through partial to full live.</p>
+      </div>
+      <div class="concept">
+        <h4>Custodian</h4>
+        <p>Health monitor. Restart, replace, escalate. Self-heals the board.</p>
+      </div>
+      <div class="concept">
+        <h4>Routing</h4>
+        <p>Weighted, header, canary. Per-request. Lockable.</p>
+      </div>
+      <div class="concept">
+        <h4>Provider</h4>
+        <p>Deployment backend. Local processes or GCP Cloud Run.</p>
+      </div>
+      <div class="concept">
+        <h4>Manifest</h4>
+        <p>Service self-description. API spec, mocks, dependencies.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>MIT License &middot; <a href="https://github.com/jmcentire/baton">GitHub</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -6,8 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from baton.config import load_circuit, save_circuit
-from baton.schemas import CircuitSpec, EdgeSpec, NodeSpec
+import yaml
+
+from baton.config import add_service_path, load_circuit, load_circuit_from_services, save_circuit, _discover_service_dirs
+from baton.manifest import MANIFEST_FILENAME
+from baton.schemas import CircuitSpec, EdgeSpec, NodeRole, NodeSpec
 
 
 class TestLoadCircuit:
@@ -86,3 +89,96 @@ class TestSaveCircuit:
         save_circuit(circuit, project_dir)
         loaded = load_circuit(project_dir)
         assert loaded.nodes[0].contract == "specs/api.yaml"
+
+    def test_roundtrip_with_role(self, project_dir: Path):
+        circuit = CircuitSpec(
+            name="test",
+            nodes=[
+                NodeSpec(name="gateway", port=8001, role="ingress"),
+                NodeSpec(name="stripe", port=8002, role="egress"),
+                NodeSpec(name="api", port=8003),
+            ],
+        )
+        save_circuit(circuit, project_dir)
+        loaded = load_circuit(project_dir)
+        assert loaded.nodes[0].role == NodeRole.INGRESS
+        assert loaded.nodes[1].role == NodeRole.EGRESS
+        assert loaded.nodes[2].role == NodeRole.SERVICE
+
+
+class TestLoadCircuitFromServices:
+    def test_derive_from_service_dirs(self, project_dir: Path):
+        # Create service dirs with manifests
+        api_dir = project_dir / "api"
+        api_dir.mkdir()
+        (api_dir / MANIFEST_FILENAME).write_text(
+            yaml.dump({"name": "api", "dependencies": ["db"]})
+        )
+        db_dir = project_dir / "db"
+        db_dir.mkdir()
+        (db_dir / MANIFEST_FILENAME).write_text(
+            yaml.dump({"name": "db", "proxy_mode": "tcp"})
+        )
+
+        circuit = load_circuit_from_services(project_dir, [api_dir, db_dir])
+        assert len(circuit.nodes) == 2
+        assert len(circuit.edges) == 1
+
+    def test_derive_with_baton_yaml_name(self, project_dir: Path):
+        (project_dir / "baton.yaml").write_text("name: myapp\n")
+        api_dir = project_dir / "api"
+        api_dir.mkdir()
+        (api_dir / MANIFEST_FILENAME).write_text(yaml.dump({"name": "api"}))
+
+        circuit = load_circuit_from_services(project_dir, [api_dir])
+        assert circuit.name == "myapp"
+
+    def test_no_service_dirs(self, project_dir: Path):
+        with pytest.raises(FileNotFoundError, match="No service directories"):
+            load_circuit_from_services(project_dir)
+
+
+class TestDiscoverServiceDirs:
+    def test_from_yaml(self, project_dir: Path):
+        api_dir = project_dir / "services" / "api"
+        api_dir.mkdir(parents=True)
+        (api_dir / MANIFEST_FILENAME).write_text(yaml.dump({"name": "api"}))
+
+        (project_dir / "baton.yaml").write_text(
+            yaml.dump({"name": "test", "services": ["services/api"]})
+        )
+        dirs = _discover_service_dirs(project_dir)
+        assert len(dirs) == 1
+        assert dirs[0] == project_dir / "services" / "api"
+
+    def test_scan_subdirs(self, project_dir: Path):
+        for name in ["api", "db"]:
+            d = project_dir / name
+            d.mkdir()
+            (d / MANIFEST_FILENAME).write_text(yaml.dump({"name": name}))
+
+        dirs = _discover_service_dirs(project_dir)
+        assert len(dirs) == 2
+
+
+class TestAddServicePath:
+    def test_add_service(self, project_dir: Path):
+        (project_dir / "baton.yaml").write_text("name: test\n")
+        add_service_path(project_dir, "./api")
+
+        with open(project_dir / "baton.yaml") as f:
+            raw = yaml.safe_load(f)
+        assert "./api" in raw["services"]
+
+    def test_add_idempotent(self, project_dir: Path):
+        (project_dir / "baton.yaml").write_text("name: test\n")
+        add_service_path(project_dir, "./api")
+        add_service_path(project_dir, "./api")
+
+        with open(project_dir / "baton.yaml") as f:
+            raw = yaml.safe_load(f)
+        assert raw["services"].count("./api") == 1
+
+    def test_missing_baton_yaml(self, project_dir: Path):
+        with pytest.raises(FileNotFoundError):
+            add_service_path(project_dir, "./api")

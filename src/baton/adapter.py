@@ -12,7 +12,17 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from baton.schemas import HealthCheck, HealthVerdict, NodeSpec, ProxyMode, SignalRecord
+import random
+
+from baton.schemas import (
+    HealthCheck,
+    HealthVerdict,
+    NodeSpec,
+    ProxyMode,
+    RoutingConfig,
+    RoutingStrategy,
+    SignalRecord,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +69,7 @@ class Adapter:
     def __init__(self, node: NodeSpec, record_signals: bool = False):
         self._node = node
         self._backend = BackendTarget()
+        self._routing: RoutingConfig | None = None
         self._server: asyncio.Server | None = None
         self._record_signals = record_signals
         self._signals: list[SignalRecord] = []
@@ -84,14 +95,32 @@ class Adapter:
         return self._backend
 
     @property
+    def routing(self) -> RoutingConfig | None:
+        return self._routing
+
+    @property
     def is_running(self) -> bool:
         return self._server is not None and self._server.is_serving()
 
     def set_backend(self, target: BackendTarget) -> None:
         """Atomically swap the backend target."""
+        if self._routing and self._routing.locked:
+            raise RuntimeError("Cannot set backend: routing config is locked")
         self._backend = target
         self._draining = False
         self._drain_event.clear()
+
+    def set_routing(self, config: RoutingConfig) -> None:
+        """Set routing configuration. Raises if current config is locked."""
+        if self._routing and self._routing.locked:
+            raise RuntimeError("Cannot set routing: current config is locked")
+        self._routing = config
+
+    def clear_routing(self) -> None:
+        """Remove routing configuration. Raises if locked."""
+        if self._routing and self._routing.locked:
+            raise RuntimeError("Cannot clear routing: config is locked")
+        self._routing = None
 
     async def start(self) -> None:
         """Start listening on the node's assigned address."""
@@ -161,6 +190,70 @@ class Adapter:
                 timestamp=_now_iso(),
             )
 
+    def _select_backend(self, request_data: bytes | None = None) -> BackendTarget | None:
+        """Select a backend based on routing config, or fall through to self._backend."""
+        if self._routing is None:
+            return self._backend if self._backend.is_configured else None
+
+        targets_by_name = {t.name: t for t in self._routing.targets}
+
+        if self._routing.strategy in (RoutingStrategy.WEIGHTED, RoutingStrategy.CANARY):
+            return self._select_weighted(self._routing.targets)
+        elif self._routing.strategy == RoutingStrategy.HEADER and request_data:
+            return self._select_by_header(request_data, self._routing, targets_by_name)
+
+        return self._backend if self._backend.is_configured else None
+
+    @staticmethod
+    def _select_weighted(targets: list) -> BackendTarget:
+        """Pick a target based on cumulative weights."""
+        roll = random.randint(1, 100)
+        cumulative = 0
+        for t in targets:
+            cumulative += t.weight
+            if roll <= cumulative:
+                return BackendTarget(host=t.host, port=t.port)
+        # Fallback to last target
+        last = targets[-1]
+        return BackendTarget(host=last.host, port=last.port)
+
+    def _select_by_header(
+        self,
+        request_data: bytes,
+        config: RoutingConfig,
+        targets_by_name: dict,
+    ) -> BackendTarget:
+        """Route based on header value matching rules."""
+        headers = self._parse_headers(request_data)
+        for rule in config.rules:
+            if headers.get(rule.header.lower()) == rule.value:
+                t = targets_by_name.get(rule.target)
+                if t:
+                    return BackendTarget(host=t.host, port=t.port)
+        # Fall back to default target
+        t = targets_by_name.get(config.default_target)
+        if t:
+            return BackendTarget(host=t.host, port=t.port)
+        return self._backend
+
+    @staticmethod
+    def _parse_headers(data: bytes) -> dict[str, str]:
+        """Extract header key:value pairs from raw HTTP request bytes."""
+        result: dict[str, str] = {}
+        try:
+            header_section = data.split(b"\r\n\r\n", 1)[0]
+            lines = header_section.split(b"\r\n")
+            # Skip request line (first line)
+            for line in lines[1:]:
+                if b":" in line:
+                    key, val = line.split(b":", 1)
+                    result[key.strip().decode("ascii", errors="replace").lower()] = (
+                        val.strip().decode("ascii", errors="replace")
+                    )
+        except Exception:
+            pass
+        return result
+
     def _decrement_connections(self) -> None:
         self._active_connections -= 1
         if self._draining and self._active_connections <= 0:
@@ -202,7 +295,7 @@ class Adapter:
         client_writer: asyncio.StreamWriter,
     ) -> None:
         """HTTP forwarding: read request, forward, return response."""
-        if self._draining or not self._backend.is_configured:
+        if self._draining or (not self._backend.is_configured and self._routing is None):
             client_writer.write(
                 b"HTTP/1.1 503 Service Unavailable\r\n"
                 b"Content-Length: 0\r\n"
@@ -220,8 +313,18 @@ class Adapter:
             if not request_data:
                 return
 
+            target = self._select_backend(request_data)
+            if target is None or not target.is_configured:
+                client_writer.write(
+                    b"HTTP/1.1 503 Service Unavailable\r\n"
+                    b"Content-Length: 0\r\n"
+                    b"Connection: close\r\n\r\n"
+                )
+                await client_writer.drain()
+                return
+
             backend_reader, backend_writer = await asyncio.open_connection(
-                self._backend.host, self._backend.port
+                target.host, target.port
             )
             backend_writer.write(request_data)
             await backend_writer.drain()

@@ -6,9 +6,11 @@ import os
 from pathlib import Path
 
 import pytest
+import yaml
 
 from baton.cli import main
 from baton.config import load_circuit
+from baton.manifest import MANIFEST_FILENAME
 
 
 class TestInit:
@@ -155,6 +157,191 @@ class TestStatus:
         assert "db" in out
         assert "tcp" in out
         assert "api -> db" in out
+
+
+class TestServiceRegister:
+    def test_register(self, project_dir: Path, capsys):
+        d = project_dir / "p"
+        main(["init", str(d)])
+
+        svc = d / "api"
+        svc.mkdir()
+        (svc / MANIFEST_FILENAME).write_text(yaml.dump({"name": "api"}))
+
+        rc = main(["service", "register", str(svc), "--dir", str(d)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "Registered" in out
+
+    def test_register_invalid(self, project_dir: Path):
+        d = project_dir / "p"
+        main(["init", str(d)])
+        rc = main(["service", "register", str(d / "nonexistent"), "--dir", str(d)])
+        assert rc == 1
+
+
+class TestServiceList:
+    def test_list_services(self, project_dir: Path, capsys):
+        d = project_dir / "p"
+        main(["init", str(d)])
+
+        for name in ["api", "db"]:
+            svc = d / name
+            svc.mkdir()
+            data = {"name": name}
+            if name == "api":
+                data["dependencies"] = ["db"]
+            (svc / MANIFEST_FILENAME).write_text(yaml.dump(data))
+
+        rc = main(["service", "list", "--dir", str(d)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "api" in out
+        assert "db" in out
+
+    def test_list_empty(self, project_dir: Path, capsys):
+        d = project_dir / "p"
+        main(["init", str(d)])
+        rc = main(["service", "list", "--dir", str(d)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "No services" in out
+
+
+class TestServiceDerive:
+    def test_derive(self, project_dir: Path, capsys):
+        d = project_dir / "p"
+        main(["init", str(d)])
+
+        for name in ["api", "db"]:
+            svc = d / name
+            svc.mkdir()
+            data = {"name": name}
+            if name == "api":
+                data["dependencies"] = ["db"]
+            (svc / MANIFEST_FILENAME).write_text(yaml.dump(data))
+
+        rc = main(["service", "derive", "--dir", str(d)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "2 nodes" in out
+        assert "api -> db" in out
+
+    def test_derive_and_save(self, project_dir: Path):
+        d = project_dir / "p"
+        main(["init", str(d)])
+
+        svc = d / "api"
+        svc.mkdir()
+        (svc / MANIFEST_FILENAME).write_text(yaml.dump({"name": "api"}))
+
+        rc = main(["service", "derive", "--save", "--dir", str(d)])
+        assert rc == 0
+        circuit = load_circuit(d)
+        assert len(circuit.nodes) == 1
+        assert circuit.nodes[0].name == "api"
+
+
+class TestCheck:
+    def test_check_compatible(self, project_dir: Path, capsys):
+        d = project_dir / "p"
+        main(["init", str(d)])
+
+        svc = d / "api"
+        svc.mkdir()
+        (svc / MANIFEST_FILENAME).write_text(
+            yaml.dump({"name": "api", "api_spec": "spec.yaml"})
+        )
+        # No dependencies with expected_api -> always compatible
+        rc = main(["check", "--dir", str(d)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "compatible" in out
+
+    def test_check_no_services(self, project_dir: Path):
+        d = project_dir / "p"
+        main(["init", str(d)])
+        rc = main(["check", "--dir", str(d)])
+        assert rc == 1
+
+
+class TestRouteShow:
+    def test_show_no_state(self, project_dir: Path):
+        d = project_dir / "p"
+        main(["init", str(d)])
+        main(["node", "add", "api", "--port", "8001", "--dir", str(d)])
+        rc = main(["route", "show", "api", "--dir", str(d)])
+        # No state file -> node not found
+        assert rc == 1
+
+    def test_show_with_state(self, project_dir: Path, capsys):
+        import json
+        from baton.schemas import AdapterState, CircuitState, NodeStatus
+        from baton.state import save_state
+
+        d = project_dir / "p"
+        main(["init", str(d)])
+        main(["node", "add", "api", "--port", "8001", "--dir", str(d)])
+
+        # Create state with routing config
+        state = CircuitState(
+            circuit_name="default",
+            adapters={
+                "api": AdapterState(
+                    node_name="api",
+                    status=NodeStatus.ACTIVE,
+                    routing_config={
+                        "strategy": "weighted",
+                        "targets": [
+                            {"name": "a", "host": "127.0.0.1", "port": 8001, "weight": 80},
+                            {"name": "b", "host": "127.0.0.1", "port": 8002, "weight": 20},
+                        ],
+                        "rules": [],
+                        "default_target": "",
+                        "locked": False,
+                    },
+                )
+            },
+        )
+        save_state(state, d)
+
+        rc = main(["route", "show", "api", "--dir", str(d)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "weighted" in out
+
+    def test_show_no_routing(self, project_dir: Path, capsys):
+        from baton.schemas import AdapterState, CircuitState, NodeStatus
+        from baton.state import save_state
+
+        d = project_dir / "p"
+        main(["init", str(d)])
+        main(["node", "add", "api", "--port", "8001", "--dir", str(d)])
+
+        state = CircuitState(
+            circuit_name="default",
+            adapters={"api": AdapterState(node_name="api", status=NodeStatus.LISTENING)},
+        )
+        save_state(state, d)
+
+        rc = main(["route", "show", "api", "--dir", str(d)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "single backend" in out
+
+
+class TestRouteLock:
+    def test_route_no_subcommand(self):
+        rc = main(["route"])
+        assert rc == 1
+
+
+class TestDeploy:
+    def test_deploy_status_no_circuit(self, project_dir: Path):
+        d = project_dir / "p"
+        # No baton.yaml -> should fail
+        rc = main(["deploy-status", "--dir", str(d)])
+        assert rc == 1
 
 
 class TestNoCommand:

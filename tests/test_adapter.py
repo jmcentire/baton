@@ -7,7 +7,15 @@ import asyncio
 import pytest
 
 from baton.adapter import Adapter, BackendTarget
-from baton.schemas import HealthVerdict, NodeSpec, ProxyMode
+from baton.schemas import (
+    HealthVerdict,
+    NodeSpec,
+    ProxyMode,
+    RoutingConfig,
+    RoutingRule,
+    RoutingStrategy,
+    RoutingTarget,
+)
 
 
 async def _start_echo_http_server(port: int) -> asyncio.Server:
@@ -228,6 +236,196 @@ class TestHealthCheck:
         adapter.set_backend(BackendTarget(host="127.0.0.1", port=18999))
         health = await adapter.health_check()
         assert health.verdict == HealthVerdict.UNHEALTHY
+
+
+class TestRouting:
+    async def test_weighted_distribution(self):
+        """Test weighted routing distributes ~80/20 across 1000 requests."""
+        backend_a = await _start_echo_http_server(18920)
+        backend_b = await _start_echo_http_server(18921)
+        node = NodeSpec(name="test-weighted", port=18922)
+        adapter = Adapter(node)
+        await adapter.start()
+
+        config = RoutingConfig(
+            strategy=RoutingStrategy.WEIGHTED,
+            targets=[
+                RoutingTarget(name="a", port=18920, weight=80),
+                RoutingTarget(name="b", port=18921, weight=20),
+            ],
+        )
+        adapter.set_routing(config)
+
+        try:
+            counts = {"a": 0, "b": 0}
+            for _ in range(1000):
+                target = adapter._select_backend(b"GET / HTTP/1.1\r\n\r\n")
+                if target.port == 18920:
+                    counts["a"] += 1
+                else:
+                    counts["b"] += 1
+
+            # Allow 10% tolerance
+            assert 700 <= counts["a"] <= 900, f"Expected ~800 for a, got {counts['a']}"
+            assert 100 <= counts["b"] <= 300, f"Expected ~200 for b, got {counts['b']}"
+        finally:
+            await adapter.stop()
+            backend_a.close()
+            await backend_a.wait_closed()
+            backend_b.close()
+            await backend_b.wait_closed()
+
+    async def test_header_routing_match(self):
+        """Test header-based routing matches rule."""
+        node = NodeSpec(name="test-header", port=18923)
+        adapter = Adapter(node)
+
+        config = RoutingConfig(
+            strategy=RoutingStrategy.HEADER,
+            targets=[
+                RoutingTarget(name="a", port=18930),
+                RoutingTarget(name="b", port=18931),
+            ],
+            rules=[RoutingRule(header="X-Cohort", value="beta", target="b")],
+            default_target="a",
+        )
+        adapter.set_routing(config)
+
+        request = b"GET / HTTP/1.1\r\nHost: localhost\r\nX-Cohort: beta\r\n\r\n"
+        target = adapter._select_backend(request)
+        assert target.port == 18931
+
+    async def test_header_routing_default(self):
+        """Test header-based routing falls back to default."""
+        node = NodeSpec(name="test-header-def", port=18924)
+        adapter = Adapter(node)
+
+        config = RoutingConfig(
+            strategy=RoutingStrategy.HEADER,
+            targets=[
+                RoutingTarget(name="a", port=18930),
+                RoutingTarget(name="b", port=18931),
+            ],
+            rules=[RoutingRule(header="X-Cohort", value="beta", target="b")],
+            default_target="a",
+        )
+        adapter.set_routing(config)
+
+        request = b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"
+        target = adapter._select_backend(request)
+        assert target.port == 18930
+
+    async def test_no_routing_falls_through(self):
+        """Without routing config, _select_backend returns self._backend."""
+        node = NodeSpec(name="test-no-route", port=18925)
+        adapter = Adapter(node)
+        adapter._backend = BackendTarget(host="127.0.0.1", port=9999)
+
+        target = adapter._select_backend(b"GET / HTTP/1.1\r\n\r\n")
+        assert target.port == 9999
+
+    async def test_lock_prevents_set_backend(self):
+        """Locked routing prevents set_backend."""
+        node = NodeSpec(name="test-lock-be", port=18926)
+        adapter = Adapter(node)
+
+        config = RoutingConfig(
+            strategy=RoutingStrategy.WEIGHTED,
+            targets=[
+                RoutingTarget(name="a", port=8001, weight=80),
+                RoutingTarget(name="b", port=8002, weight=20),
+            ],
+            locked=True,
+        )
+        adapter.set_routing(config)
+
+        with pytest.raises(RuntimeError, match="locked"):
+            adapter.set_backend(BackendTarget(host="127.0.0.1", port=9999))
+
+    async def test_lock_prevents_set_routing(self):
+        """Locked routing prevents set_routing."""
+        node = NodeSpec(name="test-lock-rt", port=18927)
+        adapter = Adapter(node)
+
+        config = RoutingConfig(
+            strategy=RoutingStrategy.WEIGHTED,
+            targets=[
+                RoutingTarget(name="a", port=8001, weight=80),
+                RoutingTarget(name="b", port=8002, weight=20),
+            ],
+            locked=True,
+        )
+        adapter.set_routing(config)
+
+        new_config = RoutingConfig(
+            strategy=RoutingStrategy.WEIGHTED,
+            targets=[
+                RoutingTarget(name="a", port=8001, weight=50),
+                RoutingTarget(name="b", port=8002, weight=50),
+            ],
+        )
+        with pytest.raises(RuntimeError, match="locked"):
+            adapter.set_routing(new_config)
+
+    async def test_lock_prevents_clear_routing(self):
+        """Locked routing prevents clear_routing."""
+        node = NodeSpec(name="test-lock-clr", port=18928)
+        adapter = Adapter(node)
+
+        config = RoutingConfig(
+            strategy=RoutingStrategy.WEIGHTED,
+            targets=[
+                RoutingTarget(name="a", port=8001, weight=80),
+                RoutingTarget(name="b", port=8002, weight=20),
+            ],
+            locked=True,
+        )
+        adapter.set_routing(config)
+
+        with pytest.raises(RuntimeError, match="locked"):
+            adapter.clear_routing()
+
+    async def test_weighted_integration_two_backends(self):
+        """Full integration test: two echo servers, weighted routing, actual HTTP requests."""
+        backend_a = await _start_echo_http_server(18940)
+        backend_b = await _start_echo_http_server(18941)
+        node = NodeSpec(name="test-int-wt", port=18942)
+        adapter = Adapter(node)
+        await adapter.start()
+
+        config = RoutingConfig(
+            strategy=RoutingStrategy.WEIGHTED,
+            targets=[
+                RoutingTarget(name="a", port=18940, weight=50),
+                RoutingTarget(name="b", port=18941, weight=50),
+            ],
+        )
+        adapter.set_routing(config)
+
+        try:
+            for _ in range(5):
+                reader, writer = await asyncio.open_connection("127.0.0.1", 18942)
+                writer.write(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+                await writer.drain()
+                resp = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+                assert b"200 OK" in resp
+                writer.close()
+
+            assert adapter.metrics.requests_total == 5
+        finally:
+            await adapter.stop()
+            backend_a.close()
+            await backend_a.wait_closed()
+            backend_b.close()
+            await backend_b.wait_closed()
+
+    def test_parse_headers(self):
+        """Test _parse_headers extracts header key:value pairs."""
+        data = b"GET / HTTP/1.1\r\nHost: localhost\r\nX-Cohort: beta\r\nAccept: */*\r\n\r\n"
+        headers = Adapter._parse_headers(data)
+        assert headers["host"] == "localhost"
+        assert headers["x-cohort"] == "beta"
+        assert headers["accept"] == "*/*"
 
 
 class TestDrain:

@@ -74,6 +74,8 @@ class AdapterControlServer:
                 body = self._handle_metrics()
             elif method == "GET" and path == "/status":
                 body = self._handle_status()
+            elif method == "GET" and path == "/routing":
+                body = self._handle_routing()
             else:
                 body = json.dumps({"error": "not found"})
                 self._write_response(writer, 404, body)
@@ -109,13 +111,28 @@ class AdapterControlServer:
     def _handle_status(self) -> str:
         node = self._adapter.node
         backend = self._adapter.backend
-        return json.dumps({
+        routing = self._adapter.routing
+        result = {
             "node": node.name,
             "listening": f"{node.host}:{node.port}",
             "mode": str(node.proxy_mode),
             "backend": f"{backend.host}:{backend.port}" if backend.is_configured else None,
             "running": self._adapter.is_running,
-        })
+        }
+        if routing:
+            result["routing_strategy"] = str(routing.strategy)
+            result["routing_locked"] = routing.locked
+        return json.dumps(result)
+
+    def _handle_routing(self) -> str:
+        routing = self._adapter.routing
+        if routing is None:
+            backend = self._adapter.backend
+            return json.dumps({
+                "strategy": "single",
+                "backend": f"{backend.host}:{backend.port}" if backend.is_configured else None,
+            })
+        return json.dumps(routing.model_dump())
 
     @staticmethod
     def _write_response(writer: asyncio.StreamWriter, status: int, body: str) -> None:

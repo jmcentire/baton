@@ -9,7 +9,7 @@ import pytest
 
 from baton.adapter import Adapter, BackendTarget
 from baton.adapter_control import AdapterControlServer
-from baton.schemas import NodeSpec
+from baton.schemas import NodeSpec, RoutingConfig, RoutingStrategy, RoutingTarget
 
 
 async def _http_get(port: int, path: str) -> tuple[int, dict]:
@@ -131,5 +131,62 @@ class TestControlServer:
             status, body = await _http_get(29008, "/nonexistent")
             assert status == 404
             assert "error" in body
+        finally:
+            await ctrl.stop()
+
+    async def test_routing_no_config(self):
+        node = NodeSpec(name="ctrl-route-none", port=19009, management_port=29009)
+        adapter = Adapter(node)
+        ctrl = AdapterControlServer(adapter)
+        await ctrl.start()
+        try:
+            status, body = await _http_get(29009, "/routing")
+            assert status == 200
+            assert body["strategy"] == "single"
+            assert body["backend"] is None
+        finally:
+            await ctrl.stop()
+
+    async def test_routing_with_config(self):
+        node = NodeSpec(name="ctrl-route-cfg", port=19010, management_port=29010)
+        adapter = Adapter(node)
+        config = RoutingConfig(
+            strategy=RoutingStrategy.WEIGHTED,
+            targets=[
+                RoutingTarget(name="a", port=8001, weight=80),
+                RoutingTarget(name="b", port=8002, weight=20),
+            ],
+        )
+        adapter.set_routing(config)
+        ctrl = AdapterControlServer(adapter)
+        await ctrl.start()
+        try:
+            status, body = await _http_get(29010, "/routing")
+            assert status == 200
+            assert body["strategy"] == "weighted"
+            assert len(body["targets"]) == 2
+            assert body["locked"] is False
+        finally:
+            await ctrl.stop()
+
+    async def test_status_with_routing(self):
+        node = NodeSpec(name="ctrl-st-route", port=19011, management_port=29011)
+        adapter = Adapter(node)
+        config = RoutingConfig(
+            strategy=RoutingStrategy.WEIGHTED,
+            targets=[
+                RoutingTarget(name="a", port=8001, weight=80),
+                RoutingTarget(name="b", port=8002, weight=20),
+            ],
+            locked=True,
+        )
+        adapter.set_routing(config)
+        ctrl = AdapterControlServer(adapter)
+        await ctrl.start()
+        try:
+            status, body = await _http_get(29011, "/status")
+            assert status == 200
+            assert body["routing_strategy"] == "weighted"
+            assert body["routing_locked"] is True
         finally:
             await ctrl.stop()
