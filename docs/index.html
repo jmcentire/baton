@@ -68,7 +68,7 @@
   .hero .subtitle {
     font-size: 20px;
     color: var(--muted);
-    max-width: 600px;
+    max-width: 640px;
     margin: 0 auto 32px;
   }
   .hero .cta {
@@ -180,18 +180,6 @@
     letter-spacing: -0.5px;
     margin-bottom: 24px;
   }
-  .diagram {
-    background: var(--code-bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 32px;
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 1.5;
-    overflow-x: auto;
-    white-space: pre;
-    color: var(--muted);
-  }
 
   /* Concepts */
   .concepts {
@@ -224,6 +212,41 @@
     color: var(--muted);
   }
 
+  /* Protocol table */
+  .protocols {
+    padding: 40px 0;
+  }
+  .protocols h2 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 24px;
+  }
+  .proto-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  .proto-table th {
+    text-align: left;
+    padding: 10px 16px;
+    border-bottom: 2px solid var(--border);
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .proto-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .proto-table code {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--green);
+  }
+
   /* Footer */
   footer {
     border-top: 1px solid var(--border);
@@ -254,7 +277,7 @@
   <div class="container">
     <h1>Circuit Orchestration</h1>
     <p class="subtitle">
-      Pre-wired topologies with smart adapters, mock collapse, A/B routing, and self-healing. Define the board. Slot services in.
+      Pre-wired topologies with smart adapters, mock collapse, A/B routing, multi-protocol support, federation, and self-healing. Define the board. Slot services in.
     </p>
     <div class="cta">
       <a href="https://github.com/jmcentire/baton#quickstart" class="primary">Get Started</a>
@@ -282,6 +305,11 @@
       <p>Every node gets an async reverse proxy. Health checks, metrics, hot-swap with drain, and per-request routing -- all built in.</p>
     </div>
     <div class="feature">
+      <span class="icon">TCP</span>
+      <h3>Multi-Protocol</h3>
+      <p>HTTP, TCP, gRPC, protobuf, and SOAP out of the box. Extensible ProtocolHandler registry for custom protocols.</p>
+    </div>
+    <div class="feature">
       <span class="icon">{ }</span>
       <h3>Mock Collapse</h3>
       <p>Auto-generate mock servers from OpenAPI specs. Start fully mocked, slot in services one at a time, collapse back when done.</p>
@@ -294,7 +322,7 @@
     <div class="feature">
       <span class="icon">%&gt;&gt;</span>
       <h3>Canary Auto-Promotion</h3>
-      <p>Automated canary evaluation with error rate and latency thresholds. Promotes through weight steps or rolls back. Per-target metrics for accurate comparison.</p>
+      <p>Automated canary evaluation with error rate and latency thresholds. Promotes through weight steps or rolls back.</p>
     </div>
     <div class="feature">
       <span class="icon">+/-</span>
@@ -309,7 +337,22 @@
     <div class="feature">
       <span class="icon">~&gt;</span>
       <h3>Observability</h3>
-      <p>Live dashboard with per-node metrics, request signals, and per-path statistics. Prometheus export. JSONL persistence for offline analysis.</p>
+      <p>Live dashboard, per-node metrics, request signals, per-path statistics. Prometheus export. JSONL persistence for offline analysis.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">&lt;=&gt;</span>
+      <h3>Federation</h3>
+      <p>Multi-cluster heartbeat, cross-cluster state sync, automatic failover and restore. Pull-based peer discovery with configurable thresholds.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">TLS</span>
+      <h3>Certificate Management</h3>
+      <p>Monitor TLS certificate expiry with warning and critical thresholds. Auto-rotate certs with zero downtime -- new connections get the new cert.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">MCP</span>
+      <h3>AI Integration</h3>
+      <p>Model Context Protocol server exposes circuit state to Claude Code and other AI assistants. Inspect topology, metrics, and signals.</p>
     </div>
     <div class="feature">
       <span class="icon">[#]</span>
@@ -319,7 +362,12 @@
     <div class="feature">
       <span class="icon">GCP</span>
       <h3>Cloud Deploy</h3>
-      <p>Deploy to GCP Cloud Run with --build. Each node becomes a service. Edges auto-wired via environment variables. Neighbor URL injection.</p>
+      <p>Deploy to GCP Cloud Run with --build. Each node becomes a service. Edges auto-wired via environment variables.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">***</span>
+      <h3>Security Hardened</h3>
+      <p>Command injection prevention, header injection guards, path traversal protection, fail-closed auth, bounded header parsing.</p>
     </div>
   </div>
 </section>
@@ -327,13 +375,15 @@
 <section class="example">
   <div class="container">
     <h2>Five minutes to a running circuit</h2>
-    <p class="desc">Define your topology, boot with mocks, slot in real services, run A/B tests.</p>
+    <p class="desc">Define your topology, boot with mocks, slot in real services, run A/B tests, federate across clusters.</p>
     <div class="code-block">
 <span class="comment"># Define the circuit</span>
 <span class="cmd">baton init</span> <span class="arg">myproject</span>
 <span class="cmd">baton node add</span> <span class="arg">api</span> <span class="flag">--port</span> <span class="arg">8001</span>
 <span class="cmd">baton node add</span> <span class="arg">service</span> <span class="flag">--port</span> <span class="arg">8002</span>
+<span class="cmd">baton node add</span> <span class="arg">rpc</span> <span class="flag">--port</span> <span class="arg">8003</span> <span class="flag">--mode</span> <span class="arg">grpc</span>
 <span class="cmd">baton edge add</span> <span class="arg">api service</span>
+<span class="cmd">baton edge add</span> <span class="arg">api rpc</span>
 
 <span class="comment"># Boot with mocks -- entire circuit in one process</span>
 <span class="cmd">baton up</span> <span class="flag">--mock</span>
@@ -344,14 +394,15 @@
 <span class="comment"># A/B test a new version (80/20 split)</span>
 <span class="cmd">baton route ab</span> <span class="arg">api</span> <span class="arg">"python app_v2.py"</span> <span class="flag">--split</span> <span class="arg">80/20</span>
 
-<span class="comment"># Lock routing to prevent accidental changes</span>
-<span class="cmd">baton route lock</span> <span class="arg">api</span>
-
-<span class="comment"># Monitor health</span>
-<span class="cmd">baton watch</span>
-
-<span class="comment"># Canary with auto-promotion (evaluates health, promotes or rolls back)</span>
+<span class="comment"># Canary with auto-promotion</span>
 <span class="cmd">baton route canary</span> <span class="arg">api</span> <span class="arg">"python app_v2.py"</span> <span class="flag">--pct</span> <span class="arg">10</span> <span class="flag">--promote</span>
+
+<span class="comment"># Check federation status</span>
+<span class="cmd">baton federation</span> <span class="arg">status</span>
+<span class="cmd">baton federation</span> <span class="arg">peers</span> <span class="flag">--json</span>
+
+<span class="comment"># Monitor certificates</span>
+<span class="cmd">baton certs</span> <span class="arg">status</span>
 
 <span class="comment"># Build images and deploy to GCP Cloud Run</span>
 <span class="cmd">baton deploy</span> <span class="flag">--provider</span> <span class="arg">gcp</span> <span class="flag">--build</span> <span class="flag">--project</span> <span class="arg">my-project</span>
@@ -363,6 +414,48 @@
   <div class="container">
     <h2>How it works</h2>
     <img src="architecture.png" alt="Baton architecture: baton.yaml defines nodes and edges, runtime creates reverse proxy adapters with slot() for swapping services or mocks, collapse levels from full_mock through partial to full_live" style="width:100%; max-width:700px; border-radius:10px; border:1px solid var(--border);">
+  </div>
+</section>
+
+<section class="protocols">
+  <div class="container">
+    <h2>Protocol Support</h2>
+    <table class="proto-table">
+      <thead>
+        <tr>
+          <th>Mode</th>
+          <th>Description</th>
+          <th>Health Check</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>http</code></td>
+          <td>HTTP/1.1 reverse proxy with tracing, circuit breaker, retries</td>
+          <td>HTTP GET to health path</td>
+        </tr>
+        <tr>
+          <td><code>tcp</code></td>
+          <td>Bidirectional byte pipe</td>
+          <td>TCP connectivity</td>
+        </tr>
+        <tr>
+          <td><code>grpc</code></td>
+          <td>Transparent HTTP/2 forwarding</td>
+          <td>TCP connectivity</td>
+        </tr>
+        <tr>
+          <td><code>protobuf</code></td>
+          <td>Length-prefixed binary proxy (4-byte big-endian + payload)</td>
+          <td>TCP connectivity</td>
+        </tr>
+        <tr>
+          <td><code>soap</code></td>
+          <td>HTTP with SOAPAction header awareness and fault detection</td>
+          <td>HTTP + SOAP fault check</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </section>
 
@@ -395,6 +488,14 @@
         <p>Weighted, header, canary. Per-request. Lockable.</p>
       </div>
       <div class="concept">
+        <h4>Protocol</h4>
+        <p>Pluggable handlers. HTTP, TCP, gRPC, protobuf, SOAP. Extensible.</p>
+      </div>
+      <div class="concept">
+        <h4>Federation</h4>
+        <p>Multi-cluster heartbeat, state sync, automatic failover.</p>
+      </div>
+      <div class="concept">
         <h4>Provider</h4>
         <p>Deployment backend. Local processes or GCP Cloud Run.</p>
       </div>
@@ -418,13 +519,21 @@
         <h4>Canary</h4>
         <p>Auto-promote or rollback. Compares error rate + latency against thresholds.</p>
       </div>
+      <div class="concept">
+        <h4>Certificates</h4>
+        <p>TLS cert monitoring, expiry alerts, zero-downtime rotation.</p>
+      </div>
+      <div class="concept">
+        <h4>MCP</h4>
+        <p>AI integration. Exposes circuit state to Claude Code and other assistants.</p>
+      </div>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="container">
-    <p>MIT License &middot; <a href="https://github.com/jmcentire/baton">GitHub</a></p>
+    <p>MIT License &middot; <a href="https://github.com/jmcentire/baton">GitHub</a> &middot; <a href="https://pypi.org/project/baton-orchestrator/">PyPI</a></p>
   </div>
 </footer>
 
