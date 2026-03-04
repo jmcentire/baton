@@ -1,0 +1,503 @@
+{
+  "component_id": "src_baton_circuit",
+  "name": "Circuit Graph Operations",
+  "description": "Pure functions that operate on frozen CircuitSpec models and return new instances. Provides graph manipulation operations for circuit specifications including node/edge management, cycle detection, and topological sorting.",
+  "version": 1,
+  "types": [],
+  "functions": [
+    {
+      "name": "add_node",
+      "description": "Add a node to the circuit. Auto-assigns port if not specified (port=0). Creates a new CircuitSpec with the added node.",
+      "inputs": [
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The circuit to add a node to",
+          "validators": []
+        },
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the node to add",
+          "validators": []
+        },
+        {
+          "name": "port",
+          "type_ref": "int",
+          "required": false,
+          "default": "0",
+          "description": "Port number for the node. If 0, auto-assigns next available port.",
+          "validators": []
+        },
+        {
+          "name": "proxy_mode",
+          "type_ref": "str",
+          "required": false,
+          "default": "\"http\"",
+          "description": "Proxy mode for the node",
+          "validators": []
+        },
+        {
+          "name": "contract",
+          "type_ref": "str",
+          "required": false,
+          "default": "\"\"",
+          "description": "Contract specification path",
+          "validators": []
+        },
+        {
+          "name": "role",
+          "type_ref": "str",
+          "required": false,
+          "default": "\"service\"",
+          "description": "Role of the node",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitSpec",
+      "error_cases": [
+        {
+          "name": "duplicate_node",
+          "condition": "Node with given name already exists in circuit",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Node '{name}' already exists"
+          }
+        },
+        {
+          "name": "no_available_port",
+          "condition": "port=0 and all ports in range [9001, 9999] are used",
+          "error_type": "RuntimeError",
+          "error_data": {
+            "message": "No available ports in range"
+          }
+        }
+      ],
+      "preconditions": [
+        "Node with given name must not already exist in circuit",
+        "If port=0, there must be an available port in range [9001, 9999]"
+      ],
+      "postconditions": [
+        "Returns new CircuitSpec with added node",
+        "Original circuit is unchanged (pure function)",
+        "New circuit has same name and version as original",
+        "New circuit has all original nodes plus new node",
+        "New circuit has all original edges unchanged"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "remove_node",
+      "description": "Remove a node and all its edges from the circuit. Returns new CircuitSpec without the specified node.",
+      "inputs": [
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The circuit to remove a node from",
+          "validators": []
+        },
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the node to remove",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitSpec",
+      "error_cases": [
+        {
+          "name": "node_not_found",
+          "condition": "Node with given name does not exist in circuit",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Node '{name}' not found"
+          }
+        }
+      ],
+      "preconditions": [
+        "Node with given name must exist in circuit"
+      ],
+      "postconditions": [
+        "Returns new CircuitSpec without the specified node",
+        "Original circuit is unchanged (pure function)",
+        "New circuit has same name and version as original",
+        "All edges where node is source or target are removed",
+        "All other nodes and edges remain unchanged"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "add_edge",
+      "description": "Add a directed edge between two nodes. Creates a new CircuitSpec with the added edge.",
+      "inputs": [
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The circuit to add an edge to",
+          "validators": []
+        },
+        {
+          "name": "source",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the source node",
+          "validators": []
+        },
+        {
+          "name": "target",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the target node",
+          "validators": []
+        },
+        {
+          "name": "label",
+          "type_ref": "str",
+          "required": false,
+          "default": "\"\"",
+          "description": "Optional label for the edge",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitSpec",
+      "error_cases": [
+        {
+          "name": "source_not_found",
+          "condition": "Source node does not exist in circuit",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Source node '{source}' not found"
+          }
+        },
+        {
+          "name": "target_not_found",
+          "condition": "Target node does not exist in circuit",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Target node '{target}' not found"
+          }
+        },
+        {
+          "name": "duplicate_edge",
+          "condition": "Edge from source to target already exists",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Edge {source} -> {target} already exists"
+          }
+        }
+      ],
+      "preconditions": [
+        "Source node must exist in circuit",
+        "Target node must exist in circuit",
+        "Edge from source to target must not already exist"
+      ],
+      "postconditions": [
+        "Returns new CircuitSpec with added edge",
+        "Original circuit is unchanged (pure function)",
+        "New circuit has same name and version as original",
+        "New circuit has all original nodes unchanged",
+        "New circuit has all original edges plus new edge"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "remove_edge",
+      "description": "Remove a directed edge from the circuit. Returns new CircuitSpec without the specified edge.",
+      "inputs": [
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The circuit to remove an edge from",
+          "validators": []
+        },
+        {
+          "name": "source",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the source node",
+          "validators": []
+        },
+        {
+          "name": "target",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the target node",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitSpec",
+      "error_cases": [
+        {
+          "name": "edge_not_found",
+          "condition": "Edge from source to target does not exist in circuit",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Edge {source} -> {target} not found"
+          }
+        }
+      ],
+      "preconditions": [
+        "Edge from source to target must exist in circuit"
+      ],
+      "postconditions": [
+        "Returns new CircuitSpec without the specified edge",
+        "Original circuit is unchanged (pure function)",
+        "New circuit has same name and version as original",
+        "New circuit has all original nodes unchanged",
+        "All other edges remain unchanged"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "set_contract",
+      "description": "Set the contract spec path for a node. Returns new CircuitSpec with updated node contract.",
+      "inputs": [
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The circuit containing the node",
+          "validators": []
+        },
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the node to update",
+          "validators": []
+        },
+        {
+          "name": "contract_path",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Path to the contract specification",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitSpec",
+      "error_cases": [
+        {
+          "name": "node_not_found",
+          "condition": "Node with given name does not exist in circuit",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Node '{node_name}' not found"
+          }
+        }
+      ],
+      "preconditions": [
+        "Node with given name must exist in circuit"
+      ],
+      "postconditions": [
+        "Returns new CircuitSpec with updated node contract",
+        "Original circuit is unchanged (pure function)",
+        "New circuit has same name and version as original",
+        "Specified node has contract field updated to contract_path",
+        "All other node fields and all other nodes remain unchanged",
+        "All edges remain unchanged"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "has_cycle",
+      "description": "Check if the circuit's edge graph contains a cycle using depth-first search with color marking (WHITE=0, GRAY=1, BLACK=2).",
+      "inputs": [
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The circuit to check for cycles",
+          "validators": []
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns True if circuit contains at least one cycle",
+        "Returns False if circuit is acyclic (DAG)",
+        "Original circuit is unchanged (pure function)"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "topological_sort",
+      "description": "Return node names in topological order (dependencies first) using Kahn's algorithm with sorted queue for deterministic ordering.",
+      "inputs": [
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The circuit to sort topologically",
+          "validators": []
+        }
+      ],
+      "output_type": "list[str]",
+      "error_cases": [
+        {
+          "name": "contains_cycle",
+          "condition": "Circuit contains a cycle",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Circuit contains a cycle"
+          }
+        }
+      ],
+      "preconditions": [
+        "Circuit must not contain a cycle (must be a DAG)"
+      ],
+      "postconditions": [
+        "Returns list of node names in topological order",
+        "For every edge (u, v), u appears before v in the result",
+        "Original circuit is unchanged (pure function)",
+        "Result is deterministic (queue is sorted at each step)"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_next_port",
+      "description": "Find the next available port in the range [DEFAULT_PORT_START, DEFAULT_PORT_MAX]. Internal helper function for port auto-assignment.",
+      "inputs": [
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The circuit to check for used ports",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "no_available_ports",
+          "condition": "All ports in range [9001, 9999] are used by circuit nodes",
+          "error_type": "RuntimeError",
+          "error_data": {
+            "message": "No available ports in range"
+          }
+        }
+      ],
+      "preconditions": [
+        "At least one port in range [9001, 9999] must be available"
+      ],
+      "postconditions": [
+        "Returns the first available port in ascending order from 9001",
+        "Returned port is not used by any node in the circuit",
+        "Original circuit is unchanged (pure function)"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "baton.schemas"
+  ],
+  "dependency_contracts": {
+    "baton.schemas": [
+      "CircuitSpec",
+      "EdgeSpec",
+      "NodeSpec"
+    ]
+  },
+  "invariants": [
+    "DEFAULT_PORT_START = 9001",
+    "DEFAULT_PORT_MAX = 9999",
+    "All functions are pure (return new instances, do not mutate inputs)",
+    "All CircuitSpec modifications preserve name and version fields",
+    "Port range for auto-assignment is [9001, 9999] inclusive"
+  ],
+  "requires": []
+}

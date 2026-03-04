@@ -15,9 +15,11 @@ Start fully mocked. Slot in real services one at a time. Run A/B tests. Collapse
 - **Mock collapse** -- auto-generate mock servers from OpenAPI/JSON Schema contracts; run your entire circuit in one process
 - **Hot-swap** -- replace running services with zero downtime (drain old, start new, switch)
 - **A/B routing** -- weighted splits, canary rollouts, header-based routing with config locking
+- **Canary auto-promotion** -- automated canary evaluation with error rate and latency thresholds; promotes or rolls back without intervention
 - **Self-healing** -- custodian monitors health, restarts failed services, escalates when repairs fail
 - **Two workflows** -- topology-first (hand-author `baton.yaml`) or service-first (derive from `baton-service.yaml` manifests)
-- **Cloud deployment** -- local processes or GCP Cloud Run; provider protocol for extensibility
+- **Image building** -- auto-detect runtime (Python/Node), generate Dockerfiles, build and push container images
+- **Cloud deployment** -- local processes or GCP Cloud Run with `--build` for automatic image building; provider protocol for extensibility
 
 ## Quickstart
 
@@ -135,6 +137,7 @@ baton down                                # tear down circuit
 baton route show <node>                   # display routing config
 baton route ab <node> <cmd> [--split N/M] # A/B split (default 80/20)
 baton route canary <node> <cmd> [--pct N] # canary rollout (default 10%)
+baton route canary <node> <cmd> --promote # auto-promote canary (evaluate + promote/rollback)
 baton route set <node> --strategy ...     # custom routing config
 baton route lock <node>                   # lock routing (prevents slot/swap)
 baton route unlock <node>                 # unlock routing
@@ -152,10 +155,19 @@ baton signals [--node N] [--path P]       # recent request signals
 baton signals --stats                     # per-path statistics
 ```
 
+### Images
+
+```bash
+baton image build [--node N] [--path P]   # detect runtime, generate Dockerfile, build image
+baton image push [--node N] [--tag T]     # push image to registry
+baton image list                          # list built images
+```
+
 ### Deployment
 
 ```bash
 baton deploy [--provider local|gcp]       # deploy circuit
+baton deploy --provider gcp --build       # build images + deploy to Cloud Run
 baton teardown [--provider local|gcp]     # tear down deployment
 baton deploy-status [--provider ...]      # check deployment status
 ```
@@ -184,6 +196,20 @@ Every adapter records per-request signals (method, path, status, latency) and ag
 - **Dashboard** -- `baton dashboard --serve` launches a live browser UI with node cards, bar charts, signal logs, and topology views. Polls every 2 seconds.
 - **Signals** -- `baton signals --stats` shows per-path aggregations. Signals are persisted to `.baton/signals.jsonl` for offline analysis.
 - **Metrics** -- `baton metrics --prometheus` exports all node metrics in Prometheus text exposition format. Snapshots are persisted to `.baton/metrics.jsonl`.
+
+## Canary Auto-Promotion
+
+```bash
+baton route canary api "python app_v2.py" --pct 10 --promote \
+  --error-threshold 5.0 --latency-threshold 500 --eval-interval 30
+```
+
+The canary controller evaluates the canary vs stable targets every `eval-interval` seconds:
+- If canary error rate exceeds `error-threshold` (%) or p99 latency exceeds `latency-threshold` (ms): **rollback** to 100% stable
+- Otherwise: **promote** through weight steps (10% -> 25% -> 50% -> 100%)
+- At 100%: promotion complete, canary becomes the new primary
+
+Per-target metrics (stable vs canary) are tracked independently by the adapter, giving accurate comparison even under mixed traffic.
 
 ## Mock Collapse
 
@@ -219,11 +245,16 @@ Runs services as local processes with adapters.
 
 ```bash
 pip install baton-orchestrator[gcp]
+
+# Deploy with pre-built images
 baton deploy --provider gcp --project my-project --region us-central1 \
   --image "us-docker.pkg.dev/cloudrun/container/hello:latest"
+
+# Or auto-build and deploy
+baton deploy --provider gcp --build --project my-project --region us-central1
 ```
 
-Each node becomes a Cloud Run service. Edges are realized via environment variables.
+Each node becomes a Cloud Run service. Edges are realized via `BATON_{NODE}_URL` environment variables injected automatically. The `--build` flag detects runtimes, generates Dockerfiles, builds images, pushes to GCR, and deploys.
 
 ## Configuration
 
@@ -254,13 +285,32 @@ edges:
 | `ingress` | Entry point from outside the circuit. |
 | `egress` | External dependency (e.g., third-party API). Always mocked. |
 
+## Contract Governance (Pact)
+
+This codebase is governed by [Pact](https://github.com/jmcentire/pact), a contract-first multi-agent software engineering framework. Pact reverse-engineered contracts and tests for all 25 source modules (247 functions):
+
+```
+.pact/
+  contracts/          # Per-module contracts + tests
+    src_baton_adapter/
+      interface.py    # 40-function contract with pre/postconditions
+      interface.json  # Machine-readable contract
+      tests/          # Generated contract tests (82 cases)
+    ...               # 24 more modules
+  test-gen/
+    security_audit.md # Automated security findings
+  state.json          # Adoption state
+```
+
+The contracts serve as living documentation of baton's interface boundaries. Each contract specifies function signatures, type definitions, invariants, and behavioral constraints that any implementation must satisfy.
+
 ## Development
 
 ```bash
 git clone https://github.com/jmcentire/baton.git
 cd baton
 pip install -e ".[dev]"
-pytest
+pytest                    # 379 tests
 ```
 
 ## License

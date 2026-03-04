@@ -1,0 +1,501 @@
+{
+  "component_id": "src_baton_adapter_control",
+  "name": "Adapter Control Server",
+  "description": "A small HTTP server that runs on each adapter's management port, exposing REST endpoints for health checks (/health), metrics (/metrics), status information (/status), and routing configuration (/routing).",
+  "version": 1,
+  "types": [
+    {
+      "name": "AdapterControlServer",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "_adapter",
+          "type_ref": "Adapter",
+          "required": true,
+          "default": "",
+          "description": "The adapter instance this control server manages",
+          "validators": []
+        },
+        {
+          "name": "_server",
+          "type_ref": "Optional[asyncio.Server]",
+          "required": true,
+          "default": "",
+          "description": "The underlying asyncio TCP server instance",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Management HTTP server for a single adapter that handles control API requests"
+    }
+  ],
+  "functions": [
+    {
+      "name": "__init__",
+      "description": "Initialize the AdapterControlServer with an adapter instance. Sets up the server but does not start it.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "AdapterControlServer",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "adapter",
+          "type_ref": "Adapter",
+          "required": true,
+          "default": "",
+          "description": "The adapter instance to manage",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [
+        "adapter must be a valid Adapter instance"
+      ],
+      "postconditions": [
+        "_adapter is set to the provided adapter",
+        "_server is initialized to None"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "self._adapter",
+          "description": "Stores reference to adapter"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "self._server",
+          "description": "Initializes server to None"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "is_running",
+      "description": "Property that checks if the control server is currently running by verifying the server exists and is serving.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "AdapterControlServer",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns True if _server is not None and is_serving() returns True",
+        "Returns False otherwise"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [],
+      "performance_budget": null
+    },
+    {
+      "name": "start",
+      "description": "Start the control server on the adapter's management port. Creates an asyncio TCP server and begins listening for HTTP requests.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "AdapterControlServer",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [
+        {
+          "name": "OSError",
+          "condition": "Port already in use or binding fails",
+          "error_type": "OSError",
+          "error_data": {}
+        },
+        {
+          "name": "AttributeError",
+          "condition": "adapter.node does not have expected attributes",
+          "error_type": "AttributeError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "_adapter.node must have valid host and management_port attributes"
+      ],
+      "postconditions": [
+        "_server is set to a running asyncio.Server instance",
+        "Server is listening on node.host:node.management_port",
+        "Log message is written with server details"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state",
+        "network_call",
+        "logging"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "self._server",
+          "description": "Sets _server to asyncio.Server instance"
+        },
+        {
+          "kind": "network_call",
+          "target": "node.host:node.management_port",
+          "description": "Binds TCP server to management port"
+        },
+        {
+          "kind": "logging",
+          "target": "logger",
+          "description": "Logs info message about server listening"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "stop",
+      "description": "Stop the control server if it is running. Closes the server and waits for all connections to close.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "AdapterControlServer",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "If _server was not None, it is closed and awaited",
+        "_server is set to None"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state",
+        "network_call"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "self._server",
+          "description": "Sets _server to None after closing"
+        },
+        {
+          "kind": "network_call",
+          "target": "TCP server",
+          "description": "Closes server and existing connections"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_handle",
+      "description": "Handle an incoming HTTP request to the control API. Parses HTTP request line, routes to appropriate handler based on path, and writes response. Supports GET requests to /health, /metrics, /status, /routing. Returns 404 for other paths.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "AdapterControlServer",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "reader",
+          "type_ref": "asyncio.StreamReader",
+          "required": true,
+          "default": "",
+          "description": "Stream reader for incoming request",
+          "validators": []
+        },
+        {
+          "name": "writer",
+          "type_ref": "asyncio.StreamWriter",
+          "required": true,
+          "default": "",
+          "description": "Stream writer for response",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [
+        {
+          "name": "TimeoutError",
+          "condition": "Reading request line takes more than 5 seconds",
+          "error_type": "asyncio.TimeoutError",
+          "error_data": {}
+        },
+        {
+          "name": "GenericException",
+          "condition": "Any exception during request handling is caught and logged",
+          "error_type": "Exception",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "reader and writer are valid asyncio stream objects"
+      ],
+      "postconditions": [
+        "HTTP response is written to writer",
+        "writer is closed"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "network_call",
+        "logging"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "reader/writer streams",
+          "description": "Reads request and writes response"
+        },
+        {
+          "kind": "logging",
+          "target": "logger",
+          "description": "Logs debug message on exception"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_handle_health",
+      "description": "Handle GET /health endpoint. Calls adapter health_check and returns JSON with health status including node name, verdict, latency, and detail.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "AdapterControlServer",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "str",
+      "error_cases": [
+        {
+          "name": "AttributeError",
+          "condition": "health object missing expected attributes",
+          "error_type": "AttributeError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "_adapter.health_check() must be callable"
+      ],
+      "postconditions": [
+        "Returns JSON string with health data",
+        "JSON contains keys: node, verdict, latency_ms, detail"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [],
+      "performance_budget": null
+    },
+    {
+      "name": "_handle_metrics",
+      "description": "Handle GET /metrics endpoint. Returns JSON with adapter metrics including request counts, status codes, bytes forwarded, latency statistics, and active connections.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "AdapterControlServer",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "str",
+      "error_cases": [
+        {
+          "name": "AttributeError",
+          "condition": "metrics object missing expected attributes or methods",
+          "error_type": "AttributeError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "_adapter.metrics must exist and have expected attributes"
+      ],
+      "postconditions": [
+        "Returns JSON string with metrics data",
+        "JSON contains keys: requests_total, requests_failed, bytes_forwarded, last_latency_ms, status_2xx, status_3xx, status_4xx, status_5xx, active_connections, latency_p50, latency_p95, latency_p99"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [],
+      "performance_budget": null
+    },
+    {
+      "name": "_handle_status",
+      "description": "Handle GET /status endpoint. Returns JSON with adapter status including node name, listening address, proxy mode, backend configuration, and routing strategy if applicable.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "AdapterControlServer",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "str",
+      "error_cases": [
+        {
+          "name": "AttributeError",
+          "condition": "adapter objects missing expected attributes",
+          "error_type": "AttributeError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "_adapter.node, _adapter.backend, and _adapter.routing must be accessible"
+      ],
+      "postconditions": [
+        "Returns JSON string with status data",
+        "JSON contains keys: node, listening, mode, backend, running",
+        "If routing exists, JSON also contains routing_strategy and routing_locked"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [],
+      "performance_budget": null
+    },
+    {
+      "name": "_handle_routing",
+      "description": "Handle GET /routing endpoint. Returns JSON with routing configuration. If no routing object exists, returns single backend strategy. Otherwise returns routing model dump.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "AdapterControlServer",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "str",
+      "error_cases": [
+        {
+          "name": "AttributeError",
+          "condition": "routing object missing model_dump method or backend missing attributes",
+          "error_type": "AttributeError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "Returns JSON string with routing configuration",
+        "If routing is None, returns single strategy with backend info",
+        "If routing exists, returns routing.model_dump() as JSON"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [],
+      "performance_budget": null
+    },
+    {
+      "name": "_write_response",
+      "description": "Static method to write an HTTP response with given status code and JSON body to the writer stream. Constructs HTTP/1.1 response headers and body.",
+      "inputs": [
+        {
+          "name": "writer",
+          "type_ref": "asyncio.StreamWriter",
+          "required": true,
+          "default": "",
+          "description": "Stream writer to write response to",
+          "validators": []
+        },
+        {
+          "name": "status",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "HTTP status code (e.g., 200, 404, 500)",
+          "validators": []
+        },
+        {
+          "name": "body",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Response body as string",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [
+        {
+          "name": "UnicodeEncodeError",
+          "condition": "body contains characters that cannot be UTF-8 encoded",
+          "error_type": "UnicodeEncodeError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "writer must be a valid StreamWriter",
+        "status should be a valid HTTP status code",
+        "body should be a valid string"
+      ],
+      "postconditions": [
+        "HTTP response headers are written to writer",
+        "Response body is written to writer",
+        "Content-Type is set to application/json",
+        "Connection is set to close"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "network_call"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "writer stream",
+          "description": "Writes HTTP response headers and body"
+        }
+      ],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "asyncio",
+    "json",
+    "logging",
+    "baton.adapter",
+    "baton.schemas"
+  ],
+  "dependency_contracts": {
+    "baton.adapter": [
+      "Adapter"
+    ],
+    "baton.schemas": [
+      "HealthVerdict"
+    ]
+  },
+  "invariants": [
+    "_server is None when not running, asyncio.Server when running",
+    "Supported HTTP paths are: /health, /metrics, /status, /routing",
+    "All responses are JSON with Content-Type: application/json",
+    "Request timeout is 5 seconds",
+    "All connections use Connection: close header",
+    "Status code mapping: 200='OK', 404='Not Found', 500='Internal Server Error'"
+  ],
+  "requires": []
+}

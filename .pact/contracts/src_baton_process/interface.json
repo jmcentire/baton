@@ -1,0 +1,375 @@
+{
+  "component_id": "src_baton_process",
+  "name": "Baton Process Manager",
+  "description": "Process management for Baton. Provides functionality to start, stop, and track service subprocesses for nodes. Manages subprocess lifecycle with graceful termination (SIGTERM followed by SIGKILL on timeout).",
+  "version": 1,
+  "types": [
+    {
+      "name": "ProcessInfo",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "command",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Shell command executed",
+          "validators": []
+        },
+        {
+          "name": "pid",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Process ID",
+          "validators": []
+        },
+        {
+          "name": "process",
+          "type_ref": "asyncio.subprocess.Process",
+          "required": true,
+          "default": "",
+          "description": "Subprocess object",
+          "validators": []
+        },
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": false,
+          "default": "\"\"",
+          "description": "Node name this process serves",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Tracked process information for a managed subprocess."
+    },
+    {
+      "name": "ProcessManager",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "_processes",
+          "type_ref": "dict[str, ProcessInfo]",
+          "required": true,
+          "default": "",
+          "description": "Internal process tracking dictionary keyed by node_name",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Manages service subprocesses with tracking by node name. Maintains internal dictionary of ProcessInfo keyed by node_name."
+    }
+  ],
+  "functions": [
+    {
+      "name": "__init__",
+      "description": "Initialize a new ProcessManager with an empty process tracking dictionary.",
+      "inputs": [],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "self._processes is initialized as empty dict[str, ProcessInfo]"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "self._processes",
+          "description": "Initializes internal process tracking dictionary"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "processes",
+      "description": "Property getter that returns a copy of the tracked processes dictionary.",
+      "inputs": [],
+      "output_type": "dict[str, ProcessInfo]",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns a new dict containing current processes",
+        "Returned dict is a copy, not a reference to internal state"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "none"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "start",
+      "description": "Start a subprocess for a node using shell command. If a process for the node_name already exists, it is stopped first. Creates subprocess with piped stdout/stderr and optional environment variables.",
+      "inputs": [
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "The node this process serves",
+          "validators": []
+        },
+        {
+          "name": "command",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Shell command to run",
+          "validators": []
+        },
+        {
+          "name": "env",
+          "type_ref": "dict[str, str] | None",
+          "required": false,
+          "default": "None",
+          "description": "Additional environment variables",
+          "validators": []
+        }
+      ],
+      "output_type": "ProcessInfo",
+      "error_cases": [
+        {
+          "name": "subprocess_creation_failure",
+          "condition": "asyncio.create_subprocess_shell fails",
+          "error_type": "OSError or subprocess-related exception",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "command is a valid shell command string"
+      ],
+      "postconditions": [
+        "Subprocess is created and running",
+        "ProcessInfo is stored in self._processes[node_name]",
+        "ProcessInfo is returned with valid pid and process object",
+        "Log entry is written for process start"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state",
+        "logging",
+        "network_call"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "self._processes",
+          "description": "Adds or replaces ProcessInfo for node_name"
+        },
+        {
+          "kind": "logging",
+          "target": "logger",
+          "description": "Logs process start with pid and command"
+        },
+        {
+          "kind": "network_call",
+          "target": "subprocess",
+          "description": "Creates and starts subprocess via asyncio.create_subprocess_shell"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "stop",
+      "description": "Stop a subprocess gracefully by sending SIGTERM. If process does not exit within timeout, sends SIGKILL. Removes the process from tracking. Does nothing if node_name is not found or process already exited.",
+      "inputs": [
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Node name whose process to stop",
+          "validators": []
+        },
+        {
+          "name": "timeout",
+          "type_ref": "float",
+          "required": false,
+          "default": "10.0",
+          "description": "Seconds to wait before SIGKILL",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [
+        {
+          "name": "process_lookup_error",
+          "condition": "Process already gone when trying to terminate",
+          "error_type": "ProcessLookupError",
+          "error_data": {
+            "handling": "Exception is caught and ignored"
+          }
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "Process is terminated and removed from self._processes",
+        "If process exists and is running, SIGTERM is sent",
+        "If timeout expires, SIGKILL is sent",
+        "Log entry is written for process stop"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state",
+        "logging"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "self._processes",
+          "description": "Removes ProcessInfo for node_name"
+        },
+        {
+          "kind": "logging",
+          "target": "logger",
+          "description": "Logs process stop and potential SIGKILL warning"
+        },
+        {
+          "kind": "network_call",
+          "target": "subprocess",
+          "description": "Terminates and kills subprocess"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "stop_all",
+      "description": "Stop all tracked processes by calling stop() for each node_name in the current process dictionary.",
+      "inputs": [
+        {
+          "name": "timeout",
+          "type_ref": "float",
+          "required": false,
+          "default": "10.0",
+          "description": "Timeout passed to each stop() call",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "All processes in self._processes are stopped",
+        "self._processes becomes empty"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state",
+        "logging"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "self._processes",
+          "description": "Clears all ProcessInfo entries"
+        },
+        {
+          "kind": "logging",
+          "target": "logger",
+          "description": "Logs stop for each process"
+        },
+        {
+          "kind": "network_call",
+          "target": "subprocess",
+          "description": "Terminates all tracked subprocesses"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "is_running",
+      "description": "Check if a process for the given node_name is tracked and still running (returncode is None).",
+      "inputs": [
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Node name to check",
+          "validators": []
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns True if process exists and returncode is None",
+        "Returns False if process not found or has exited"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "none"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "get_pid",
+      "description": "Get the PID for a node's tracked process. Returns None if process is not found.",
+      "inputs": [
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Node name whose PID to retrieve",
+          "validators": []
+        }
+      ],
+      "output_type": "int | None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns int PID if process is tracked",
+        "Returns None if node_name not found"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "none"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "asyncio",
+    "logging",
+    "os",
+    "signal"
+  ],
+  "dependency_contracts": {},
+  "invariants": [
+    "Each node_name maps to at most one ProcessInfo in _processes",
+    "_processes keys are always valid node_name strings",
+    "ProcessInfo.node_name matches the key in _processes dictionary"
+  ],
+  "requires": []
+}

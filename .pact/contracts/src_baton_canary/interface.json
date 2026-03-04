@@ -1,0 +1,484 @@
+{
+  "component_id": "src_baton_canary",
+  "name": "Canary Controller",
+  "description": "Automated canary promotion and rollback controller that follows the custodian pattern with async loop and periodic evaluation. Compares canary vs stable per-target metrics and automatically promotes or rolls back based on error rate and latency thresholds.",
+  "version": 1,
+  "types": [
+    {
+      "name": "CanaryLifecycle",
+      "kind": "struct",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Protocol for lifecycle actions the canary controller can invoke"
+    },
+    {
+      "name": "CanaryController",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "_adapter",
+          "type_ref": "Adapter",
+          "required": true,
+          "default": "",
+          "description": "Adapter providing target metrics and routing configuration",
+          "validators": []
+        },
+        {
+          "name": "_node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the node being controlled",
+          "validators": []
+        },
+        {
+          "name": "_lifecycle",
+          "type_ref": "CanaryLifecycle",
+          "required": true,
+          "default": "",
+          "description": "Lifecycle handler for routing updates",
+          "validators": []
+        },
+        {
+          "name": "_error_threshold",
+          "type_ref": "float",
+          "required": true,
+          "default": "",
+          "description": "Maximum acceptable error rate percentage",
+          "validators": []
+        },
+        {
+          "name": "_latency_threshold",
+          "type_ref": "float",
+          "required": true,
+          "default": "",
+          "description": "Maximum acceptable p99 latency in milliseconds",
+          "validators": []
+        },
+        {
+          "name": "_promote_steps",
+          "type_ref": "list[int]",
+          "required": true,
+          "default": "",
+          "description": "Weight percentages for progressive promotion",
+          "validators": []
+        },
+        {
+          "name": "_eval_interval",
+          "type_ref": "float",
+          "required": true,
+          "default": "",
+          "description": "Seconds between evaluation cycles",
+          "validators": []
+        },
+        {
+          "name": "_min_requests",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Minimum requests required before evaluating canary",
+          "validators": []
+        },
+        {
+          "name": "_running",
+          "type_ref": "bool",
+          "required": true,
+          "default": "",
+          "description": "Whether the controller loop is running",
+          "validators": []
+        },
+        {
+          "name": "_outcome",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Final outcome: 'promoted', 'rolled_back', or empty string",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Automated canary promotion/rollback controller. Manages async evaluation loop, metric comparison, and routing updates."
+    }
+  ],
+  "functions": [
+    {
+      "name": "CanaryLifecycle.set_routing",
+      "description": "Protocol method to update routing configuration for a node",
+      "inputs": [
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the node to update",
+          "validators": []
+        },
+        {
+          "name": "config",
+          "type_ref": "RoutingConfig",
+          "required": true,
+          "default": "",
+          "description": "New routing configuration",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Routing configuration is updated for the specified node"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "node routing configuration",
+          "description": "Updates routing for specified node"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "CanaryController.__init__",
+      "description": "Initialize a CanaryController with adapter, node name, lifecycle handler, and thresholds. Sets up internal state including running=False and outcome=empty string.",
+      "inputs": [
+        {
+          "name": "adapter",
+          "type_ref": "Adapter",
+          "required": true,
+          "default": "",
+          "description": "Adapter providing metrics and routing info",
+          "validators": []
+        },
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the node to control",
+          "validators": []
+        },
+        {
+          "name": "lifecycle",
+          "type_ref": "CanaryLifecycle",
+          "required": true,
+          "default": "",
+          "description": "Lifecycle handler for routing changes",
+          "validators": []
+        },
+        {
+          "name": "error_threshold",
+          "type_ref": "float",
+          "required": false,
+          "default": "5.0",
+          "description": "Maximum error rate percentage before rollback",
+          "validators": []
+        },
+        {
+          "name": "latency_threshold",
+          "type_ref": "float",
+          "required": false,
+          "default": "500.0",
+          "description": "Maximum p99 latency in ms before rollback",
+          "validators": []
+        },
+        {
+          "name": "promote_steps",
+          "type_ref": "list[int] | None",
+          "required": false,
+          "default": "None",
+          "description": "Custom promotion weight steps (defaults to [10, 25, 50, 100])",
+          "validators": []
+        },
+        {
+          "name": "eval_interval",
+          "type_ref": "float",
+          "required": false,
+          "default": "30.0",
+          "description": "Seconds between evaluation cycles",
+          "validators": []
+        },
+        {
+          "name": "min_requests",
+          "type_ref": "int",
+          "required": false,
+          "default": "20",
+          "description": "Minimum requests before evaluating canary",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "_running is False",
+        "_outcome is empty string",
+        "_promote_steps is a list copy of promote_steps or DEFAULT_PROMOTE_STEPS"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "CanaryController instance",
+          "description": "Initializes all instance attributes"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "CanaryController.outcome",
+      "description": "Property getter that returns the final outcome of the canary evaluation",
+      "inputs": [],
+      "output_type": "str",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns 'promoted', 'rolled_back', or empty string"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "CanaryController.is_running",
+      "description": "Property getter that returns whether the controller evaluation loop is currently running",
+      "inputs": [],
+      "output_type": "bool",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns current value of _running flag"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "CanaryController.run",
+      "description": "Main async evaluation loop. Sets running flag to True, logs start, sleeps for eval_interval between evaluations, calls _evaluate, stops when _running becomes False, and logs outcome.",
+      "inputs": [],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "_running is False when function returns",
+        "Logs controller start and stop messages"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state",
+        "logging"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "_running flag",
+          "description": "Sets _running to True at start, checks it throughout loop"
+        },
+        {
+          "kind": "logging",
+          "target": "logger",
+          "description": "Logs start and stop info messages"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "CanaryController.stop",
+      "description": "Stops the evaluation loop by setting the _running flag to False",
+      "inputs": [],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "_running is False"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "_running flag",
+          "description": "Sets _running to False"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "CanaryController._evaluate",
+      "description": "Compare canary vs stable metrics. Returns early if no canary metrics or insufficient requests. Checks error rate and p99 latency against thresholds; calls _rollback if exceeded. Otherwise calls _promote.",
+      "inputs": [],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "If canary metrics missing or insufficient requests: returns early",
+        "If error rate > error_threshold: calls _rollback",
+        "If p99 latency > latency_threshold: calls _rollback",
+        "If thresholds passed: calls _promote"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "logging"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "logging",
+          "target": "logger",
+          "description": "Logs debug messages for skipped evaluations, warnings for rollbacks"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "CanaryController._get_current_canary_weight",
+      "description": "Get current canary weight from the adapter's routing config. Returns 0 if routing is None or canary target not found.",
+      "inputs": [],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns weight of canary target if found",
+        "Returns 0 if routing is None or canary target not found"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "CanaryController._promote",
+      "description": "Advance canary to the next weight step. Gets current weight, finds next step in promote_steps list. If no next step, marks as promoted and stops. Otherwise creates new RoutingConfig with updated weights and calls lifecycle.set_routing. If weight reaches 100, marks as promoted and stops.",
+      "inputs": [],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "If no next step: _outcome='promoted', _running=False",
+        "If routing is None: returns early",
+        "If stable or canary target missing: logs error and returns",
+        "If next step found: calls lifecycle.set_routing with new weights",
+        "If next_weight >= 100: _outcome='promoted', _running=False"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state",
+        "logging"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "_outcome and _running flags",
+          "description": "May set _outcome to 'promoted' and _running to False"
+        },
+        {
+          "kind": "logging",
+          "target": "logger",
+          "description": "Logs promotion info messages and error messages"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "routing configuration via lifecycle",
+          "description": "Calls lifecycle.set_routing to update weights"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "CanaryController._rollback",
+      "description": "Revert to 100% stable traffic. Sets outcome to 'rolled_back' and running to False. If routing config available, creates new RoutingConfig with stable at 100% weight and canary at 0%, then calls lifecycle.set_routing.",
+      "inputs": [],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "_outcome='rolled_back'",
+        "_running=False",
+        "If routing available and stable target found: calls lifecycle.set_routing with 100% stable",
+        "If stable target not found: logs error"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "mutates_state",
+        "logging"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "_outcome and _running flags",
+          "description": "Sets _outcome to 'rolled_back' and _running to False"
+        },
+        {
+          "kind": "logging",
+          "target": "logger",
+          "description": "Logs rollback info message or error message"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "routing configuration via lifecycle",
+          "description": "Calls lifecycle.set_routing to set 100% stable traffic"
+        }
+      ],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "asyncio",
+    "logging",
+    "baton.adapter",
+    "baton.schemas"
+  ],
+  "dependency_contracts": {
+    "baton.adapter": [
+      "Adapter",
+      "AdapterMetrics"
+    ],
+    "baton.schemas": [
+      "RoutingConfig",
+      "RoutingStrategy",
+      "RoutingTarget"
+    ]
+  },
+  "invariants": [
+    "DEFAULT_PROMOTE_STEPS = [10, 25, 50, 100]",
+    "_outcome can only be '', 'promoted', or 'rolled_back'",
+    "_running is True only during active evaluation loop",
+    "Error rate calculated as (status_5xx / requests_total) * 100",
+    "Promotion only occurs when canary metrics exist and requests >= min_requests",
+    "Rollback sets canary weight to 0 and stable weight to 100",
+    "Promotion advances to next step in _promote_steps list where step > current_weight"
+  ],
+  "requires": []
+}

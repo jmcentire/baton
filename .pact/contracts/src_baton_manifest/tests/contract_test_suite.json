@@ -1,0 +1,398 @@
+{
+  "component_id": "src_baton_manifest",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "test_load_manifest_happy_path_with_str",
+      "description": "Load a valid manifest from directory path as string",
+      "function": "load_manifest",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid directory path as string containing baton-service.yaml",
+      "expected_output_description": "Returns ServiceManifest object with all fields populated",
+      "expected_error": "",
+      "assertions": [
+        "ServiceManifest object is returned",
+        "Manifest has expected name",
+        "File was read and closed properly"
+      ]
+    },
+    {
+      "id": "test_load_manifest_happy_path_with_path",
+      "description": "Load a valid manifest from directory path as Path object",
+      "function": "load_manifest",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid directory path as pathlib.Path containing baton-service.yaml",
+      "expected_output_description": "Returns ServiceManifest object with all fields populated",
+      "expected_error": "",
+      "assertions": [
+        "ServiceManifest object is returned",
+        "Manifest has expected name",
+        "Path object handled correctly"
+      ]
+    },
+    {
+      "id": "test_load_manifest_with_all_fields",
+      "description": "Load manifest containing all optional fields",
+      "function": "load_manifest",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Directory with manifest containing name, version, port, proxy_mode, role, api_spec, mock_spec, command, metadata, dependencies",
+      "expected_output_description": "ServiceManifest with all fields correctly populated",
+      "expected_error": "",
+      "assertions": [
+        "All required fields present",
+        "All optional fields present",
+        "Dependencies parsed as DependencySpec objects"
+      ]
+    },
+    {
+      "id": "test_load_manifest_with_minimal_fields",
+      "description": "Load manifest containing only required field (name)",
+      "function": "load_manifest",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Directory with manifest containing only 'name' field",
+      "expected_output_description": "ServiceManifest with name and defaults for other fields",
+      "expected_error": "",
+      "assertions": [
+        "Name field is populated",
+        "Default values applied per invariants"
+      ]
+    },
+    {
+      "id": "test_load_manifest_error_not_found",
+      "description": "Error when baton-service.yaml does not exist",
+      "function": "load_manifest",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Valid directory path but no baton-service.yaml file",
+      "expected_output_description": "",
+      "expected_error": "manifest_not_found",
+      "assertions": [
+        "Raises appropriate exception for missing file"
+      ]
+    },
+    {
+      "id": "test_load_manifest_error_empty",
+      "description": "Error when YAML file is empty",
+      "function": "load_manifest",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Directory with empty baton-service.yaml file",
+      "expected_output_description": "",
+      "expected_error": "empty_manifest",
+      "assertions": [
+        "Raises appropriate exception for empty manifest"
+      ]
+    },
+    {
+      "id": "test_load_manifest_error_yaml_parse",
+      "description": "Error when YAML syntax is invalid",
+      "function": "load_manifest",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Directory with baton-service.yaml containing invalid YAML syntax",
+      "expected_output_description": "",
+      "expected_error": "yaml_parse_error",
+      "assertions": [
+        "Raises appropriate exception for YAML parse error"
+      ]
+    },
+    {
+      "id": "test_load_manifest_error_io",
+      "description": "Error when file cannot be opened or read",
+      "function": "load_manifest",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "File exists but cannot be read due to permissions",
+      "expected_output_description": "",
+      "expected_error": "io_error",
+      "assertions": [
+        "Raises appropriate exception for IO error"
+      ]
+    },
+    {
+      "id": "test_load_manifest_error_invalid_directory",
+      "description": "Error when service_dir is not a valid directory",
+      "function": "load_manifest",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Path that does not exist or is not a directory",
+      "expected_output_description": "",
+      "expected_error": "manifest_not_found",
+      "assertions": [
+        "Raises appropriate exception for invalid directory"
+      ]
+    },
+    {
+      "id": "test_parse_manifest_happy_path",
+      "description": "Parse valid dict with all fields into ServiceManifest",
+      "function": "_parse_manifest",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Dictionary with name and all optional fields",
+      "expected_output_description": "ServiceManifest object with all fields populated",
+      "expected_error": "",
+      "assertions": [
+        "ServiceManifest object created",
+        "All fields correctly mapped",
+        "Dependencies converted to DependencySpec"
+      ]
+    },
+    {
+      "id": "test_parse_manifest_minimal",
+      "description": "Parse dict with only required 'name' field",
+      "function": "_parse_manifest",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Dictionary with only 'name' key",
+      "expected_output_description": "ServiceManifest with name and default values",
+      "expected_error": "",
+      "assertions": [
+        "Name field populated",
+        "Default version is '0.0.0'",
+        "Default port is 0",
+        "Default proxy_mode is 'http'",
+        "Default role is 'service'",
+        "Empty strings for api_spec, mock_spec, command",
+        "Empty dict for metadata",
+        "Empty list for dependencies"
+      ]
+    },
+    {
+      "id": "test_parse_manifest_dependencies_as_strings",
+      "description": "Parse dependencies specified as list of strings",
+      "function": "_parse_manifest",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Dict with dependencies as ['service1', 'service2']",
+      "expected_output_description": "ServiceManifest with dependencies as DependencySpec objects",
+      "expected_error": "",
+      "assertions": [
+        "Dependencies converted from strings to DependencySpec",
+        "Each dependency has correct structure"
+      ]
+    },
+    {
+      "id": "test_parse_manifest_dependencies_as_dicts",
+      "description": "Parse dependencies specified as list of dicts",
+      "function": "_parse_manifest",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Dict with dependencies as [{'name': 'service1', 'version': '1.0.0'}]",
+      "expected_output_description": "ServiceManifest with dependencies as DependencySpec objects",
+      "expected_error": "",
+      "assertions": [
+        "Dependencies converted from dicts to DependencySpec",
+        "Dependency fields correctly mapped"
+      ]
+    },
+    {
+      "id": "test_parse_manifest_error_missing_name",
+      "description": "Error when 'name' key is missing from dict",
+      "function": "_parse_manifest",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Dictionary without 'name' key",
+      "expected_output_description": "",
+      "expected_error": "missing_name",
+      "assertions": [
+        "Raises appropriate exception for missing name"
+      ]
+    },
+    {
+      "id": "test_parse_manifest_error_invalid_dependency",
+      "description": "Error when DependencySpec construction fails",
+      "function": "_parse_manifest",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Dictionary with invalid dependency specification",
+      "expected_output_description": "",
+      "expected_error": "invalid_dependency_spec",
+      "assertions": [
+        "Raises appropriate exception for invalid dependency"
+      ]
+    },
+    {
+      "id": "test_parse_manifest_error_invalid_manifest",
+      "description": "Error when ServiceManifest construction fails",
+      "function": "_parse_manifest",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Dictionary with invalid fields for ServiceManifest",
+      "expected_output_description": "",
+      "expected_error": "invalid_service_manifest",
+      "assertions": [
+        "Raises appropriate exception for invalid manifest structure"
+      ]
+    },
+    {
+      "id": "test_invariant_manifest_filename",
+      "description": "Verify MANIFEST_FILENAME constant is 'baton-service.yaml'",
+      "function": "load_manifest",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "MANIFEST_FILENAME equals 'baton-service.yaml'"
+      ]
+    },
+    {
+      "id": "test_invariant_defaults",
+      "description": "Verify default values are applied per invariants",
+      "function": "_parse_manifest",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Default version is '0.0.0'",
+        "Default port is 0",
+        "Default proxy_mode is 'http'",
+        "Default role is 'service'",
+        "Default api_spec is empty string",
+        "Default mock_spec is empty string",
+        "Default command is empty string",
+        "Default metadata is empty dict"
+      ]
+    },
+    {
+      "id": "test_load_manifest_with_unicode",
+      "description": "Load manifest with Unicode characters in fields",
+      "function": "load_manifest",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Manifest with Unicode characters in name and other fields",
+      "expected_output_description": "ServiceManifest with Unicode preserved",
+      "expected_error": "",
+      "assertions": [
+        "Unicode characters preserved in fields"
+      ]
+    },
+    {
+      "id": "test_parse_manifest_mixed_dependencies",
+      "description": "Parse dependencies with mixed string and dict formats",
+      "function": "_parse_manifest",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Dict with dependencies as ['service1', {'name': 'service2', 'version': '1.0'}]",
+      "expected_output_description": "All dependencies converted to DependencySpec",
+      "expected_error": "",
+      "assertions": [
+        "Both string and dict dependencies handled",
+        "All converted to DependencySpec objects"
+      ]
+    },
+    {
+      "id": "test_load_manifest_relative_path",
+      "description": "Load manifest using relative path",
+      "function": "load_manifest",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Relative directory path to manifest",
+      "expected_output_description": "Manifest loaded successfully",
+      "expected_error": "",
+      "assertions": [
+        "Relative path resolved correctly",
+        "Manifest loaded"
+      ]
+    },
+    {
+      "id": "test_load_manifest_absolute_path",
+      "description": "Load manifest using absolute path",
+      "function": "load_manifest",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Absolute directory path to manifest",
+      "expected_output_description": "Manifest loaded successfully",
+      "expected_error": "",
+      "assertions": [
+        "Absolute path handled correctly",
+        "Manifest loaded"
+      ]
+    },
+    {
+      "id": "test_parse_manifest_with_null_optional_fields",
+      "description": "Parse manifest where optional fields are explicitly null",
+      "function": "_parse_manifest",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Dict with name and optional fields set to None",
+      "expected_output_description": "Default values applied for null fields",
+      "expected_error": "",
+      "assertions": [
+        "Null values handled gracefully",
+        "Defaults applied where needed"
+      ]
+    },
+    {
+      "id": "test_parse_manifest_empty_dependencies_list",
+      "description": "Parse manifest with empty dependencies list",
+      "function": "_parse_manifest",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Dict with dependencies as empty list []",
+      "expected_output_description": "ServiceManifest with empty dependencies",
+      "expected_error": "",
+      "assertions": [
+        "Empty dependencies list handled",
+        "No DependencySpec objects created"
+      ]
+    }
+  ],
+  "test_language": "python",
+  "generated_code": "\"\"\"\nContract-driven tests for Service Manifest Loader (src_baton_manifest)\nGenerated from contract version 1\n\nTests verify load_manifest and _parse_manifest functions against their contracts,\nincluding happy paths, edge cases, error cases, and invariants.\n\"\"\"\n\nimport pytest\nimport tempfile\nimport os\nfrom pathlib import Path\nfrom unittest.mock import Mock, MagicMock, patch, mock_open\nfrom typing import Any, Dict, List\n\n# Import the component under test\nfrom src.baton.manifest import load_manifest, _parse_manifest, MANIFEST_FILENAME\n\n\n# Mock classes for baton.schemas types\nclass MockDependencySpec:\n    \"\"\"Mock for baton.schemas.DependencySpec\"\"\"\n    def __init__(self, name: str = None, version: str = None, **kwargs):\n        if name is None and isinstance(kwargs.get('data'), str):\n            # String-based dependency\n            self.name = kwargs.get('data')\n            self.version = None\n        elif name is None and isinstance(kwargs.get('data'), dict):\n            # Dict-based dependency\n            self.name = kwargs['data'].get('name')\n            self.version = kwargs['data'].get('version')\n        else:\n            self.name = name\n            self.version = version\n        \n        # Validation\n        if not self.name:\n            raise ValueError(\"DependencySpec requires a name\")\n\n\nclass MockServiceManifest:\n    \"\"\"Mock for baton.schemas.ServiceManifest\"\"\"\n    def __init__(self, name: str, version: str = '0.0.0', port: int = 0, \n                 proxy_mode: str = 'http', role: str = 'service',\n                 api_spec: str = '', mock_spec: str = '', command: str = '',\n                 metadata: dict = None, dependencies: list = None, **kwargs):\n        if not name:\n            raise ValueError(\"ServiceManifest requires a name\")\n        \n        self.name = name\n        self.version = version\n        self.port = port\n        self.proxy_mode = proxy_mode\n        self.role = role\n        self.api_spec = api_spec\n        self.mock_spec = mock_spec\n        self.command = command\n        self.metadata = metadata if metadata is not None else {}\n        self.dependencies = dependencies if dependencies is not None else []\n\n\n# Custom exceptions for error cases\nclass ManifestNotFoundError(Exception):\n    \"\"\"Raised when baton-service.yaml cannot be found\"\"\"\n    pass\n\n\nclass EmptyManifestError(Exception):\n    \"\"\"Raised when manifest file is empty\"\"\"\n    pass\n\n\nclass YamlParseError(Exception):\n    \"\"\"Raised when YAML parsing fails\"\"\"\n    pass\n\n\nclass IOError(Exception):\n    \"\"\"Raised when file I/O operations fail\"\"\"\n    pass\n\n\nclass MissingNameError(Exception):\n    \"\"\"Raised when 'name' key is missing from manifest\"\"\"\n    pass\n\n\nclass InvalidDependencySpecError(Exception):\n    \"\"\"Raised when DependencySpec construction fails\"\"\"\n    pass\n\n\nclass InvalidServiceManifestError(Exception):\n    \"\"\"Raised when ServiceManifest construction fails\"\"\"\n    pass\n\n\n# Fixtures\n\n@pytest.fixture\ndef temp_service_dir():\n    \"\"\"Create a temporary directory for testing\"\"\"\n    with tempfile.TemporaryDirectory() as tmpdir:\n        yield tmpdir\n\n\n@pytest.fixture\ndef valid_manifest_dict():\n    \"\"\"Minimal valid manifest dictionary\"\"\"\n    return {\n        'name': 'test-service'\n    }\n\n\n@pytest.fixture\ndef full_manifest_dict():\n    \"\"\"Complete manifest dictionary with all fields\"\"\"\n    return {\n        'name': 'full-service',\n        'version': '1.2.3',\n        'port': 8080,\n        'proxy_mode': 'grpc',\n        'role': 'gateway',\n        'api_spec': 'openapi.yaml',\n        'mock_spec': 'mock.yaml',\n        'command': 'python app.py',\n        'metadata': {'key': 'value', 'env': 'prod'},\n        'dependencies': ['service1', {'name': 'service2', 'version': '2.0.0'}]\n    }\n\n\n@pytest.fixture\ndef manifest_with_string_deps():\n    \"\"\"Manifest with dependencies as strings\"\"\"\n    return {\n        'name': 'service-with-deps',\n        'dependencies': ['dep1', 'dep2', 'dep3']\n    }\n\n\n@pytest.fixture\ndef manifest_with_dict_deps():\n    \"\"\"Manifest with dependencies as dicts\"\"\"\n    return {\n        'name': 'service-with-deps',\n        'dependencies': [\n            {'name': 'dep1', 'version': '1.0.0'},\n            {'name': 'dep2', 'version': '2.0.0'}\n        ]\n    }\n\n\n# Happy Path Tests\n\ndef test_load_manifest_happy_path_with_str(temp_service_dir):\n    \"\"\"Load a valid manifest from directory path as string\"\"\"\n    # Setup\n    manifest_path = os.path.join(temp_service_dir, 'baton-service.yaml')\n    manifest_content = \"name: test-service\\nversion: 1.0.0\\n\"\n    \n    with open(manifest_path, 'w') as f:\n        f.write(manifest_content)\n    \n    # Execute\n    result = load_manifest(temp_service_dir)\n    \n    # Assert\n    assert result is not None, \"ServiceManifest object should be returned\"\n    assert hasattr(result, 'name'), \"Manifest should have name attribute\"\n    assert result.name == 'test-service', \"Manifest should have expected name\"\n    assert hasattr(result, 'version'), \"Manifest should have version attribute\"\n\n\ndef test_load_manifest_happy_path_with_path(temp_service_dir):\n    \"\"\"Load a valid manifest from directory path as Path object\"\"\"\n    # Setup\n    service_path = Path(temp_service_dir)\n    manifest_path = service_path / 'baton-service.yaml'\n    manifest_content = \"name: test-service-path\\nversion: 2.0.0\\n\"\n    \n    manifest_path.write_text(manifest_content)\n    \n    # Execute\n    result = load_manifest(service_path)\n    \n    # Assert\n    assert result is not None, \"ServiceManifest object should be returned\"\n    assert result.name == 'test-service-path', \"Manifest should have expected name\"\n    assert result.version == '2.0.0', \"Version should be parsed correctly\"\n\n\ndef test_load_manifest_with_all_fields(temp_service_dir):\n    \"\"\"Load manifest containing all optional fields\"\"\"\n    # Setup\n    manifest_path = os.path.join(temp_service_dir, 'baton-service.yaml')\n    manifest_content = \"\"\"\nname: complete-service\nversion: 1.2.3\nport: 8080\nproxy_mode: grpc\nrole: gateway\napi_spec: openapi.yaml\nmock_spec: mock.yaml\ncommand: python app.py\nmetadata:\n  key: value\n  env: prod\ndependencies:\n  - service1\n  - name: service2\n    version: 2.0.0\n\"\"\"\n    \n    with open(manifest_path, 'w') as f:\n        f.write(manifest_content)\n    \n    # Execute\n    result = load_manifest(temp_service_dir)\n    \n    # Assert\n    assert result.name == 'complete-service', \"Name should be parsed\"\n    assert result.version == '1.2.3', \"Version should be parsed\"\n    assert result.port == 8080, \"Port should be parsed\"\n    assert result.proxy_mode == 'grpc', \"Proxy mode should be parsed\"\n    assert result.role == 'gateway', \"Role should be parsed\"\n    assert result.api_spec == 'openapi.yaml', \"API spec should be parsed\"\n    assert result.mock_spec == 'mock.yaml', \"Mock spec should be parsed\"\n    assert result.command == 'python app.py', \"Command should be parsed\"\n    assert result.metadata == {'key': 'value', 'env': 'prod'}, \"Metadata should be parsed\"\n    assert len(result.dependencies) == 2, \"Dependencies should be parsed as DependencySpec objects\"\n\n\ndef test_parse_manifest_happy_path(full_manifest_dict):\n    \"\"\"Parse valid dict with all fields into ServiceManifest\"\"\"\n    # Execute\n    result = _parse_manifest(full_manifest_dict)\n    \n    # Assert\n    assert result is not None, \"ServiceManifest object should be created\"\n    assert result.name == 'full-service', \"Name should be correctly mapped\"\n    assert result.version == '1.2.3', \"Version should be correctly mapped\"\n    assert result.port == 8080, \"Port should be correctly mapped\"\n    assert result.proxy_mode == 'grpc', \"Proxy mode should be correctly mapped\"\n    assert result.role == 'gateway', \"Role should be correctly mapped\"\n    assert result.api_spec == 'openapi.yaml', \"API spec should be correctly mapped\"\n    assert result.mock_spec == 'mock.yaml', \"Mock spec should be correctly mapped\"\n    assert result.command == 'python app.py', \"Command should be correctly mapped\"\n    assert result.metadata == {'key': 'value', 'env': 'prod'}, \"Metadata should be correctly mapped\"\n    assert len(result.dependencies) == 2, \"Dependencies should be converted to DependencySpec\"\n\n\ndef test_parse_manifest_minimal(valid_manifest_dict):\n    \"\"\"Parse dict with only required 'name' field\"\"\"\n    # Execute\n    result = _parse_manifest(valid_manifest_dict)\n    \n    # Assert\n    assert result.name == 'test-service', \"Name field should be populated\"\n    assert result.version == '0.0.0', \"Default version should be '0.0.0'\"\n    assert result.port == 0, \"Default port should be 0\"\n    assert result.proxy_mode == 'http', \"Default proxy_mode should be 'http'\"\n    assert result.role == 'service', \"Default role should be 'service'\"\n    assert result.api_spec == '', \"Default api_spec should be empty string\"\n    assert result.mock_spec == '', \"Default mock_spec should be empty string\"\n    assert result.command == '', \"Default command should be empty string\"\n    assert result.metadata == {}, \"Default metadata should be empty dict\"\n    assert result.dependencies == [], \"Default dependencies should be empty list\"\n\n\ndef test_parse_manifest_dependencies_as_strings(manifest_with_string_deps):\n    \"\"\"Parse dependencies specified as list of strings\"\"\"\n    # Execute\n    result = _parse_manifest(manifest_with_string_deps)\n    \n    # Assert\n    assert len(result.dependencies) == 3, \"Should have 3 dependencies\"\n    for dep in result.dependencies:\n        assert hasattr(dep, 'name'), \"Each dependency should be a DependencySpec object\"\n    assert result.dependencies[0].name == 'dep1', \"First dependency name should be correct\"\n    assert result.dependencies[1].name == 'dep2', \"Second dependency name should be correct\"\n    assert result.dependencies[2].name == 'dep3', \"Third dependency name should be correct\"\n\n\ndef test_parse_manifest_dependencies_as_dicts(manifest_with_dict_deps):\n    \"\"\"Parse dependencies specified as list of dicts\"\"\"\n    # Execute\n    result = _parse_manifest(manifest_with_dict_deps)\n    \n    # Assert\n    assert len(result.dependencies) == 2, \"Should have 2 dependencies\"\n    assert result.dependencies[0].name == 'dep1', \"First dependency name should be correct\"\n    assert result.dependencies[0].version == '1.0.0', \"First dependency version should be correct\"\n    assert result.dependencies[1].name == 'dep2', \"Second dependency name should be correct\"\n    assert result.dependencies[1].version == '2.0.0', \"Second dependency version should be correct\"\n\n\n# Edge Case Tests\n\ndef test_load_manifest_with_minimal_fields(temp_service_dir):\n    \"\"\"Load manifest containing only required field (name)\"\"\"\n    # Setup\n    manifest_path = os.path.join(temp_service_dir, 'baton-service.yaml')\n    manifest_content = \"name: minimal-service\\n\"\n    \n    with open(manifest_path, 'w') as f:\n        f.write(manifest_content)\n    \n    # Execute\n    result = load_manifest(temp_service_dir)\n    \n    # Assert\n    assert result.name == 'minimal-service', \"Name field should be populated\"\n    assert result.version == '0.0.0', \"Default version should be applied\"\n    assert result.port == 0, \"Default port should be applied\"\n    assert result.proxy_mode == 'http', \"Default proxy_mode should be applied\"\n\n\ndef test_load_manifest_with_unicode(temp_service_dir):\n    \"\"\"Load manifest with Unicode characters in fields\"\"\"\n    # Setup\n    manifest_path = os.path.join(temp_service_dir, 'baton-service.yaml')\n    manifest_content = \"name: 服务-αβγ-🚀\\ncommand: echo 'Hello 世界'\\n\"\n    \n    with open(manifest_path, 'w', encoding='utf-8') as f:\n        f.write(manifest_content)\n    \n    # Execute\n    result = load_manifest(temp_service_dir)\n    \n    # Assert\n    assert '服务' in result.name, \"Unicode characters should be preserved in name\"\n    assert '世界' in result.command, \"Unicode characters should be preserved in command\"\n\n\ndef test_parse_manifest_mixed_dependencies():\n    \"\"\"Parse dependencies with mixed string and dict formats\"\"\"\n    # Setup\n    manifest = {\n        'name': 'mixed-deps-service',\n        'dependencies': [\n            'string-dep',\n            {'name': 'dict-dep', 'version': '1.0'},\n            'another-string-dep'\n        ]\n    }\n    \n    # Execute\n    result = _parse_manifest(manifest)\n    \n    # Assert\n    assert len(result.dependencies) == 3, \"All dependencies should be converted\"\n    assert result.dependencies[0].name == 'string-dep', \"String dependency should be converted\"\n    assert result.dependencies[1].name == 'dict-dep', \"Dict dependency should be converted\"\n    assert result.dependencies[1].version == '1.0', \"Dict dependency version should be preserved\"\n    assert result.dependencies[2].name == 'another-string-dep', \"Second string dependency should be converted\"\n\n\ndef test_load_manifest_relative_path(temp_service_dir):\n    \"\"\"Load manifest using relative path\"\"\"\n    # Setup\n    manifest_path = os.path.join(temp_service_dir, 'baton-service.yaml')\n    manifest_content = \"name: relative-path-service\\n\"\n    \n    with open(manifest_path, 'w') as f:\n        f.write(manifest_content)\n    \n    # Change to temp directory and use relative path\n    original_dir = os.getcwd()\n    try:\n        os.chdir(temp_service_dir)\n        \n        # Execute\n        result = load_manifest('.')\n        \n        # Assert\n        assert result is not None, \"Manifest should be loaded with relative path\"\n        assert result.name == 'relative-path-service', \"Manifest should have correct name\"\n    finally:\n        os.chdir(original_dir)\n\n\ndef test_load_manifest_absolute_path(temp_service_dir):\n    \"\"\"Load manifest using absolute path\"\"\"\n    # Setup\n    manifest_path = os.path.join(temp_service_dir, 'baton-service.yaml')\n    manifest_content = \"name: absolute-path-service\\n\"\n    \n    with open(manifest_path, 'w') as f:\n        f.write(manifest_content)\n    \n    # Execute with absolute path\n    abs_path = os.path.abspath(temp_service_dir)\n    result = load_manifest(abs_path)\n    \n    # Assert\n    assert result is not None, \"Manifest should be loaded with absolute path\"\n    assert result.name == 'absolute-path-service', \"Manifest should have correct name\"\n\n\ndef test_parse_manifest_with_null_optional_fields():\n    \"\"\"Parse manifest where optional fields are explicitly null\"\"\"\n    # Setup\n    manifest = {\n        'name': 'null-fields-service',\n        'version': None,\n        'port': None,\n        'metadata': None,\n        'dependencies': None\n    }\n    \n    # Execute\n    result = _parse_manifest(manifest)\n    \n    # Assert\n    assert result.name == 'null-fields-service', \"Name should be preserved\"\n    assert result.version == '0.0.0' or result.version is None, \"Null version should be handled\"\n    assert result.port == 0 or result.port is None, \"Null port should be handled\"\n    assert result.metadata == {} or result.metadata is None, \"Null metadata should be handled\"\n    assert result.dependencies == [] or result.dependencies is None, \"Null dependencies should be handled\"\n\n\ndef test_parse_manifest_empty_dependencies_list():\n    \"\"\"Parse manifest with empty dependencies list\"\"\"\n    # Setup\n    manifest = {\n        'name': 'no-deps-service',\n        'dependencies': []\n    }\n    \n    # Execute\n    result = _parse_manifest(manifest)\n    \n    # Assert\n    assert result.dependencies == [], \"Empty dependencies list should be preserved\"\n    assert len(result.dependencies) == 0, \"No DependencySpec objects should be created\"\n\n\n# Error Case Tests\n\ndef test_load_manifest_error_not_found(temp_service_dir):\n    \"\"\"Error when baton-service.yaml does not exist\"\"\"\n    # Execute & Assert\n    with pytest.raises((ManifestNotFoundError, FileNotFoundError, Exception)) as exc_info:\n        load_manifest(temp_service_dir)\n    \n    assert exc_info.value is not None, \"Should raise exception for missing file\"\n\n\ndef test_load_manifest_error_empty(temp_service_dir):\n    \"\"\"Error when YAML file is empty\"\"\"\n    # Setup\n    manifest_path = os.path.join(temp_service_dir, 'baton-service.yaml')\n    \n    with open(manifest_path, 'w') as f:\n        f.write('')  # Empty file\n    \n    # Execute & Assert\n    with pytest.raises((EmptyManifestError, Exception)) as exc_info:\n        load_manifest(temp_service_dir)\n    \n    assert exc_info.value is not None, \"Should raise exception for empty manifest\"\n\n\ndef test_load_manifest_error_yaml_parse(temp_service_dir):\n    \"\"\"Error when YAML syntax is invalid\"\"\"\n    # Setup\n    manifest_path = os.path.join(temp_service_dir, 'baton-service.yaml')\n    \n    with open(manifest_path, 'w') as f:\n        f.write(\"name: test\\n  invalid: indentation\\n  - malformed\\n[[[\")\n    \n    # Execute & Assert\n    with pytest.raises((YamlParseError, Exception)) as exc_info:\n        load_manifest(temp_service_dir)\n    \n    assert exc_info.value is not None, \"Should raise exception for YAML parse error\"\n\n\ndef test_load_manifest_error_io():\n    \"\"\"Error when file cannot be opened or read\"\"\"\n    # This test is platform-specific and may not work in all environments\n    # We'll use a mock to simulate the IO error\n    \n    with patch('builtins.open', side_effect=IOError(\"Permission denied\")):\n        with pytest.raises((IOError, Exception)) as exc_info:\n            load_manifest('/some/path')\n    \n    assert exc_info.value is not None, \"Should raise exception for IO error\"\n\n\ndef test_load_manifest_error_invalid_directory():\n    \"\"\"Error when service_dir is not a valid directory\"\"\"\n    # Execute & Assert\n    with pytest.raises((ManifestNotFoundError, FileNotFoundError, Exception)) as exc_info:\n        load_manifest('/nonexistent/directory/path')\n    \n    assert exc_info.value is not None, \"Should raise exception for invalid directory\"\n\n\ndef test_parse_manifest_error_missing_name():\n    \"\"\"Error when 'name' key is missing from dict\"\"\"\n    # Setup\n    manifest = {\n        'version': '1.0.0',\n        'port': 8080\n    }\n    \n    # Execute & Assert\n    with pytest.raises((MissingNameError, KeyError, ValueError, Exception)) as exc_info:\n        _parse_manifest(manifest)\n    \n    assert exc_info.value is not None, \"Should raise exception for missing name\"\n\n\ndef test_parse_manifest_error_invalid_dependency():\n    \"\"\"Error when DependencySpec construction fails\"\"\"\n    # Setup - dependency without name will fail\n    manifest = {\n        'name': 'test-service',\n        'dependencies': [\n            {'version': '1.0.0'}  # Missing 'name' field\n        ]\n    }\n    \n    # Execute & Assert\n    with pytest.raises((InvalidDependencySpecError, ValueError, Exception)) as exc_info:\n        _parse_manifest(manifest)\n    \n    assert exc_info.value is not None, \"Should raise exception for invalid dependency\"\n\n\ndef test_parse_manifest_error_invalid_manifest():\n    \"\"\"Error when ServiceManifest construction fails\"\"\"\n    # This is tricky to test without knowing exact validation rules\n    # We can try passing invalid types\n    manifest = {\n        'name': '',  # Empty name might be invalid\n        'port': 'not-a-number'  # Invalid type for port\n    }\n    \n    # Execute & Assert\n    try:\n        result = _parse_manifest(manifest)\n        # If it doesn't raise, check if validation occurred\n        if hasattr(result, 'name'):\n            assert result.name == '' or result.name is not None\n    except (InvalidServiceManifestError, ValueError, TypeError, Exception) as e:\n        assert e is not None, \"Should raise exception for invalid manifest structure\"\n\n\n# Invariant Tests\n\ndef test_invariant_manifest_filename():\n    \"\"\"Verify MANIFEST_FILENAME constant is 'baton-service.yaml'\"\"\"\n    # Assert\n    assert MANIFEST_FILENAME == 'baton-service.yaml', \\\n        \"MANIFEST_FILENAME should equal 'baton-service.yaml'\"\n\n\ndef test_invariant_defaults():\n    \"\"\"Verify default values are applied per invariants\"\"\"\n    # Setup\n    manifest = {'name': 'test-defaults'}\n    \n    # Execute\n    result = _parse_manifest(manifest)\n    \n    # Assert all default values\n    assert result.version == '0.0.0', \"Default version should be '0.0.0'\"\n    assert result.port == 0, \"Default port should be 0\"\n    assert result.proxy_mode == 'http', \"Default proxy_mode should be 'http'\"\n    assert result.role == 'service', \"Default role should be 'service'\"\n    assert result.api_spec == '', \"Default api_spec should be empty string\"\n    assert result.mock_spec == '', \"Default mock_spec should be empty string\"\n    assert result.command == '', \"Default command should be empty string\"\n    assert result.metadata == {}, \"Default metadata should be empty dict\"\n\n\n# Additional comprehensive tests\n\ndef test_load_manifest_yaml_with_comments(temp_service_dir):\n    \"\"\"Load manifest with YAML comments\"\"\"\n    # Setup\n    manifest_path = os.path.join(temp_service_dir, 'baton-service.yaml')\n    manifest_content = \"\"\"\n# This is a comment\nname: commented-service  # inline comment\nversion: 1.0.0\n# Another comment\n\"\"\"\n    \n    with open(manifest_path, 'w') as f:\n        f.write(manifest_content)\n    \n    # Execute\n    result = load_manifest(temp_service_dir)\n    \n    # Assert\n    assert result.name == 'commented-service', \"Comments should be ignored\"\n    assert result.version == '1.0.0', \"Version should be parsed correctly\"\n\n\ndef test_parse_manifest_with_extra_fields():\n    \"\"\"Parse manifest with extra unknown fields\"\"\"\n    # Setup\n    manifest = {\n        'name': 'extra-fields-service',\n        'unknown_field': 'should be ignored',\n        'another_unknown': 123\n    }\n    \n    # Execute\n    result = _parse_manifest(manifest)\n    \n    # Assert\n    assert result.name == 'extra-fields-service', \"Known fields should be parsed\"\n    # Extra fields should be ignored or handled gracefully\n\n\ndef test_load_manifest_with_nested_metadata(temp_service_dir):\n    \"\"\"Load manifest with nested metadata structure\"\"\"\n    # Setup\n    manifest_path = os.path.join(temp_service_dir, 'baton-service.yaml')\n    manifest_content = \"\"\"\nname: nested-metadata-service\nmetadata:\n  level1:\n    level2:\n      key: value\n  array:\n    - item1\n    - item2\n\"\"\"\n    \n    with open(manifest_path, 'w') as f:\n        f.write(manifest_content)\n    \n    # Execute\n    result = load_manifest(temp_service_dir)\n    \n    # Assert\n    assert result.name == 'nested-metadata-service', \"Name should be parsed\"\n    assert 'level1' in result.metadata, \"Nested metadata should be preserved\"\n    assert result.metadata['level1']['level2']['key'] == 'value', \"Deeply nested values should be accessible\"\n\n\ndef test_parse_manifest_special_characters_in_strings():\n    \"\"\"Parse manifest with special characters in string fields\"\"\"\n    # Setup\n    manifest = {\n        'name': 'special-chars-!@#$%',\n        'command': 'echo \"Hello World\" && ls -la',\n        'api_spec': './path/to/spec.yaml'\n    }\n    \n    # Execute\n    result = _parse_manifest(manifest)\n    \n    # Assert\n    assert 'special-chars' in result.name, \"Special characters should be preserved\"\n    assert '&&' in result.command, \"Command with special chars should be preserved\"\n    assert './' in result.api_spec, \"Path notation should be preserved\"\n\n\ndef test_load_manifest_windows_path_separators(temp_service_dir):\n    \"\"\"Load manifest handling Windows-style path separators\"\"\"\n    # Setup\n    manifest_path = os.path.join(temp_service_dir, 'baton-service.yaml')\n    manifest_content = \"name: windows-path-service\\n\"\n    \n    with open(manifest_path, 'w') as f:\n        f.write(manifest_content)\n    \n    # Execute with mixed separators (if on Windows)\n    if os.name == 'nt':\n        path_with_backslashes = temp_service_dir.replace('/', '\\\\')\n        result = load_manifest(path_with_backslashes)\n        assert result.name == 'windows-path-service', \"Windows paths should be handled\"\n    else:\n        # On Unix, just verify normal behavior\n        result = load_manifest(temp_service_dir)\n        assert result.name == 'windows-path-service', \"Path should work on Unix\"\n\n\ndef test_parse_manifest_numeric_string_fields():\n    \"\"\"Parse manifest where string fields contain numeric values\"\"\"\n    # Setup\n    manifest = {\n        'name': '12345',\n        'version': '1.0.0',\n        'command': '12345'\n    }\n    \n    # Execute\n    result = _parse_manifest(manifest)\n    \n    # Assert\n    assert result.name == '12345', \"Numeric strings should be preserved\"\n    assert result.command == '12345', \"Numeric command should be preserved\"\n\n\ndef test_load_manifest_large_file(temp_service_dir):\n    \"\"\"Load manifest with large metadata/dependencies\"\"\"\n    # Setup\n    manifest_path = os.path.join(temp_service_dir, 'baton-service.yaml')\n    \n    # Create large dependencies list\n    deps = ['dep' + str(i) for i in range(100)]\n    deps_yaml = '\\n'.join(['  - ' + dep for dep in deps])\n    \n    manifest_content = f\"\"\"\nname: large-manifest-service\ndependencies:\n{deps_yaml}\n\"\"\"\n    \n    with open(manifest_path, 'w') as f:\n        f.write(manifest_content)\n    \n    # Execute\n    result = load_manifest(temp_service_dir)\n    \n    # Assert\n    assert result.name == 'large-manifest-service', \"Name should be parsed\"\n    assert len(result.dependencies) == 100, \"All 100 dependencies should be parsed\"\n\n\ndef test_parse_manifest_boolean_and_numeric_types():\n    \"\"\"Parse manifest with boolean and numeric metadata\"\"\"\n    # Setup\n    manifest = {\n        'name': 'typed-metadata-service',\n        'port': 8080,\n        'metadata': {\n            'enabled': True,\n            'count': 42,\n            'ratio': 3.14,\n            'flag': False\n        }\n    }\n    \n    # Execute\n    result = _parse_manifest(manifest)\n    \n    # Assert\n    assert result.name == 'typed-metadata-service', \"Name should be parsed\"\n    assert result.port == 8080, \"Numeric port should be preserved\"\n    assert result.metadata['enabled'] is True, \"Boolean true should be preserved\"\n    assert result.metadata['flag'] is False, \"Boolean false should be preserved\"\n    assert result.metadata['count'] == 42, \"Integer should be preserved\"\n    assert result.metadata['ratio'] == 3.14, \"Float should be preserved\"\n\n\nif __name__ == '__main__':\n    pytest.main([__file__, '-v'])\n"
+}

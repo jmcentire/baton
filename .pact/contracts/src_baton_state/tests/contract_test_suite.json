@@ -1,0 +1,647 @@
+{
+  "component_id": "src_baton_state",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "test_ensure_baton_dir_happy_path_with_string",
+      "description": "ensure_baton_dir creates .baton directory successfully with string path",
+      "function": "ensure_baton_dir",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns Path object pointing to .baton directory, directory exists",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_ensure_baton_dir_happy_path_with_path_object",
+      "description": "ensure_baton_dir creates .baton directory successfully with Path object",
+      "function": "ensure_baton_dir",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "Path(tmp_path)"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns Path object pointing to .baton directory, directory exists",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_ensure_baton_dir_idempotent",
+      "description": "ensure_baton_dir is idempotent - can be called multiple times safely",
+      "function": "ensure_baton_dir",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path"
+      },
+      "input_description": "",
+      "expected_output_description": "Calling multiple times returns same path and directory remains valid",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_ensure_baton_dir_creates_parent_directories",
+      "description": "ensure_baton_dir creates parent directories if they don't exist",
+      "function": "ensure_baton_dir",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path / 'nested' / 'parent'"
+      },
+      "input_description": "",
+      "expected_output_description": "All parent directories and .baton are created",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_ensure_baton_dir_invalid_path",
+      "description": "ensure_baton_dir raises OSError for invalid path or insufficient permissions",
+      "function": "ensure_baton_dir",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "invalid_path"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "OSError",
+      "assertions": []
+    },
+    {
+      "id": "test_save_state_happy_path",
+      "description": "save_state successfully saves CircuitState to state.json",
+      "function": "save_state",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "state": "mock_circuit_state",
+        "project_dir": "tmp_path"
+      },
+      "input_description": "",
+      "expected_output_description": "state.json exists with properly formatted JSON content",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_save_state_with_path_object",
+      "description": "save_state works with Path object as project_dir",
+      "function": "save_state",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "state": "mock_circuit_state",
+        "project_dir": "Path(tmp_path)"
+      },
+      "input_description": "",
+      "expected_output_description": "state.json exists with properly formatted JSON content",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_save_state_creates_baton_dir",
+      "description": "save_state creates .baton directory if it doesn't exist",
+      "function": "save_state",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "state": "mock_circuit_state",
+        "project_dir": "tmp_path"
+      },
+      "input_description": "",
+      "expected_output_description": ".baton directory is created and state.json is saved",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_save_state_uses_2_space_indentation",
+      "description": "save_state uses 2-space indentation as per invariant",
+      "function": "save_state",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "state": "mock_circuit_state",
+        "project_dir": "tmp_path"
+      },
+      "input_description": "",
+      "expected_output_description": "JSON content is indented with 2 spaces",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_save_state_no_model_dump_method",
+      "description": "save_state raises AttributeError when state object doesn't have model_dump() method",
+      "function": "save_state",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "state": "object_without_model_dump",
+        "project_dir": "tmp_path"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "AttributeError",
+      "assertions": []
+    },
+    {
+      "id": "test_save_state_non_serializable_data",
+      "description": "save_state raises TypeError when state.model_dump() returns non-serializable data",
+      "function": "save_state",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "state": "state_with_non_serializable",
+        "project_dir": "tmp_path"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "TypeError",
+      "assertions": []
+    },
+    {
+      "id": "test_save_state_permission_denied",
+      "description": "save_state raises OSError when file write permission denied",
+      "function": "save_state",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "state": "mock_circuit_state",
+        "project_dir": "readonly_path"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "OSError",
+      "assertions": []
+    },
+    {
+      "id": "test_load_state_happy_path",
+      "description": "load_state successfully loads CircuitState from state.json",
+      "function": "load_state",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path_with_state"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns CircuitState instance with correct data",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_load_state_file_not_exists",
+      "description": "load_state returns None when state.json doesn't exist",
+      "function": "load_state",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns None",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_load_state_with_path_object",
+      "description": "load_state works with Path object as project_dir",
+      "function": "load_state",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "Path(tmp_path_with_state)"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns CircuitState instance",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_load_state_invalid_json",
+      "description": "load_state raises JSONDecodeError when state.json contains invalid JSON",
+      "function": "load_state",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path_with_invalid_json"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "JSONDecodeError",
+      "assertions": []
+    },
+    {
+      "id": "test_load_state_validation_error",
+      "description": "load_state raises ValidationError when JSON doesn't match CircuitState schema",
+      "function": "load_state",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path_with_invalid_schema"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "ValidationError",
+      "assertions": []
+    },
+    {
+      "id": "test_load_state_permission_denied",
+      "description": "load_state raises OSError when file exists but cannot be read",
+      "function": "load_state",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "unreadable_state_path"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "OSError",
+      "assertions": []
+    },
+    {
+      "id": "test_clear_state_happy_path",
+      "description": "clear_state successfully removes state.json file",
+      "function": "clear_state",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path_with_state"
+      },
+      "input_description": "",
+      "expected_output_description": "state.json no longer exists",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_clear_state_file_not_exists",
+      "description": "clear_state is idempotent - works when file doesn't exist",
+      "function": "clear_state",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path"
+      },
+      "input_description": "",
+      "expected_output_description": "No error, state.json remains non-existent",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_clear_state_with_path_object",
+      "description": "clear_state works with Path object as project_dir",
+      "function": "clear_state",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "Path(tmp_path_with_state)"
+      },
+      "input_description": "",
+      "expected_output_description": "state.json is removed",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_clear_state_permission_denied",
+      "description": "clear_state raises OSError when file exists but cannot be deleted due to permissions",
+      "function": "clear_state",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "readonly_path_with_state"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "OSError",
+      "assertions": []
+    },
+    {
+      "id": "test_append_jsonl_happy_path",
+      "description": "append_jsonl successfully appends JSON object to JSONL file",
+      "function": "append_jsonl",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path",
+        "filename": "test.jsonl",
+        "data": "{'key': 'value'}"
+      },
+      "input_description": "",
+      "expected_output_description": "JSONL file contains appended data with newline",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_append_jsonl_multiple_appends",
+      "description": "append_jsonl appends multiple entries to same file",
+      "function": "append_jsonl",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path",
+        "filename": "test.jsonl",
+        "data": "multiple_dicts"
+      },
+      "input_description": "",
+      "expected_output_description": "JSONL file contains multiple lines, one per append",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_append_jsonl_creates_baton_dir",
+      "description": "append_jsonl creates .baton directory if it doesn't exist",
+      "function": "append_jsonl",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path",
+        "filename": "test.jsonl",
+        "data": "{'key': 'value'}"
+      },
+      "input_description": "",
+      "expected_output_description": ".baton directory is created and file is appended",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_append_jsonl_with_path_object",
+      "description": "append_jsonl works with Path object as project_dir",
+      "function": "append_jsonl",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "Path(tmp_path)",
+        "filename": "test.jsonl",
+        "data": "{'key': 'value'}"
+      },
+      "input_description": "",
+      "expected_output_description": "JSONL file contains appended data",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_append_jsonl_non_serializable_data",
+      "description": "append_jsonl raises TypeError when data contains non-JSON-serializable objects",
+      "function": "append_jsonl",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path",
+        "filename": "test.jsonl",
+        "data": "non_serializable_dict"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "TypeError",
+      "assertions": []
+    },
+    {
+      "id": "test_append_jsonl_permission_denied",
+      "description": "append_jsonl raises OSError when cannot write to file due to permissions",
+      "function": "append_jsonl",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "readonly_path",
+        "filename": "test.jsonl",
+        "data": "{'key': 'value'}"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "OSError",
+      "assertions": []
+    },
+    {
+      "id": "test_read_jsonl_happy_path",
+      "description": "read_jsonl successfully reads JSONL file and returns list of dicts",
+      "function": "read_jsonl",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path_with_jsonl",
+        "filename": "test.jsonl",
+        "last_n": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns list of parsed JSON objects",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_read_jsonl_file_not_exists",
+      "description": "read_jsonl returns empty list when file doesn't exist",
+      "function": "read_jsonl",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path",
+        "filename": "nonexistent.jsonl",
+        "last_n": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns empty list",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_read_jsonl_with_last_n",
+      "description": "read_jsonl returns only last N items when last_n is specified",
+      "function": "read_jsonl",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path_with_jsonl",
+        "filename": "test.jsonl",
+        "last_n": "2"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns at most last 2 items",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_read_jsonl_last_n_greater_than_lines",
+      "description": "read_jsonl returns all items when last_n is greater than number of lines",
+      "function": "read_jsonl",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path_with_jsonl",
+        "filename": "test.jsonl",
+        "last_n": "1000"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns all available items",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_read_jsonl_skips_empty_lines",
+      "description": "read_jsonl skips empty and whitespace-only lines",
+      "function": "read_jsonl",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path_with_jsonl_empty_lines",
+        "filename": "test.jsonl",
+        "last_n": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns only non-empty parsed objects",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_read_jsonl_with_path_object",
+      "description": "read_jsonl works with Path object as project_dir",
+      "function": "read_jsonl",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "Path(tmp_path_with_jsonl)",
+        "filename": "test.jsonl",
+        "last_n": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns list of parsed JSON objects",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_read_jsonl_invalid_json_line",
+      "description": "read_jsonl raises JSONDecodeError when a line contains invalid JSON",
+      "function": "read_jsonl",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path_with_invalid_jsonl",
+        "filename": "test.jsonl",
+        "last_n": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "JSONDecodeError",
+      "assertions": []
+    },
+    {
+      "id": "test_read_jsonl_permission_denied",
+      "description": "read_jsonl raises OSError when file exists but cannot be read",
+      "function": "read_jsonl",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "unreadable_jsonl_path",
+        "filename": "test.jsonl",
+        "last_n": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "OSError",
+      "assertions": []
+    },
+    {
+      "id": "test_invariant_baton_dir_constant",
+      "description": "Verify BATON_DIR constant is '.baton' across all operations",
+      "function": "ensure_baton_dir",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path"
+      },
+      "input_description": "",
+      "expected_output_description": "Directory created is named '.baton'",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_invariant_state_file_constant",
+      "description": "Verify STATE_FILE constant is 'state.json' for save and load operations",
+      "function": "save_state",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "state": "mock_circuit_state",
+        "project_dir": "tmp_path"
+      },
+      "input_description": "",
+      "expected_output_description": "File created is named 'state.json'",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_invariant_jsonl_format",
+      "description": "Verify JSONL format: one JSON object per line with trailing newline",
+      "function": "append_jsonl",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "project_dir": "tmp_path",
+        "filename": "test.jsonl",
+        "data": "{'key': 'value'}"
+      },
+      "input_description": "",
+      "expected_output_description": "Each line is valid JSON with newline terminator",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_round_trip_save_load_state",
+      "description": "Round-trip test: save and load state preserves data",
+      "function": "save_state",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "state": "mock_circuit_state",
+        "project_dir": "tmp_path"
+      },
+      "input_description": "",
+      "expected_output_description": "Loaded state matches saved state",
+      "expected_error": "",
+      "assertions": []
+    }
+  ],
+  "test_language": "python",
+  "generated_code": "\"\"\"\nContract-driven pytest test suite for Baton State Persistence component.\n\nThis test suite verifies the contract for state management functions including\ndirectory creation, state serialization/deserialization, and JSONL operations.\n\"\"\"\n\nimport pytest\nimport json\nimport os\nfrom pathlib import Path\nfrom unittest.mock import Mock, MagicMock, patch, mock_open\nfrom json import JSONDecodeError\n\n# Import the component under test\nfrom src.baton.state import (\n    ensure_baton_dir,\n    save_state,\n    load_state,\n    clear_state,\n    append_jsonl,\n    read_jsonl,\n    BATON_DIR,\n    STATE_FILE\n)\n\n\n# ============================================================================\n# Fixtures\n# ============================================================================\n\n@pytest.fixture\ndef mock_circuit_state():\n    \"\"\"Create a mock CircuitState object with model_dump() method.\"\"\"\n    state = Mock()\n    state.model_dump.return_value = {\n        \"status\": \"active\",\n        \"step\": 1,\n        \"data\": {\"test\": \"value\"}\n    }\n    return state\n\n\n@pytest.fixture\ndef mock_circuit_state_complex():\n    \"\"\"Create a mock CircuitState with more complex data structure.\"\"\"\n    state = Mock()\n    state.model_dump.return_value = {\n        \"status\": \"running\",\n        \"step\": 5,\n        \"nested\": {\n            \"level1\": {\n                \"level2\": \"deep_value\"\n            }\n        },\n        \"list_data\": [1, 2, 3]\n    }\n    return state\n\n\n@pytest.fixture\ndef object_without_model_dump():\n    \"\"\"Create an object without model_dump() method.\"\"\"\n    return {\"status\": \"active\"}\n\n\n@pytest.fixture\ndef state_with_non_serializable():\n    \"\"\"Create a state object that returns non-serializable data.\"\"\"\n    state = Mock()\n    state.model_dump.return_value = {\n        \"status\": \"active\",\n        \"non_serializable\": lambda x: x  # Functions are not JSON serializable\n    }\n    return state\n\n\n# ============================================================================\n# Tests for ensure_baton_dir()\n# ============================================================================\n\ndef test_ensure_baton_dir_happy_path_with_string(tmp_path):\n    \"\"\"ensure_baton_dir creates .baton directory successfully with string path.\"\"\"\n    project_dir = str(tmp_path)\n    \n    result = ensure_baton_dir(project_dir)\n    \n    assert isinstance(result, Path), \"Should return a Path object\"\n    assert result.exists(), \".baton directory should exist\"\n    assert result.is_dir(), \".baton should be a directory\"\n    assert result.name == \".baton\", \"Directory should be named .baton\"\n    assert result.parent == tmp_path, \".baton should be in project_dir\"\n\n\ndef test_ensure_baton_dir_happy_path_with_path_object(tmp_path):\n    \"\"\"ensure_baton_dir creates .baton directory successfully with Path object.\"\"\"\n    project_dir = Path(tmp_path)\n    \n    result = ensure_baton_dir(project_dir)\n    \n    assert isinstance(result, Path), \"Should return a Path object\"\n    assert result.exists(), \".baton directory should exist\"\n    assert result.is_dir(), \".baton should be a directory\"\n    assert result.name == \".baton\", \"Directory should be named .baton\"\n\n\ndef test_ensure_baton_dir_idempotent(tmp_path):\n    \"\"\"ensure_baton_dir is idempotent - can be called multiple times safely.\"\"\"\n    project_dir = str(tmp_path)\n    \n    result1 = ensure_baton_dir(project_dir)\n    result2 = ensure_baton_dir(project_dir)\n    result3 = ensure_baton_dir(project_dir)\n    \n    assert result1 == result2 == result3, \"Multiple calls should return same path\"\n    assert result1.exists() and result1.is_dir(), \"Directory should remain valid\"\n\n\ndef test_ensure_baton_dir_creates_parent_directories(tmp_path):\n    \"\"\"ensure_baton_dir creates parent directories if they don't exist.\"\"\"\n    nested_path = tmp_path / \"nested\" / \"parent\" / \"dirs\"\n    \n    result = ensure_baton_dir(nested_path)\n    \n    assert result.exists(), \".baton directory should exist\"\n    assert result.parent.exists(), \"Parent directories should be created\"\n    assert result.name == \".baton\", \"Directory should be named .baton\"\n\n\ndef test_ensure_baton_dir_invalid_path():\n    \"\"\"ensure_baton_dir raises OSError for invalid path or insufficient permissions.\"\"\"\n    # Use a path that is likely to fail on most systems\n    invalid_path = \"/root/completely_invalid_path_no_permission/test\"\n    \n    with pytest.raises(OSError):\n        ensure_baton_dir(invalid_path)\n\n\ndef test_invariant_baton_dir_constant(tmp_path):\n    \"\"\"Verify BATON_DIR constant is '.baton' across all operations.\"\"\"\n    assert BATON_DIR == \".baton\", \"BATON_DIR constant should be '.baton'\"\n    \n    result = ensure_baton_dir(tmp_path)\n    assert result.name == \".baton\", \"Directory created should use BATON_DIR constant\"\n\n\n# ============================================================================\n# Tests for save_state()\n# ============================================================================\n\ndef test_save_state_happy_path(tmp_path, mock_circuit_state):\n    \"\"\"save_state successfully saves CircuitState to state.json.\"\"\"\n    project_dir = str(tmp_path)\n    \n    save_state(mock_circuit_state, project_dir)\n    \n    state_file = tmp_path / \".baton\" / \"state.json\"\n    assert state_file.exists(), \"state.json should exist\"\n    \n    with open(state_file, 'r') as f:\n        content = json.load(f)\n    \n    assert content == mock_circuit_state.model_dump(), \"File content should match state data\"\n\n\ndef test_save_state_with_path_object(tmp_path, mock_circuit_state):\n    \"\"\"save_state works with Path object as project_dir.\"\"\"\n    project_dir = Path(tmp_path)\n    \n    save_state(mock_circuit_state, project_dir)\n    \n    state_file = tmp_path / \".baton\" / \"state.json\"\n    assert state_file.exists(), \"state.json should exist\"\n\n\ndef test_save_state_creates_baton_dir(tmp_path, mock_circuit_state):\n    \"\"\"save_state creates .baton directory if it doesn't exist.\"\"\"\n    project_dir = str(tmp_path)\n    baton_dir = tmp_path / \".baton\"\n    \n    # Ensure .baton doesn't exist initially\n    assert not baton_dir.exists(), \".baton should not exist initially\"\n    \n    save_state(mock_circuit_state, project_dir)\n    \n    assert baton_dir.exists(), \".baton directory should be created\"\n    state_file = baton_dir / \"state.json\"\n    assert state_file.exists(), \"state.json should be created\"\n\n\ndef test_save_state_uses_2_space_indentation(tmp_path, mock_circuit_state):\n    \"\"\"save_state uses 2-space indentation as per invariant.\"\"\"\n    project_dir = str(tmp_path)\n    \n    save_state(mock_circuit_state, project_dir)\n    \n    state_file = tmp_path / \".baton\" / \"state.json\"\n    with open(state_file, 'r') as f:\n        content = f.read()\n    \n    # Check for 2-space indentation\n    assert '  \"status\"' in content or '  \"step\"' in content, \\\n        \"JSON should be indented with 2 spaces\"\n    assert '    ' not in content or content.count('    ') < content.count('  '), \\\n        \"Should use 2-space indentation, not 4-space\"\n\n\ndef test_save_state_no_model_dump_method(tmp_path, object_without_model_dump):\n    \"\"\"save_state raises AttributeError when state object doesn't have model_dump() method.\"\"\"\n    project_dir = str(tmp_path)\n    \n    with pytest.raises(AttributeError):\n        save_state(object_without_model_dump, project_dir)\n\n\ndef test_save_state_non_serializable_data(tmp_path, state_with_non_serializable):\n    \"\"\"save_state raises TypeError when state.model_dump() returns non-serializable data.\"\"\"\n    project_dir = str(tmp_path)\n    \n    with pytest.raises(TypeError):\n        save_state(state_with_non_serializable, project_dir)\n\n\ndef test_save_state_permission_denied(tmp_path, mock_circuit_state):\n    \"\"\"save_state raises OSError when file write permission denied.\"\"\"\n    project_dir = tmp_path\n    baton_dir = project_dir / \".baton\"\n    baton_dir.mkdir()\n    \n    # Make directory read-only\n    os.chmod(baton_dir, 0o444)\n    \n    try:\n        with pytest.raises(OSError):\n            save_state(mock_circuit_state, project_dir)\n    finally:\n        # Restore permissions for cleanup\n        os.chmod(baton_dir, 0o755)\n\n\ndef test_invariant_state_file_constant(tmp_path, mock_circuit_state):\n    \"\"\"Verify STATE_FILE constant is 'state.json' for save and load operations.\"\"\"\n    assert STATE_FILE == \"state.json\", \"STATE_FILE constant should be 'state.json'\"\n    \n    save_state(mock_circuit_state, tmp_path)\n    \n    state_file = tmp_path / \".baton\" / \"state.json\"\n    assert state_file.exists(), \"File created should be named state.json\"\n\n\n# ============================================================================\n# Tests for load_state()\n# ============================================================================\n\ndef test_load_state_happy_path(tmp_path):\n    \"\"\"load_state successfully loads CircuitState from state.json.\"\"\"\n    # Create a valid state file\n    baton_dir = tmp_path / \".baton\"\n    baton_dir.mkdir()\n    state_file = baton_dir / \"state.json\"\n    \n    test_data = {\"status\": \"active\", \"step\": 1}\n    with open(state_file, 'w') as f:\n        json.dump(test_data, f)\n    \n    with patch('src.baton.state.CircuitState') as MockCircuitState:\n        mock_instance = Mock()\n        MockCircuitState.return_value = mock_instance\n        \n        result = load_state(tmp_path)\n        \n        assert result is not None, \"Should return CircuitState instance\"\n        MockCircuitState.assert_called_once()\n\n\ndef test_load_state_file_not_exists(tmp_path):\n    \"\"\"load_state returns None when state.json doesn't exist.\"\"\"\n    result = load_state(tmp_path)\n    \n    assert result is None, \"Should return None when file doesn't exist\"\n\n\ndef test_load_state_with_path_object(tmp_path):\n    \"\"\"load_state works with Path object as project_dir.\"\"\"\n    # Create a valid state file\n    baton_dir = tmp_path / \".baton\"\n    baton_dir.mkdir()\n    state_file = baton_dir / \"state.json\"\n    \n    test_data = {\"status\": \"active\", \"step\": 1}\n    with open(state_file, 'w') as f:\n        json.dump(test_data, f)\n    \n    with patch('src.baton.state.CircuitState') as MockCircuitState:\n        mock_instance = Mock()\n        MockCircuitState.return_value = mock_instance\n        \n        result = load_state(Path(tmp_path))\n        \n        assert result is not None, \"Should return CircuitState instance\"\n\n\ndef test_load_state_invalid_json(tmp_path):\n    \"\"\"load_state raises JSONDecodeError when state.json contains invalid JSON.\"\"\"\n    baton_dir = tmp_path / \".baton\"\n    baton_dir.mkdir()\n    state_file = baton_dir / \"state.json\"\n    \n    # Write invalid JSON\n    with open(state_file, 'w') as f:\n        f.write(\"{invalid json content\")\n    \n    with pytest.raises(JSONDecodeError):\n        load_state(tmp_path)\n\n\ndef test_load_state_validation_error(tmp_path):\n    \"\"\"load_state raises ValidationError when JSON doesn't match CircuitState schema.\"\"\"\n    baton_dir = tmp_path / \".baton\"\n    baton_dir.mkdir()\n    state_file = baton_dir / \"state.json\"\n    \n    # Write valid JSON but invalid schema\n    with open(state_file, 'w') as f:\n        json.dump({\"invalid\": \"schema\"}, f)\n    \n    with patch('src.baton.state.CircuitState') as MockCircuitState:\n        from pydantic import ValidationError\n        MockCircuitState.side_effect = ValidationError.from_exception_data(\n            \"CircuitState\", [{\"type\": \"missing\", \"loc\": (\"field\",), \"msg\": \"field required\", \"input\": {}}]\n        )\n        \n        with pytest.raises(ValidationError):\n            load_state(tmp_path)\n\n\ndef test_load_state_permission_denied(tmp_path):\n    \"\"\"load_state raises OSError when file exists but cannot be read.\"\"\"\n    baton_dir = tmp_path / \".baton\"\n    baton_dir.mkdir()\n    state_file = baton_dir / \"state.json\"\n    \n    # Create file\n    with open(state_file, 'w') as f:\n        json.dump({\"status\": \"active\"}, f)\n    \n    # Make file unreadable\n    os.chmod(state_file, 0o000)\n    \n    try:\n        with pytest.raises(OSError):\n            load_state(tmp_path)\n    finally:\n        # Restore permissions for cleanup\n        os.chmod(state_file, 0o644)\n\n\ndef test_round_trip_save_load_state(tmp_path, mock_circuit_state_complex):\n    \"\"\"Round-trip test: save and load state preserves data.\"\"\"\n    project_dir = tmp_path\n    \n    # Save state\n    save_state(mock_circuit_state_complex, project_dir)\n    \n    # Load state and verify\n    state_file = project_dir / \".baton\" / \"state.json\"\n    with open(state_file, 'r') as f:\n        loaded_data = json.load(f)\n    \n    expected_data = mock_circuit_state_complex.model_dump()\n    assert loaded_data == expected_data, \"Loaded data should match saved data\"\n\n\n# ============================================================================\n# Tests for clear_state()\n# ============================================================================\n\ndef test_clear_state_happy_path(tmp_path, mock_circuit_state):\n    \"\"\"clear_state successfully removes state.json file.\"\"\"\n    # Create state file first\n    save_state(mock_circuit_state, tmp_path)\n    state_file = tmp_path / \".baton\" / \"state.json\"\n    assert state_file.exists(), \"State file should exist before clearing\"\n    \n    clear_state(tmp_path)\n    \n    assert not state_file.exists(), \"state.json should not exist after clearing\"\n\n\ndef test_clear_state_file_not_exists(tmp_path):\n    \"\"\"clear_state is idempotent - works when file doesn't exist.\"\"\"\n    state_file = tmp_path / \".baton\" / \"state.json\"\n    assert not state_file.exists(), \"State file should not exist initially\"\n    \n    # Should not raise an error\n    clear_state(tmp_path)\n    \n    assert not state_file.exists(), \"state.json should remain non-existent\"\n\n\ndef test_clear_state_with_path_object(tmp_path, mock_circuit_state):\n    \"\"\"clear_state works with Path object as project_dir.\"\"\"\n    # Create state file first\n    save_state(mock_circuit_state, tmp_path)\n    state_file = tmp_path / \".baton\" / \"state.json\"\n    assert state_file.exists(), \"State file should exist before clearing\"\n    \n    clear_state(Path(tmp_path))\n    \n    assert not state_file.exists(), \"state.json should be removed\"\n\n\ndef test_clear_state_permission_denied(tmp_path, mock_circuit_state):\n    \"\"\"clear_state raises OSError when file exists but cannot be deleted due to permissions.\"\"\"\n    # Create state file\n    save_state(mock_circuit_state, tmp_path)\n    baton_dir = tmp_path / \".baton\"\n    \n    # Make directory read-only (prevents file deletion)\n    os.chmod(baton_dir, 0o444)\n    \n    try:\n        with pytest.raises(OSError):\n            clear_state(tmp_path)\n    finally:\n        # Restore permissions for cleanup\n        os.chmod(baton_dir, 0o755)\n\n\n# ============================================================================\n# Tests for append_jsonl()\n# ============================================================================\n\ndef test_append_jsonl_happy_path(tmp_path):\n    \"\"\"append_jsonl successfully appends JSON object to JSONL file.\"\"\"\n    project_dir = tmp_path\n    filename = \"test.jsonl\"\n    data = {\"key\": \"value\", \"number\": 42}\n    \n    append_jsonl(project_dir, filename, data)\n    \n    jsonl_file = tmp_path / \".baton\" / filename\n    assert jsonl_file.exists(), \"JSONL file should exist\"\n    \n    with open(jsonl_file, 'r') as f:\n        content = f.read()\n    \n    assert content.endswith('\\n'), \"Content should end with newline\"\n    loaded_data = json.loads(content.strip())\n    assert loaded_data == data, \"Loaded data should match appended data\"\n\n\ndef test_append_jsonl_multiple_appends(tmp_path):\n    \"\"\"append_jsonl appends multiple entries to same file.\"\"\"\n    project_dir = tmp_path\n    filename = \"test.jsonl\"\n    data_list = [\n        {\"id\": 1, \"value\": \"first\"},\n        {\"id\": 2, \"value\": \"second\"},\n        {\"id\": 3, \"value\": \"third\"}\n    ]\n    \n    for data in data_list:\n        append_jsonl(project_dir, filename, data)\n    \n    jsonl_file = tmp_path / \".baton\" / filename\n    with open(jsonl_file, 'r') as f:\n        lines = f.readlines()\n    \n    assert len(lines) == 3, \"Should have 3 lines\"\n    for i, line in enumerate(lines):\n        loaded_data = json.loads(line.strip())\n        assert loaded_data == data_list[i], f\"Line {i} should match appended data\"\n\n\ndef test_append_jsonl_creates_baton_dir(tmp_path):\n    \"\"\"append_jsonl creates .baton directory if it doesn't exist.\"\"\"\n    project_dir = tmp_path\n    baton_dir = tmp_path / \".baton\"\n    assert not baton_dir.exists(), \".baton should not exist initially\"\n    \n    filename = \"test.jsonl\"\n    data = {\"key\": \"value\"}\n    \n    append_jsonl(project_dir, filename, data)\n    \n    assert baton_dir.exists(), \".baton directory should be created\"\n    jsonl_file = baton_dir / filename\n    assert jsonl_file.exists(), \"JSONL file should be created\"\n\n\ndef test_append_jsonl_with_path_object(tmp_path):\n    \"\"\"append_jsonl works with Path object as project_dir.\"\"\"\n    project_dir = Path(tmp_path)\n    filename = \"test.jsonl\"\n    data = {\"key\": \"value\"}\n    \n    append_jsonl(project_dir, filename, data)\n    \n    jsonl_file = tmp_path / \".baton\" / filename\n    assert jsonl_file.exists(), \"JSONL file should exist\"\n\n\ndef test_append_jsonl_non_serializable_data(tmp_path):\n    \"\"\"append_jsonl raises TypeError when data contains non-JSON-serializable objects.\"\"\"\n    project_dir = tmp_path\n    filename = \"test.jsonl\"\n    data = {\"key\": \"value\", \"func\": lambda x: x}\n    \n    with pytest.raises(TypeError):\n        append_jsonl(project_dir, filename, data)\n\n\ndef test_append_jsonl_permission_denied(tmp_path):\n    \"\"\"append_jsonl raises OSError when cannot write to file due to permissions.\"\"\"\n    project_dir = tmp_path\n    baton_dir = tmp_path / \".baton\"\n    baton_dir.mkdir()\n    \n    # Make directory read-only\n    os.chmod(baton_dir, 0o444)\n    \n    try:\n        with pytest.raises(OSError):\n            append_jsonl(project_dir, \"test.jsonl\", {\"key\": \"value\"})\n    finally:\n        # Restore permissions for cleanup\n        os.chmod(baton_dir, 0o755)\n\n\ndef test_invariant_jsonl_format(tmp_path):\n    \"\"\"Verify JSONL format: one JSON object per line with trailing newline.\"\"\"\n    project_dir = tmp_path\n    filename = \"test.jsonl\"\n    \n    data_list = [{\"id\": 1}, {\"id\": 2}, {\"id\": 3}]\n    for data in data_list:\n        append_jsonl(project_dir, filename, data)\n    \n    jsonl_file = tmp_path / \".baton\" / filename\n    with open(jsonl_file, 'r') as f:\n        content = f.read()\n    \n    lines = content.split('\\n')\n    # Last line should be empty (after final newline)\n    assert lines[-1] == '', \"File should end with newline\"\n    \n    # Each non-empty line should be valid JSON\n    for i, line in enumerate(lines[:-1]):\n        try:\n            json.loads(line)\n        except json.JSONDecodeError:\n            pytest.fail(f\"Line {i} is not valid JSON: {line}\")\n\n\n# ============================================================================\n# Tests for read_jsonl()\n# ============================================================================\n\ndef test_read_jsonl_happy_path(tmp_path):\n    \"\"\"read_jsonl successfully reads JSONL file and returns list of dicts.\"\"\"\n    project_dir = tmp_path\n    filename = \"test.jsonl\"\n    \n    # Create JSONL file\n    data_list = [{\"id\": 1, \"val\": \"a\"}, {\"id\": 2, \"val\": \"b\"}, {\"id\": 3, \"val\": \"c\"}]\n    for data in data_list:\n        append_jsonl(project_dir, filename, data)\n    \n    result = read_jsonl(project_dir, filename, None)\n    \n    assert isinstance(result, list), \"Should return a list\"\n    assert len(result) == 3, \"Should return 3 items\"\n    assert result == data_list, \"Returned data should match written data\"\n\n\ndef test_read_jsonl_file_not_exists(tmp_path):\n    \"\"\"read_jsonl returns empty list when file doesn't exist.\"\"\"\n    project_dir = tmp_path\n    filename = \"nonexistent.jsonl\"\n    \n    result = read_jsonl(project_dir, filename, None)\n    \n    assert result == [], \"Should return empty list\"\n\n\ndef test_read_jsonl_with_last_n(tmp_path):\n    \"\"\"read_jsonl returns only last N items when last_n is specified.\"\"\"\n    project_dir = tmp_path\n    filename = \"test.jsonl\"\n    \n    # Create JSONL file with 5 entries\n    data_list = [{\"id\": i} for i in range(5)]\n    for data in data_list:\n        append_jsonl(project_dir, filename, data)\n    \n    result = read_jsonl(project_dir, filename, 2)\n    \n    assert len(result) == 2, \"Should return 2 items\"\n    assert result == data_list[-2:], \"Should return last 2 items\"\n\n\ndef test_read_jsonl_last_n_greater_than_lines(tmp_path):\n    \"\"\"read_jsonl returns all items when last_n is greater than number of lines.\"\"\"\n    project_dir = tmp_path\n    filename = \"test.jsonl\"\n    \n    # Create JSONL file with 3 entries\n    data_list = [{\"id\": i} for i in range(3)]\n    for data in data_list:\n        append_jsonl(project_dir, filename, data)\n    \n    result = read_jsonl(project_dir, filename, 1000)\n    \n    assert len(result) == 3, \"Should return all 3 items\"\n    assert result == data_list, \"Should return all available items\"\n\n\ndef test_read_jsonl_skips_empty_lines(tmp_path):\n    \"\"\"read_jsonl skips empty and whitespace-only lines.\"\"\"\n    project_dir = tmp_path\n    baton_dir = tmp_path / \".baton\"\n    baton_dir.mkdir()\n    filename = \"test.jsonl\"\n    jsonl_file = baton_dir / filename\n    \n    # Create JSONL file with empty lines\n    with open(jsonl_file, 'w') as f:\n        f.write('{\"id\": 1}\\n')\n        f.write('\\n')\n        f.write('  \\n')\n        f.write('{\"id\": 2}\\n')\n        f.write('\\n')\n        f.write('{\"id\": 3}\\n')\n    \n    result = read_jsonl(project_dir, filename, None)\n    \n    assert len(result) == 3, \"Should skip empty lines and return 3 items\"\n    assert result == [{\"id\": 1}, {\"id\": 2}, {\"id\": 3}], \"Should return only non-empty items\"\n\n\ndef test_read_jsonl_with_path_object(tmp_path):\n    \"\"\"read_jsonl works with Path object as project_dir.\"\"\"\n    project_dir = Path(tmp_path)\n    filename = \"test.jsonl\"\n    \n    # Create JSONL file\n    data_list = [{\"id\": 1}, {\"id\": 2}]\n    for data in data_list:\n        append_jsonl(project_dir, filename, data)\n    \n    result = read_jsonl(project_dir, filename, None)\n    \n    assert result == data_list, \"Should read data correctly with Path object\"\n\n\ndef test_read_jsonl_invalid_json_line(tmp_path):\n    \"\"\"read_jsonl raises JSONDecodeError when a line contains invalid JSON.\"\"\"\n    project_dir = tmp_path\n    baton_dir = tmp_path / \".baton\"\n    baton_dir.mkdir()\n    filename = \"test.jsonl\"\n    jsonl_file = baton_dir / filename\n    \n    # Create JSONL file with invalid JSON\n    with open(jsonl_file, 'w') as f:\n        f.write('{\"id\": 1}\\n')\n        f.write('{invalid json}\\n')\n        f.write('{\"id\": 2}\\n')\n    \n    with pytest.raises(JSONDecodeError):\n        read_jsonl(project_dir, filename, None)\n\n\ndef test_read_jsonl_permission_denied(tmp_path):\n    \"\"\"read_jsonl raises OSError when file exists but cannot be read.\"\"\"\n    project_dir = tmp_path\n    filename = \"test.jsonl\"\n    \n    # Create JSONL file\n    append_jsonl(project_dir, filename, {\"id\": 1})\n    \n    jsonl_file = tmp_path / \".baton\" / filename\n    # Make file unreadable\n    os.chmod(jsonl_file, 0o000)\n    \n    try:\n        with pytest.raises(OSError):\n            read_jsonl(project_dir, filename, None)\n    finally:\n        # Restore permissions for cleanup\n        os.chmod(jsonl_file, 0o644)\n\n\n# ============================================================================\n# Integration and Edge Case Tests\n# ============================================================================\n\ndef test_integration_full_workflow(tmp_path, mock_circuit_state):\n    \"\"\"Integration test: full workflow of state operations.\"\"\"\n    project_dir = tmp_path\n    \n    # 1. Ensure baton dir\n    baton_path = ensure_baton_dir(project_dir)\n    assert baton_path.exists()\n    \n    # 2. Save state\n    save_state(mock_circuit_state, project_dir)\n    state_file = baton_path / \"state.json\"\n    assert state_file.exists()\n    \n    # 3. Append JSONL entries\n    append_jsonl(project_dir, \"log.jsonl\", {\"event\": \"start\"})\n    append_jsonl(project_dir, \"log.jsonl\", {\"event\": \"process\"})\n    append_jsonl(project_dir, \"log.jsonl\", {\"event\": \"end\"})\n    \n    # 4. Read JSONL\n    logs = read_jsonl(project_dir, \"log.jsonl\", None)\n    assert len(logs) == 3\n    \n    # 5. Clear state\n    clear_state(project_dir)\n    assert not state_file.exists()\n    \n    # 6. Load state (should return None)\n    result = load_state(project_dir)\n    assert result is None\n\n\ndef test_edge_case_empty_jsonl_file(tmp_path):\n    \"\"\"Edge case: reading an empty JSONL file.\"\"\"\n    project_dir = tmp_path\n    baton_dir = tmp_path / \".baton\"\n    baton_dir.mkdir()\n    filename = \"empty.jsonl\"\n    jsonl_file = baton_dir / filename\n    \n    # Create empty file\n    jsonl_file.touch()\n    \n    result = read_jsonl(project_dir, filename, None)\n    assert result == [], \"Should return empty list for empty file\"\n\n\ndef test_edge_case_jsonl_with_only_whitespace(tmp_path):\n    \"\"\"Edge case: JSONL file with only whitespace lines.\"\"\"\n    project_dir = tmp_path\n    baton_dir = tmp_path / \".baton\"\n    baton_dir.mkdir()\n    filename = \"whitespace.jsonl\"\n    jsonl_file = baton_dir / filename\n    \n    with open(jsonl_file, 'w') as f:\n        f.write('\\n')\n        f.write('   \\n')\n        f.write('\\t\\n')\n        f.write('  \\t  \\n')\n    \n    result = read_jsonl(project_dir, filename, None)\n    assert result == [], \"Should return empty list for whitespace-only file\"\n\n\ndef test_edge_case_last_n_zero(tmp_path):\n    \"\"\"Edge case: read_jsonl with last_n=0.\"\"\"\n    project_dir = tmp_path\n    filename = \"test.jsonl\"\n    \n    # Create JSONL file\n    for i in range(5):\n        append_jsonl(project_dir, filename, {\"id\": i})\n    \n    result = read_jsonl(project_dir, filename, 0)\n    assert result == [], \"Should return empty list when last_n=0\"\n\n\ndef test_edge_case_special_characters_in_json(tmp_path):\n    \"\"\"Edge case: JSON data with special characters.\"\"\"\n    project_dir = tmp_path\n    filename = \"special.jsonl\"\n    \n    special_data = {\n        \"unicode\": \"Hello 世界 🌍\",\n        \"quotes\": 'He said \"hello\"',\n        \"newlines\": \"line1\\nline2\",\n        \"tabs\": \"col1\\tcol2\"\n    }\n    \n    append_jsonl(project_dir, filename, special_data)\n    result = read_jsonl(project_dir, filename, None)\n    \n    assert len(result) == 1\n    assert result[0] == special_data, \"Should preserve special characters\"\n\n\ndef test_edge_case_deeply_nested_json(tmp_path):\n    \"\"\"Edge case: Deeply nested JSON structures.\"\"\"\n    project_dir = tmp_path\n    filename = \"nested.jsonl\"\n    \n    nested_data = {\n        \"level1\": {\n            \"level2\": {\n                \"level3\": {\n                    \"level4\": {\n                        \"level5\": \"deep_value\"\n                    }\n                }\n            }\n        }\n    }\n    \n    append_jsonl(project_dir, filename, nested_data)\n    result = read_jsonl(project_dir, filename, None)\n    \n    assert result[0] == nested_data, \"Should handle deeply nested structures\"\n"
+}

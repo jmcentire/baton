@@ -1,0 +1,1633 @@
+{
+  "component_id": "src_baton_cli",
+  "name": "Baton CLI Entry Point",
+  "description": "Command-line interface for the Baton cloud-agnostic circuit orchestration system. Provides commands for initializing circuits, managing nodes and edges, controlling lifecycle (up/down/slot/swap), routing configuration, deployment to providers, telemetry/metrics/signals, and compatibility checking.",
+  "version": 1,
+  "types": [],
+  "functions": [
+    {
+      "name": "main",
+      "description": "Main CLI entry point that parses command-line arguments and dispatches to appropriate subcommand handlers. Returns exit code (0 for success, non-zero for errors).",
+      "inputs": [
+        {
+          "name": "argv",
+          "type_ref": "list[str] | None",
+          "required": false,
+          "default": "None",
+          "description": "Command-line arguments; defaults to sys.argv if None",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "ValueError",
+          "condition": "Invalid argument values or command configuration",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        },
+        {
+          "name": "FileNotFoundError",
+          "condition": "Required configuration files or directories not found",
+          "error_type": "FileNotFoundError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        },
+        {
+          "name": "KeyboardInterrupt",
+          "condition": "User interrupts with Ctrl+C",
+          "error_type": "KeyboardInterrupt",
+          "error_data": {
+            "exit_code": "130"
+          }
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "Returns 0 on successful command execution",
+        "Returns 1 on command parsing errors, validation errors, or missing command",
+        "Returns 130 on KeyboardInterrupt"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Prints help or error messages to stdout/stderr",
+        "Invokes subcommand handlers that may modify filesystem, start processes, or make network calls"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "writes_file",
+          "target": "Circuit configuration files",
+          "description": "Via subcommand handlers"
+        },
+        {
+          "kind": "network_call",
+          "target": "Deployment providers",
+          "description": "Via deploy commands"
+        },
+        {
+          "kind": "logging",
+          "target": "stdout/stderr",
+          "description": "Help, status, and error messages"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_async",
+      "description": "Async dispatcher that routes async commands (up, down, slot, swap, collapse, watch, route, deploy, teardown, deploy-status, dashboard, image) to their handlers.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed command-line arguments",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [
+        "args.command is one of: up, down, slot, swap, collapse, watch, route, deploy, teardown, deploy-status, dashboard, image"
+      ],
+      "postconditions": [
+        "Returns exit code from delegated command handler",
+        "Returns 1 if command not recognized"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Delegates to async command handlers"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "Circuit lifecycle state",
+          "description": "Via lifecycle manager"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_up",
+      "description": "Boots the circuit, optionally deriving from service manifests, starting mocked backends, and keeping the circuit running until interrupted.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with dir, mock, services flags",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Circuit is running with adapters started",
+        "If args.mock is True, mock server is running",
+        "Returns 0 after circuit is stopped"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads or derives circuit configuration",
+        "Starts LifecycleManager and adapters",
+        "Starts mock server if mock=True",
+        "Blocks until SIGINT/SIGTERM or KeyboardInterrupt",
+        "Stops mock server and lifecycle manager on exit"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "writes_file",
+          "target": "Circuit state files",
+          "description": "Saves derived circuit if using --services"
+        },
+        {
+          "kind": "network_call",
+          "target": "Adapter ports",
+          "description": "Starts HTTP/TCP proxies"
+        },
+        {
+          "kind": "logging",
+          "target": "stdout",
+          "description": "Status and entry point information"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_down",
+      "description": "Tears down the circuit by clearing persisted state.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Circuit state is cleared from filesystem",
+        "Returns 0"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Removes circuit state files"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "writes_file",
+          "target": "Circuit state directory",
+          "description": "Clears state files"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_slot",
+      "description": "Slots a service into a node by starting a command. Requires non-mock mode and a command argument.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node, command, mock, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "MockModeError",
+          "condition": "args.mock is True",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        },
+        {
+          "name": "NoCommandError",
+          "condition": "args.command is None or empty when not in mock mode",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [
+        "args.mock is False or user is directed to use 'baton collapse'",
+        "args.command is provided if args.mock is False"
+      ],
+      "postconditions": [
+        "Service is slotted into node",
+        "Returns 0 on success",
+        "Returns 1 if mock mode or no command"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Starts lifecycle manager",
+        "Slots service into node"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "Node adapter backends",
+          "description": "Updates backend for node"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_swap",
+      "description": "Hot-swaps a service in a node with a new command.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node, command, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Service in node is swapped to new command",
+        "Returns 0"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Starts lifecycle manager",
+        "Swaps service in node"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "Node service process",
+          "description": "Replaces running service"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_collapse",
+      "description": "Collapses circuit to minimal mock, keeping specified nodes live. Validates live nodes, strips egress nodes, starts mock server, and waits for interrupt.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with live (comma-separated), dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "UnknownNodeError",
+          "condition": "Live nodes specified that don't exist in circuit",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "Circuit is running with specified nodes live and others mocked",
+        "Returns 0 after shutdown",
+        "Returns 1 if unknown nodes specified"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Starts lifecycle manager",
+        "Starts mock server",
+        "Updates adapter backends",
+        "Blocks until interrupt",
+        "Stops mock server and lifecycle on exit"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "Mock server",
+          "description": "Starts mock HTTP server"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "Circuit state",
+          "description": "Updates collapse level and live nodes"
+        },
+        {
+          "kind": "logging",
+          "target": "stdout",
+          "description": "Status information"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_watch",
+      "description": "Starts the custodian monitor that watches node health at specified poll interval until interrupted.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with dir, interval",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Custodian monitor runs until interrupted",
+        "Returns 0 after shutdown"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Starts lifecycle manager",
+        "Starts custodian monitor task",
+        "Blocks until interrupt",
+        "Stops custodian and lifecycle on exit"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "Node health endpoints",
+          "description": "Polls adapter health"
+        },
+        {
+          "kind": "logging",
+          "target": "stdout",
+          "description": "Monitor status and events"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_route_show",
+      "description": "Displays routing configuration for a node by reading from persisted state. Synchronous command.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "NodeNotFoundError",
+          "condition": "Node not found in circuit state",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "Prints routing config as JSON or single backend message",
+        "Returns 0 if node found",
+        "Returns 1 if node not found"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Reads state from filesystem"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "Circuit state",
+          "description": "Loads state for routing config"
+        },
+        {
+          "kind": "logging",
+          "target": "stdout/stderr",
+          "description": "Routing config or error"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_route_async",
+      "description": "Async dispatcher for route subcommands: ab, canary, set, lock, unlock, clear.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with route_command",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [
+        "args.route_command is one of: ab, canary, set, lock, unlock, clear"
+      ],
+      "postconditions": [
+        "Returns exit code from delegated route handler",
+        "Returns 1 if route_command not recognized"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Delegates to route command handlers"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "Node routing configuration",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_route_ab",
+      "description": "Configures A/B routing split for a node. Parses split ratio (e.g., '80/20'), starts lifecycle manager, and configures weighted routing.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node, command, split, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "InvalidSplitFormatError",
+          "condition": "args.split not in A/B format or non-integer values",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [
+        "args.split is in 'A/B' format with integer values"
+      ],
+      "postconditions": [
+        "A/B routing configured for node",
+        "Returns 0 on success",
+        "Returns 1 if split format invalid"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Starts lifecycle manager",
+        "Configures routing"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "Node routing config",
+          "description": "Sets A/B split"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_route_canary",
+      "description": "Configures canary deployment with optional auto-promotion based on error rate and latency thresholds. If --promote is set, starts canary controller and waits for result.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node, command, pct, promote, error_threshold, latency_threshold, eval_interval, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Canary routing configured",
+        "If promote=True, canary controller runs until completion",
+        "Returns 0"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Starts lifecycle manager",
+        "Configures canary routing",
+        "If promote=True, starts canary controller task"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "Node routing config",
+          "description": "Sets canary split"
+        },
+        {
+          "kind": "network_call",
+          "target": "Canary metrics endpoints",
+          "description": "If auto-promotion enabled"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_route_set",
+      "description": "Sets custom routing configuration (weighted or header-based) for a node. Parses targets and rules from command-line strings.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node, strategy, targets, header, rules, default, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "InvalidTargetFormatError",
+          "condition": "Target string not in valid format",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        },
+        {
+          "name": "InvalidRuleFormatError",
+          "condition": "Rule string not in valid format",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [
+        "args.strategy is 'weighted' or 'header'",
+        "args.targets format is 'name:port:weight,...' or 'name:port,...'"
+      ],
+      "postconditions": [
+        "Routing config set for node",
+        "Returns 0 on success",
+        "Returns 1 if target or rule parsing fails"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Starts lifecycle manager",
+        "Sets routing config"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "Node routing config",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_route_lock",
+      "description": "Locks routing configuration for a node to prevent changes.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Routing config locked for node",
+        "Returns 0"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Starts lifecycle manager",
+        "Locks routing"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "Node routing lock state",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_route_unlock",
+      "description": "Unlocks routing configuration for a node to allow changes.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Routing config unlocked for node",
+        "Returns 0"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Starts lifecycle manager",
+        "Unlocks routing"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "Node routing lock state",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_route_clear",
+      "description": "Clears routing configuration for a node, reverting to single backend.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "NodeNotFoundError",
+          "condition": "Node not found in lifecycle manager adapters",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "Routing config cleared for node",
+        "Returns 0 on success",
+        "Returns 1 if node not found"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Starts lifecycle manager",
+        "Clears routing config"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "Node routing config",
+          "description": "Removes routing config"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_build_deploy_target",
+      "description": "Constructs a DeploymentTarget from parsed arguments, extracting provider, region, namespace, and config dictionary.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with provider, dir, and optional project, region, namespace, mock, live, image, build",
+          "validators": []
+        }
+      ],
+      "output_type": "DeploymentTarget",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns DeploymentTarget with populated config dictionary"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "None - pure transformation"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_deploy",
+      "description": "Deploys circuit to a provider (local, gcp, aws). Loads circuit, creates provider, deploys, and for local provider waits for interrupt.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with provider, dir, and deployment config options",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Circuit deployed to provider",
+        "If provider is local, blocks until interrupted then tears down",
+        "Returns 0"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads circuit configuration",
+        "Creates provider instance",
+        "Deploys circuit via provider",
+        "For local provider, blocks until interrupt then tears down"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "Circuit config",
+          "description": ""
+        },
+        {
+          "kind": "network_call",
+          "target": "Cloud provider APIs",
+          "description": "For gcp/aws deployments"
+        },
+        {
+          "kind": "logging",
+          "target": "stdout",
+          "description": "Deployment status"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_teardown",
+      "description": "Tears down a deployed circuit from a provider.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with provider, dir, and deployment config options",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Circuit torn down from provider",
+        "Returns 0"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads circuit configuration",
+        "Creates provider instance",
+        "Tears down circuit via provider"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "Circuit config",
+          "description": ""
+        },
+        {
+          "kind": "network_call",
+          "target": "Cloud provider APIs",
+          "description": "For gcp/aws teardowns"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_deploy_status",
+      "description": "Checks and displays deployment status for a circuit on a provider.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with provider, dir, and deployment config options",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Deployment status printed to stdout",
+        "Returns 0"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads circuit configuration",
+        "Queries provider for status",
+        "Prints status information"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "Circuit config",
+          "description": ""
+        },
+        {
+          "kind": "network_call",
+          "target": "Cloud provider APIs",
+          "description": "Status query"
+        },
+        {
+          "kind": "logging",
+          "target": "stdout",
+          "description": "Status output"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_signals",
+      "description": "Shows request signals from signal history. Can filter by node, path, and display last N records or per-path statistics.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node, path, last, stats, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "NoSignalsFoundError",
+          "condition": "No signal data found",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "Signal data printed to stdout",
+        "Returns 0 if signals found",
+        "Returns 1 if no signals found"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads signal history from filesystem",
+        "Computes statistics if --stats flag set",
+        "Prints signal records or statistics"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "Signal history files",
+          "description": ""
+        },
+        {
+          "kind": "logging",
+          "target": "stdout/stderr",
+          "description": "Signal data or error"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_metrics",
+      "description": "Shows persistent metrics from telemetry collector. Can filter by node, show last N snapshots, or output in Prometheus format.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node, last, prometheus, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "NoMetricsFoundError",
+          "condition": "No metrics data found",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "Metrics data printed to stdout",
+        "Returns 0 if metrics found",
+        "Returns 1 if no metrics found"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads metrics history from filesystem",
+        "Formats as Prometheus or JSON",
+        "Prints metrics data"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "Metrics history files",
+          "description": ""
+        },
+        {
+          "kind": "logging",
+          "target": "stdout/stderr",
+          "description": "Metrics data or error"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_dashboard",
+      "description": "Shows aggregated circuit metrics. Can serve interactive dashboard on HTTP server or collect snapshot and display as JSON/table.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with json, serve, port, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "NoStateFoundError",
+          "condition": "No circuit state found in non-serve mode",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "If --serve, dashboard server runs until interrupted",
+        "Otherwise, snapshot printed to stdout",
+        "Returns 0 on success",
+        "Returns 1 if no circuit state found for non-serve mode"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads circuit and state",
+        "Starts lifecycle manager",
+        "If --serve, starts HTTP server and signal aggregator",
+        "Collects metrics snapshot",
+        "Prints formatted output"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "Circuit config and state",
+          "description": ""
+        },
+        {
+          "kind": "network_call",
+          "target": "Dashboard HTTP server",
+          "description": "If --serve flag set"
+        },
+        {
+          "kind": "logging",
+          "target": "stdout/stderr",
+          "description": "Dashboard data or error"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_image_list",
+      "description": "Lists built container images with node name, tag, and build timestamp.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Image list printed to stdout",
+        "Returns 0"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads image metadata from filesystem",
+        "Prints formatted table"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "Image metadata (images.json)",
+          "description": ""
+        },
+        {
+          "kind": "logging",
+          "target": "stdout",
+          "description": "Image list"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_image_async",
+      "description": "Async dispatcher for image subcommands: build, push.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with image_command",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [
+        "args.image_command is 'build' or 'push'"
+      ],
+      "postconditions": [
+        "Returns exit code from delegated image handler",
+        "Returns 1 if image_command not recognized"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Delegates to image command handlers"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "Container registry",
+          "description": "For push operations"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_image_build",
+      "description": "Builds a container image for a node. Requires --node and either --path or node metadata with service_dir.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node, tag, path, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "MissingNodeError",
+          "condition": "--node not provided",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        },
+        {
+          "name": "MissingPathError",
+          "condition": "--path not provided and node metadata lacks service_dir",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [
+        "args.node is provided",
+        "args.path is provided or node metadata contains service_dir"
+      ],
+      "postconditions": [
+        "Container image built",
+        "Image info printed to stdout",
+        "Returns 0 on success",
+        "Returns 1 if --node or service_dir missing"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads circuit configuration",
+        "Invokes Docker/container build",
+        "Saves image metadata"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "Circuit config and Dockerfile",
+          "description": ""
+        },
+        {
+          "kind": "writes_file",
+          "target": "Image metadata",
+          "description": ""
+        },
+        {
+          "kind": "network_call",
+          "target": "Docker daemon",
+          "description": "Image build"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_image_push",
+      "description": "Pushes a container image to registry. Requires --tag or --node (to look up tag from metadata).",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node, tag, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "MissingTagError",
+          "condition": "--tag or --node required and cannot be resolved",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [
+        "args.tag is provided or args.node is provided and has built image"
+      ],
+      "postconditions": [
+        "Image pushed to registry",
+        "Returns 0 on success",
+        "Returns 1 if tag cannot be resolved"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads image metadata",
+        "Pushes image to container registry"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "Image metadata",
+          "description": ""
+        },
+        {
+          "kind": "network_call",
+          "target": "Container registry",
+          "description": "Image push"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_init",
+      "description": "Initializes a new circuit by creating project directory, circuit config file, and baton state directory.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with dir, name",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "ConfigExistsError",
+          "condition": "baton.yaml already exists in project directory",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "Project directory created if it doesn't exist",
+        "Circuit config file (baton.yaml) created",
+        "Baton state directory created",
+        "Returns 0 on success",
+        "Returns 1 if config file already exists"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Creates project directory",
+        "Writes circuit config file",
+        "Creates baton state directory"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "writes_file",
+          "target": "baton.yaml and .baton/ directory",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_node",
+      "description": "Manages circuit nodes: add or remove. Loads circuit, applies operation, and saves updated circuit.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with node_command (add or rm), name, port, mode, role, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "InvalidNodeCommandError",
+          "condition": "node_command not in {add, rm}",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [
+        "args.node_command is 'add' or 'rm'"
+      ],
+      "postconditions": [
+        "Circuit updated with node added or removed",
+        "Updated circuit saved to filesystem",
+        "Returns 0 on success",
+        "Returns 1 if node_command invalid"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads circuit from filesystem",
+        "Modifies circuit structure",
+        "Saves circuit to filesystem"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "baton.yaml",
+          "description": ""
+        },
+        {
+          "kind": "writes_file",
+          "target": "baton.yaml",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_edge",
+      "description": "Manages circuit edges: add or remove. Loads circuit, applies operation, and saves updated circuit.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with edge_command (add or rm), source, target, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "InvalidEdgeCommandError",
+          "condition": "edge_command not in {add, rm}",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [
+        "args.edge_command is 'add' or 'rm'"
+      ],
+      "postconditions": [
+        "Circuit updated with edge added or removed",
+        "Updated circuit saved to filesystem",
+        "Returns 0 on success",
+        "Returns 1 if edge_command invalid"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads circuit from filesystem",
+        "Modifies circuit edges",
+        "Saves circuit to filesystem"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "baton.yaml",
+          "description": ""
+        },
+        {
+          "kind": "writes_file",
+          "target": "baton.yaml",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_contract",
+      "description": "Sets contract for a node. Loads circuit, applies contract spec path, and saves updated circuit.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with contract_command (set), node, spec, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "InvalidContractCommandError",
+          "condition": "contract_command not 'set'",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [
+        "args.contract_command is 'set'"
+      ],
+      "postconditions": [
+        "Contract set for node",
+        "Updated circuit saved to filesystem",
+        "Returns 0 on success",
+        "Returns 1 if contract_command invalid"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads circuit from filesystem",
+        "Updates node contract",
+        "Saves circuit to filesystem"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "baton.yaml and contract spec file",
+          "description": ""
+        },
+        {
+          "kind": "writes_file",
+          "target": "baton.yaml",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_service",
+      "description": "Manages service manifests: register, list, or derive circuit from services.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with service_command (register, list, derive), path, save, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "InvalidServiceCommandError",
+          "condition": "service_command not in {register, list, derive}",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [
+        "args.service_command is one of: register, list, derive"
+      ],
+      "postconditions": [
+        "For register: service path added to registry",
+        "For list: service manifests listed to stdout",
+        "For derive: circuit derived and optionally saved",
+        "Returns 0 on success",
+        "Returns 1 if service_command invalid"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "For register: validates and registers service manifest",
+        "For list: loads and displays service manifests",
+        "For derive: loads manifests, derives circuit, optionally saves"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "Service manifest files",
+          "description": ""
+        },
+        {
+          "kind": "writes_file",
+          "target": "Service registry and optionally baton.yaml",
+          "description": "For register and derive --save"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_check",
+      "description": "Runs compatibility check on service manifests. Checks contracts between services and reports issues.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with service, dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [
+        {
+          "name": "NoServicesError",
+          "condition": "No services registered",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        },
+        {
+          "name": "ServiceNotFoundError",
+          "condition": "Specified service not found",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        },
+        {
+          "name": "IncompatibilityError",
+          "condition": "Compatibility issues found",
+          "error_type": "ValueError",
+          "error_data": {
+            "exit_code": "1"
+          }
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "Compatibility report printed to stdout",
+        "Returns 0 if all compatible",
+        "Returns 1 if issues found or no services registered"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads service manifests",
+        "Runs compatibility checks",
+        "Prints issues or success message"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "Service manifest and contract files",
+          "description": ""
+        },
+        {
+          "kind": "logging",
+          "target": "stdout/stderr",
+          "description": "Compatibility report"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_cmd_status",
+      "description": "Shows circuit status including nodes, edges, and runtime state if available.",
+      "inputs": [
+        {
+          "name": "args",
+          "type_ref": "argparse.Namespace",
+          "required": true,
+          "default": "",
+          "description": "Parsed arguments with dir",
+          "validators": []
+        }
+      ],
+      "output_type": "int",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Circuit status printed to stdout",
+        "Returns 0"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Loads circuit configuration",
+        "Loads runtime state if available",
+        "Prints formatted status"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "baton.yaml and .baton/state",
+          "description": ""
+        },
+        {
+          "kind": "logging",
+          "target": "stdout",
+          "description": "Status information"
+        }
+      ],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "argparse",
+    "asyncio",
+    "signal",
+    "sys",
+    "pathlib",
+    "baton.circuit",
+    "baton.config",
+    "baton.schemas",
+    "baton.state",
+    "baton.lifecycle",
+    "baton.collapse",
+    "baton.custodian",
+    "baton.providers",
+    "baton.signals",
+    "baton.telemetry",
+    "baton.dashboard",
+    "baton.dashboard_server",
+    "baton.image",
+    "baton.manifest",
+    "baton.compat"
+  ],
+  "dependency_contracts": {},
+  "invariants": [
+    "CONFIG_FILENAME is 'baton.yaml'",
+    "Exit code 0 indicates success",
+    "Exit code 1 indicates error or validation failure",
+    "Exit code 130 indicates KeyboardInterrupt",
+    "All async commands are dispatched through _cmd_async or specific async dispatchers",
+    "All file operations use args.dir as project directory base",
+    "Lifecycle manager is started with up() before node operations",
+    "Circuit config changes are immediately saved to filesystem"
+  ],
+  "requires": []
+}

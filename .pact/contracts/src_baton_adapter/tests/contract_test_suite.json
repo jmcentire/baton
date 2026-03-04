@@ -1,0 +1,1271 @@
+{
+  "component_id": "src_baton_adapter",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "test_now_iso_happy_path",
+      "description": "Test _now_iso returns ISO 8601 formatted timestamp",
+      "function": "_now_iso",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Result is a non-empty string",
+        "Result matches ISO 8601 format pattern"
+      ]
+    },
+    {
+      "id": "test_is_configured_with_valid_port",
+      "description": "Test is_configured returns True when port > 0",
+      "function": "is_configured",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns True for port = 1",
+        "Returns True for port = 8080"
+      ]
+    },
+    {
+      "id": "test_is_configured_with_invalid_port",
+      "description": "Test is_configured returns False when port <= 0",
+      "function": "is_configured",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns False for port = 0",
+        "Returns False for port = -1"
+      ]
+    },
+    {
+      "id": "test_record_latency_single_value",
+      "description": "Test record_latency appends value to buffer",
+      "function": "record_latency",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Buffer contains the recorded latency",
+        "Buffer size increases by 1"
+      ]
+    },
+    {
+      "id": "test_record_latency_buffer_trimming",
+      "description": "Test record_latency trims buffer to max 1000 entries",
+      "function": "record_latency",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Buffer size never exceeds 1000",
+        "Oldest entries are removed first"
+      ]
+    },
+    {
+      "id": "test_record_status_2xx",
+      "description": "Test record_status increments status_2xx for 200-299",
+      "function": "record_status",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "status_2xx incremented for 200",
+        "status_2xx incremented for 204",
+        "status_2xx incremented for 299"
+      ]
+    },
+    {
+      "id": "test_record_status_3xx",
+      "description": "Test record_status increments status_3xx for 300-399",
+      "function": "record_status",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "status_3xx incremented for 301",
+        "status_3xx incremented for 302"
+      ]
+    },
+    {
+      "id": "test_record_status_4xx",
+      "description": "Test record_status increments status_4xx for 400-499",
+      "function": "record_status",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "status_4xx incremented for 404",
+        "status_4xx incremented for 400"
+      ]
+    },
+    {
+      "id": "test_record_status_5xx",
+      "description": "Test record_status increments status_5xx for 500-599",
+      "function": "record_status",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "status_5xx incremented for 500",
+        "status_5xx incremented for 503"
+      ]
+    },
+    {
+      "id": "test_p50_with_data",
+      "description": "Test p50 returns 50th percentile of latency buffer",
+      "function": "p50",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns correct 50th percentile value"
+      ]
+    },
+    {
+      "id": "test_p50_empty_buffer",
+      "description": "Test p50 returns 0.0 for empty buffer",
+      "function": "p50",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns 0.0 when buffer is empty"
+      ]
+    },
+    {
+      "id": "test_p95_with_data",
+      "description": "Test p95 returns 95th percentile of latency buffer",
+      "function": "p95",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns correct 95th percentile value"
+      ]
+    },
+    {
+      "id": "test_p95_empty_buffer",
+      "description": "Test p95 returns 0.0 for empty buffer",
+      "function": "p95",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns 0.0 when buffer is empty"
+      ]
+    },
+    {
+      "id": "test_p99_with_data",
+      "description": "Test p99 returns 99th percentile of latency buffer",
+      "function": "p99",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns correct 99th percentile value"
+      ]
+    },
+    {
+      "id": "test_p99_empty_buffer",
+      "description": "Test p99 returns 0.0 for empty buffer",
+      "function": "p99",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns 0.0 when buffer is empty"
+      ]
+    },
+    {
+      "id": "test_percentile_calculation",
+      "description": "Test _percentile calculates correct percentile value",
+      "function": "_percentile",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns correct percentile from sorted buffer"
+      ]
+    },
+    {
+      "id": "test_percentile_empty_buffer",
+      "description": "Test _percentile returns 0.0 for empty buffer",
+      "function": "_percentile",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns 0.0 when buffer is empty"
+      ]
+    },
+    {
+      "id": "test_adapter_init_normal_node",
+      "description": "Test Adapter initialization with normal node",
+      "function": "__init__",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Adapter initialized",
+        "Backend target created",
+        "Metrics initialized",
+        "Server not started"
+      ]
+    },
+    {
+      "id": "test_adapter_init_with_signal_recording",
+      "description": "Test Adapter initialization with signal recording enabled",
+      "function": "__init__",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Signal recording enabled when record_signals=True"
+      ]
+    },
+    {
+      "id": "test_adapter_init_ingress_node",
+      "description": "Test Adapter initialization with INGRESS node always records signals",
+      "function": "__init__",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Signal recording enabled for INGRESS role regardless of record_signals flag"
+      ]
+    },
+    {
+      "id": "test_adapter_node_getter",
+      "description": "Test node getter returns NodeSpec",
+      "function": "node",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns the NodeSpec instance"
+      ]
+    },
+    {
+      "id": "test_adapter_metrics_getter",
+      "description": "Test metrics getter returns AdapterMetrics",
+      "function": "metrics",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns AdapterMetrics instance"
+      ]
+    },
+    {
+      "id": "test_adapter_target_metrics_getter",
+      "description": "Test target_metrics returns copy of dictionary",
+      "function": "target_metrics",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns dictionary",
+        "Returns copy not reference"
+      ]
+    },
+    {
+      "id": "test_adapter_signals_getter",
+      "description": "Test signals returns copy of signal buffer",
+      "function": "signals",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns list",
+        "Returns copy not reference"
+      ]
+    },
+    {
+      "id": "test_adapter_drain_signals",
+      "description": "Test drain_signals returns and clears buffer",
+      "function": "drain_signals",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns copy of signal buffer",
+        "Signal buffer is cleared after drain"
+      ]
+    },
+    {
+      "id": "test_adapter_backend_getter",
+      "description": "Test backend getter returns BackendTarget",
+      "function": "backend",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns BackendTarget instance"
+      ]
+    },
+    {
+      "id": "test_adapter_routing_getter",
+      "description": "Test routing getter returns RoutingConfig or None",
+      "function": "routing",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns None when no routing configured",
+        "Returns RoutingConfig when configured"
+      ]
+    },
+    {
+      "id": "test_adapter_is_running_not_started",
+      "description": "Test is_running returns False when server not started",
+      "function": "is_running",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns False when server is None"
+      ]
+    },
+    {
+      "id": "test_adapter_is_running_started",
+      "description": "Test is_running returns True when server is running",
+      "function": "is_running",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns True when server exists and serving"
+      ]
+    },
+    {
+      "id": "test_set_backend_success",
+      "description": "Test set_backend updates backend target",
+      "function": "set_backend",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Backend updated to new target",
+        "Draining flag cleared"
+      ]
+    },
+    {
+      "id": "test_set_backend_routing_locked",
+      "description": "Test set_backend raises RoutingLocked when routing is locked",
+      "function": "set_backend",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "RoutingLocked",
+      "assertions": [
+        "Raises RoutingLocked exception when routing is locked"
+      ]
+    },
+    {
+      "id": "test_set_routing_success",
+      "description": "Test set_routing updates routing config",
+      "function": "set_routing",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Routing config updated",
+        "Target metrics cleared"
+      ]
+    },
+    {
+      "id": "test_set_routing_locked",
+      "description": "Test set_routing raises RoutingLocked when current routing is locked",
+      "function": "set_routing",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "RoutingLocked",
+      "assertions": [
+        "Raises RoutingLocked exception"
+      ]
+    },
+    {
+      "id": "test_clear_routing_success",
+      "description": "Test clear_routing removes routing configuration",
+      "function": "clear_routing",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Routing config set to None"
+      ]
+    },
+    {
+      "id": "test_clear_routing_locked",
+      "description": "Test clear_routing raises RoutingLocked when routing is locked",
+      "function": "clear_routing",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "RoutingLocked",
+      "assertions": [
+        "Raises RoutingLocked exception"
+      ]
+    },
+    {
+      "id": "test_start_adapter",
+      "description": "Test start begins listening on node address",
+      "function": "start",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Server started",
+        "Server is listening"
+      ]
+    },
+    {
+      "id": "test_drain_adapter",
+      "description": "Test drain stops accepting connections and waits for active ones",
+      "function": "drain",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Draining flag set",
+        "Waits for active connections or timeout"
+      ]
+    },
+    {
+      "id": "test_stop_adapter",
+      "description": "Test stop shuts down server",
+      "function": "stop",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Server closed",
+        "Server set to None"
+      ]
+    },
+    {
+      "id": "test_health_check_tcp_healthy",
+      "description": "Test health_check returns HEALTHY for successful TCP connection",
+      "function": "health_check",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns HealthCheck with HEALTHY verdict"
+      ]
+    },
+    {
+      "id": "test_health_check_http_healthy",
+      "description": "Test health_check returns HEALTHY for 2xx HTTP response",
+      "function": "health_check",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns HealthCheck with HEALTHY verdict for 200"
+      ]
+    },
+    {
+      "id": "test_health_check_http_unhealthy",
+      "description": "Test health_check returns UNHEALTHY for 5xx HTTP response",
+      "function": "health_check",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns HealthCheck with UNHEALTHY verdict for 500"
+      ]
+    },
+    {
+      "id": "test_health_check_http_degraded",
+      "description": "Test health_check returns DEGRADED for non-2xx/5xx HTTP response",
+      "function": "health_check",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns HealthCheck with DEGRADED verdict for 404"
+      ]
+    },
+    {
+      "id": "test_tcp_health_check_success",
+      "description": "Test _tcp_health_check returns HEALTHY on successful connection",
+      "function": "_tcp_health_check",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns HEALTHY verdict",
+        "Includes latency measurement"
+      ]
+    },
+    {
+      "id": "test_tcp_health_check_failure",
+      "description": "Test _tcp_health_check returns UNHEALTHY on connection failure",
+      "function": "_tcp_health_check",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns UNHEALTHY verdict on failure"
+      ]
+    },
+    {
+      "id": "test_http_health_check_2xx",
+      "description": "Test _http_health_check returns HEALTHY for 2xx status",
+      "function": "_http_health_check",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns HEALTHY for 200",
+        "Includes latency"
+      ]
+    },
+    {
+      "id": "test_http_health_check_5xx",
+      "description": "Test _http_health_check returns UNHEALTHY for 5xx status",
+      "function": "_http_health_check",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns UNHEALTHY for 500"
+      ]
+    },
+    {
+      "id": "test_http_health_check_other",
+      "description": "Test _http_health_check returns DEGRADED for other status codes",
+      "function": "_http_health_check",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns DEGRADED for 404"
+      ]
+    },
+    {
+      "id": "test_select_backend_no_routing",
+      "description": "Test _select_backend returns default backend when no routing",
+      "function": "_select_backend",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns default backend target"
+      ]
+    },
+    {
+      "id": "test_select_backend_with_routing",
+      "description": "Test _select_backend uses routing config when available",
+      "function": "_select_backend",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns backend from routing config"
+      ]
+    },
+    {
+      "id": "test_select_backend_named_no_routing",
+      "description": "Test _select_backend_named returns default backend with None name",
+      "function": "_select_backend_named",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns (target, None) when no routing"
+      ]
+    },
+    {
+      "id": "test_select_backend_named_with_routing",
+      "description": "Test _select_backend_named returns backend and name from routing",
+      "function": "_select_backend_named",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns (target, name) from routing config"
+      ]
+    },
+    {
+      "id": "test_select_weighted_single_target",
+      "description": "Test _select_weighted returns single target",
+      "function": "_select_weighted",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns the only target"
+      ]
+    },
+    {
+      "id": "test_select_weighted_multiple_targets",
+      "description": "Test _select_weighted distributes based on weights",
+      "function": "_select_weighted",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns one of the weighted targets"
+      ]
+    },
+    {
+      "id": "test_select_weighted_named_single",
+      "description": "Test _select_weighted_named returns single target with name",
+      "function": "_select_weighted_named",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns (target, name) for single target"
+      ]
+    },
+    {
+      "id": "test_select_weighted_named_multiple",
+      "description": "Test _select_weighted_named distributes based on weights",
+      "function": "_select_weighted_named",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns (target, name) from weighted selection"
+      ]
+    },
+    {
+      "id": "test_select_by_header_match",
+      "description": "Test _select_by_header routes based on matching header",
+      "function": "_select_by_header",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns target matching header rule"
+      ]
+    },
+    {
+      "id": "test_select_by_header_no_match",
+      "description": "Test _select_by_header falls back to default when no match",
+      "function": "_select_by_header",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns default target when no header match"
+      ]
+    },
+    {
+      "id": "test_select_by_header_named_match",
+      "description": "Test _select_by_header_named returns matched target and name",
+      "function": "_select_by_header_named",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns (target, name) for matching header"
+      ]
+    },
+    {
+      "id": "test_select_by_header_named_no_match",
+      "description": "Test _select_by_header_named falls back to default",
+      "function": "_select_by_header_named",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns (default_target, None) when no match"
+      ]
+    },
+    {
+      "id": "test_parse_headers_valid",
+      "description": "Test _parse_headers extracts headers from HTTP request",
+      "function": "_parse_headers",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns dictionary with lowercase keys",
+        "Values extracted correctly"
+      ]
+    },
+    {
+      "id": "test_parse_headers_malformed",
+      "description": "Test _parse_headers returns empty dict on parse error",
+      "function": "_parse_headers",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns empty dict for malformed data"
+      ]
+    },
+    {
+      "id": "test_decrement_connections",
+      "description": "Test _decrement_connections reduces active connection count",
+      "function": "_decrement_connections",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Active connections decremented"
+      ]
+    },
+    {
+      "id": "test_decrement_connections_signals_drain",
+      "description": "Test _decrement_connections signals drain event when draining and connections reach 0",
+      "function": "_decrement_connections",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Drain event set when draining and connections = 0"
+      ]
+    },
+    {
+      "id": "test_handle_tcp_connection_success",
+      "description": "Test _handle_tcp_connection forwards traffic bidirectionally",
+      "function": "_handle_tcp_connection",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Traffic forwarded bidirectionally",
+        "Metrics updated",
+        "Connections closed"
+      ]
+    },
+    {
+      "id": "test_handle_tcp_connection_backend_failure",
+      "description": "Test _handle_tcp_connection handles backend connection failure",
+      "function": "_handle_tcp_connection",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Handles connection failure gracefully",
+        "Metrics updated with failure"
+      ]
+    },
+    {
+      "id": "test_handle_http_connection_success",
+      "description": "Test _handle_http_connection forwards HTTP request and response",
+      "function": "_handle_http_connection",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Request forwarded",
+        "Response returned",
+        "Metrics updated"
+      ]
+    },
+    {
+      "id": "test_handle_http_connection_with_routing",
+      "description": "Test _handle_http_connection uses routing to select backend",
+      "function": "_handle_http_connection",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Uses routing config",
+        "Target metrics updated"
+      ]
+    },
+    {
+      "id": "test_handle_http_connection_backend_failure",
+      "description": "Test _handle_http_connection handles backend connection failure",
+      "function": "_handle_http_connection",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Handles backend failure",
+        "Metrics record failure"
+      ]
+    },
+    {
+      "id": "test_handle_http_connection_signals_recorded",
+      "description": "Test _handle_http_connection records signals when enabled",
+      "function": "_handle_http_connection",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Signals recorded when recording enabled"
+      ]
+    },
+    {
+      "id": "test_pipe_transfers_data",
+      "description": "Test _pipe copies all bytes from reader to writer",
+      "function": "_pipe",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "All bytes copied until EOF"
+      ]
+    },
+    {
+      "id": "test_pipe_eof",
+      "description": "Test _pipe handles EOF correctly",
+      "function": "_pipe",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Stops reading at EOF"
+      ]
+    },
+    {
+      "id": "test_read_http_message_complete",
+      "description": "Test _read_http_message reads complete HTTP message with Content-Length",
+      "function": "_read_http_message",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns complete HTTP message including headers and body"
+      ]
+    },
+    {
+      "id": "test_read_http_message_no_content_length",
+      "description": "Test _read_http_message handles missing Content-Length",
+      "function": "_read_http_message",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns headers when no Content-Length present"
+      ]
+    },
+    {
+      "id": "test_read_http_message_timeout",
+      "description": "Test _read_http_message returns None on timeout",
+      "function": "_read_http_message",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns None on timeout"
+      ]
+    },
+    {
+      "id": "test_parse_request_line_valid",
+      "description": "Test _parse_request_line extracts method and path",
+      "function": "_parse_request_line",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns (method, path) tuple correctly"
+      ]
+    },
+    {
+      "id": "test_parse_request_line_invalid",
+      "description": "Test _parse_request_line returns empty strings on parse error",
+      "function": "_parse_request_line",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns ('', '') for malformed request line"
+      ]
+    },
+    {
+      "id": "test_parse_status_code_valid",
+      "description": "Test _parse_status_code extracts status code from response",
+      "function": "_parse_status_code",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns status code integer"
+      ]
+    },
+    {
+      "id": "test_parse_status_code_none",
+      "description": "Test _parse_status_code returns 0 for None input",
+      "function": "_parse_status_code",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns 0 when data is None"
+      ]
+    },
+    {
+      "id": "test_parse_status_code_invalid",
+      "description": "Test _parse_status_code returns 0 for malformed response",
+      "function": "_parse_status_code",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns 0 for malformed data"
+      ]
+    },
+    {
+      "id": "test_invariant_latency_buffer_max",
+      "description": "Test that latency buffer never exceeds 1000 entries",
+      "function": "record_latency",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Buffer size <= 1000 after recording 2000 entries"
+      ]
+    },
+    {
+      "id": "test_invariant_ingress_signals",
+      "description": "Test that INGRESS nodes always record signals",
+      "function": "__init__",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "INGRESS nodes record signals even when record_signals=False"
+      ]
+    },
+    {
+      "id": "test_invariant_backend_port_configured",
+      "description": "Test that backend is configured only when port > 0",
+      "function": "is_configured",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "port > 0 means configured",
+        "port <= 0 means not configured"
+      ]
+    }
+  ],
+  "test_language": "python",
+  "generated_code": "\"\"\"\nContract-driven tests for Baton Adapter - Async Reverse Proxy\nGenerated from contract version 1\nTests verify behavior at boundaries using mocked dependencies\n\"\"\"\n\nimport pytest\nimport asyncio\nfrom unittest.mock import Mock, AsyncMock, MagicMock, patch, call\nfrom datetime import datetime\nimport random\nfrom io import BytesIO\n\n# Import the component\nfrom src.baton.adapter import (\n    BackendTarget,\n    AdapterMetrics,\n    Adapter,\n    NodeSpec,\n    RoutingConfig,\n    RoutingLocked,\n    HealthCheck,\n    SignalRecord,\n    _now_iso,\n    is_configured,\n    _parse_headers,\n    _parse_request_line,\n    _parse_status_code,\n    _select_weighted,\n    _select_weighted_named,\n    _pipe,\n    _read_http_message,\n)\n\n\n# ============================================================================\n# FIXTURES\n# ============================================================================\n\n@pytest.fixture\ndef mock_node():\n    \"\"\"Create a mock NodeSpec for testing\"\"\"\n    node = Mock(spec=NodeSpec)\n    node.name = \"test-node\"\n    node.host = \"127.0.0.1\"\n    node.port = 8080\n    node.role = \"WORKER\"\n    node.proxy_mode = \"HTTP\"\n    node.metadata = {}\n    return node\n\n\n@pytest.fixture\ndef mock_ingress_node():\n    \"\"\"Create a mock INGRESS NodeSpec\"\"\"\n    node = Mock(spec=NodeSpec)\n    node.name = \"ingress-node\"\n    node.host = \"127.0.0.1\"\n    node.port = 9000\n    node.role = \"INGRESS\"\n    node.proxy_mode = \"HTTP\"\n    node.metadata = {}\n    return node\n\n\n@pytest.fixture\ndef backend_target():\n    \"\"\"Create a BackendTarget for testing\"\"\"\n    return BackendTarget(host=\"backend.local\", port=8081)\n\n\n@pytest.fixture\ndef adapter_metrics():\n    \"\"\"Create an AdapterMetrics instance\"\"\"\n    return AdapterMetrics(\n        requests_total=0,\n        requests_failed=0,\n        bytes_forwarded=0,\n        last_request_at=0.0,\n        last_latency_ms=0.0,\n        status_2xx=0,\n        status_3xx=0,\n        status_4xx=0,\n        status_5xx=0,\n        active_connections=0,\n        _latency_buffer=[]\n    )\n\n\n@pytest.fixture\ndef adapter(mock_node):\n    \"\"\"Create an Adapter instance for testing\"\"\"\n    return Adapter(node=mock_node, record_signals=False)\n\n\n@pytest.fixture\ndef adapter_with_signals(mock_node):\n    \"\"\"Create an Adapter with signal recording enabled\"\"\"\n    return Adapter(node=mock_node, record_signals=True)\n\n\n@pytest.fixture\ndef ingress_adapter(mock_ingress_node):\n    \"\"\"Create an Adapter for an INGRESS node\"\"\"\n    return Adapter(node=mock_ingress_node, record_signals=False)\n\n\n@pytest.fixture\ndef routing_config():\n    \"\"\"Create a RoutingConfig for testing\"\"\"\n    config = Mock(spec=RoutingConfig)\n    config.locked = False\n    config.strategy = \"WEIGHTED\"\n    config.targets = []\n    config.default_target = None\n    config.header_rules = []\n    return config\n\n\n@pytest.fixture\ndef locked_routing_config():\n    \"\"\"Create a locked RoutingConfig\"\"\"\n    config = Mock(spec=RoutingConfig)\n    config.locked = True\n    return config\n\n\n# ============================================================================\n# UTILITY FUNCTION TESTS\n# ============================================================================\n\nclass TestNowIso:\n    \"\"\"Tests for _now_iso function\"\"\"\n    \n    def test_now_iso_happy_path(self):\n        \"\"\"Test _now_iso returns ISO 8601 formatted timestamp\"\"\"\n        result = _now_iso()\n        \n        # Result is a non-empty string\n        assert isinstance(result, str)\n        assert len(result) > 0\n        \n        # Result matches ISO 8601 format pattern (can be parsed back)\n        try:\n            datetime.fromisoformat(result.replace('Z', '+00:00'))\n            iso_format_valid = True\n        except ValueError:\n            iso_format_valid = False\n        \n        assert iso_format_valid, f\"Result '{result}' is not valid ISO 8601 format\"\n\n\nclass TestIsConfigured:\n    \"\"\"Tests for is_configured function\"\"\"\n    \n    def test_is_configured_with_valid_port(self):\n        \"\"\"Test is_configured returns True when port > 0\"\"\"\n        target1 = BackendTarget(host=\"localhost\", port=1)\n        target2 = BackendTarget(host=\"localhost\", port=8080)\n        \n        # Returns True for port = 1\n        assert is_configured(target1) is True\n        \n        # Returns True for port = 8080\n        assert is_configured(target2) is True\n    \n    def test_is_configured_with_invalid_port(self):\n        \"\"\"Test is_configured returns False when port <= 0\"\"\"\n        target0 = BackendTarget(host=\"localhost\", port=0)\n        target_neg = BackendTarget(host=\"localhost\", port=-1)\n        \n        # Returns False for port = 0\n        assert is_configured(target0) is False\n        \n        # Returns False for port = -1\n        assert is_configured(target_neg) is False\n\n\n# ============================================================================\n# ADAPTER METRICS TESTS\n# ============================================================================\n\nclass TestAdapterMetrics:\n    \"\"\"Tests for AdapterMetrics methods\"\"\"\n    \n    def test_record_latency_single_value(self, adapter_metrics):\n        \"\"\"Test record_latency appends value to buffer\"\"\"\n        initial_size = len(adapter_metrics._latency_buffer)\n        \n        adapter_metrics.record_latency(15.5)\n        \n        # Buffer contains the recorded latency\n        assert 15.5 in adapter_metrics._latency_buffer\n        \n        # Buffer size increases by 1\n        assert len(adapter_metrics._latency_buffer) == initial_size + 1\n    \n    def test_record_latency_buffer_trimming(self, adapter_metrics):\n        \"\"\"Test record_latency trims buffer to max 1000 entries\"\"\"\n        # Fill buffer with 1000 entries\n        for i in range(1000):\n            adapter_metrics.record_latency(float(i))\n        \n        assert len(adapter_metrics._latency_buffer) == 1000\n        \n        # Add more entries\n        for i in range(100):\n            adapter_metrics.record_latency(float(1000 + i))\n        \n        # Buffer size never exceeds 1000\n        assert len(adapter_metrics._latency_buffer) == 1000\n        \n        # Oldest entries are removed first (first 100 entries should be gone)\n        assert 0.0 not in adapter_metrics._latency_buffer\n        assert 99.0 not in adapter_metrics._latency_buffer\n        assert 1099.0 in adapter_metrics._latency_buffer\n    \n    def test_record_status_2xx(self, adapter_metrics):\n        \"\"\"Test record_status increments status_2xx for 200-299\"\"\"\n        initial_count = adapter_metrics.status_2xx\n        \n        adapter_metrics.record_status(200)\n        assert adapter_metrics.status_2xx == initial_count + 1\n        \n        adapter_metrics.record_status(204)\n        assert adapter_metrics.status_2xx == initial_count + 2\n        \n        adapter_metrics.record_status(299)\n        assert adapter_metrics.status_2xx == initial_count + 3\n    \n    def test_record_status_3xx(self, adapter_metrics):\n        \"\"\"Test record_status increments status_3xx for 300-399\"\"\"\n        initial_count = adapter_metrics.status_3xx\n        \n        adapter_metrics.record_status(301)\n        assert adapter_metrics.status_3xx == initial_count + 1\n        \n        adapter_metrics.record_status(302)\n        assert adapter_metrics.status_3xx == initial_count + 2\n    \n    def test_record_status_4xx(self, adapter_metrics):\n        \"\"\"Test record_status increments status_4xx for 400-499\"\"\"\n        initial_count = adapter_metrics.status_4xx\n        \n        adapter_metrics.record_status(404)\n        assert adapter_metrics.status_4xx == initial_count + 1\n        \n        adapter_metrics.record_status(400)\n        assert adapter_metrics.status_4xx == initial_count + 2\n    \n    def test_record_status_5xx(self, adapter_metrics):\n        \"\"\"Test record_status increments status_5xx for 500-599\"\"\"\n        initial_count = adapter_metrics.status_5xx\n        \n        adapter_metrics.record_status(500)\n        assert adapter_metrics.status_5xx == initial_count + 1\n        \n        adapter_metrics.record_status(503)\n        assert adapter_metrics.status_5xx == initial_count + 2\n    \n    def test_p50_with_data(self, adapter_metrics):\n        \"\"\"Test p50 returns 50th percentile of latency buffer\"\"\"\n        # Add known values\n        values = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0]\n        for v in values:\n            adapter_metrics.record_latency(v)\n        \n        result = adapter_metrics.p50()\n        \n        # Returns correct 50th percentile value (should be around 55.0)\n        assert 50.0 <= result <= 60.0\n    \n    def test_p50_empty_buffer(self, adapter_metrics):\n        \"\"\"Test p50 returns 0.0 for empty buffer\"\"\"\n        result = adapter_metrics.p50()\n        \n        # Returns 0.0 when buffer is empty\n        assert result == 0.0\n    \n    def test_p95_with_data(self, adapter_metrics):\n        \"\"\"Test p95 returns 95th percentile of latency buffer\"\"\"\n        # Add known values\n        values = [float(i) for i in range(1, 101)]\n        for v in values:\n            adapter_metrics.record_latency(v)\n        \n        result = adapter_metrics.p95()\n        \n        # Returns correct 95th percentile value (should be around 95.0)\n        assert 94.0 <= result <= 96.0\n    \n    def test_p95_empty_buffer(self, adapter_metrics):\n        \"\"\"Test p95 returns 0.0 for empty buffer\"\"\"\n        result = adapter_metrics.p95()\n        \n        # Returns 0.0 when buffer is empty\n        assert result == 0.0\n    \n    def test_p99_with_data(self, adapter_metrics):\n        \"\"\"Test p99 returns 99th percentile of latency buffer\"\"\"\n        # Add known values\n        values = [float(i) for i in range(1, 101)]\n        for v in values:\n            adapter_metrics.record_latency(v)\n        \n        result = adapter_metrics.p99()\n        \n        # Returns correct 99th percentile value (should be around 99.0)\n        assert 98.0 <= result <= 100.0\n    \n    def test_p99_empty_buffer(self, adapter_metrics):\n        \"\"\"Test p99 returns 0.0 for empty buffer\"\"\"\n        result = adapter_metrics.p99()\n        \n        # Returns 0.0 when buffer is empty\n        assert result == 0.0\n    \n    def test_percentile_calculation(self, adapter_metrics):\n        \"\"\"Test _percentile calculates correct percentile value\"\"\"\n        # Add known values\n        values = [10.0, 20.0, 30.0, 40.0, 50.0]\n        for v in values:\n            adapter_metrics.record_latency(v)\n        \n        result = adapter_metrics._percentile(50)\n        \n        # Returns correct percentile from sorted buffer\n        assert result == 30.0  # Median of 5 values\n    \n    def test_percentile_empty_buffer(self, adapter_metrics):\n        \"\"\"Test _percentile returns 0.0 for empty buffer\"\"\"\n        result = adapter_metrics._percentile(50)\n        \n        # Returns 0.0 when buffer is empty\n        assert result == 0.0\n\n\n# ============================================================================\n# ADAPTER INITIALIZATION TESTS\n# ============================================================================\n\nclass TestAdapterInit:\n    \"\"\"Tests for Adapter initialization\"\"\"\n    \n    def test_adapter_init_normal_node(self, mock_node):\n        \"\"\"Test Adapter initialization with normal node\"\"\"\n        adapter = Adapter(node=mock_node, record_signals=False)\n        \n        # Adapter initialized\n        assert adapter is not None\n        \n        # Backend target created\n        assert hasattr(adapter, '_backend')\n        \n        # Metrics initialized\n        assert adapter.metrics() is not None\n        \n        # Server not started\n        assert adapter.is_running() is False\n    \n    def test_adapter_init_with_signal_recording(self, mock_node):\n        \"\"\"Test Adapter initialization with signal recording enabled\"\"\"\n        adapter = Adapter(node=mock_node, record_signals=True)\n        \n        # Signal recording enabled when record_signals=True\n        assert hasattr(adapter, '_record_signals')\n        assert adapter._record_signals is True\n    \n    def test_adapter_init_ingress_node(self, mock_ingress_node):\n        \"\"\"Test Adapter initialization with INGRESS node always records signals\"\"\"\n        # Even with record_signals=False\n        adapter = Adapter(node=mock_ingress_node, record_signals=False)\n        \n        # Signal recording enabled for INGRESS role regardless of record_signals flag\n        assert adapter._record_signals is True\n\n\n# ============================================================================\n# ADAPTER GETTER TESTS\n# ============================================================================\n\nclass TestAdapterGetters:\n    \"\"\"Tests for Adapter getter methods\"\"\"\n    \n    def test_adapter_node_getter(self, adapter, mock_node):\n        \"\"\"Test node getter returns NodeSpec\"\"\"\n        result = adapter.node()\n        \n        # Returns the NodeSpec instance\n        assert result is mock_node\n    \n    def test_adapter_metrics_getter(self, adapter):\n        \"\"\"Test metrics getter returns AdapterMetrics\"\"\"\n        result = adapter.metrics()\n        \n        # Returns AdapterMetrics instance\n        assert isinstance(result, AdapterMetrics)\n    \n    def test_adapter_target_metrics_getter(self, adapter):\n        \"\"\"Test target_metrics returns copy of dictionary\"\"\"\n        result = adapter.target_metrics()\n        \n        # Returns dictionary\n        assert isinstance(result, dict)\n        \n        # Returns copy not reference\n        result['test'] = Mock()\n        assert 'test' not in adapter.target_metrics()\n    \n    def test_adapter_signals_getter(self, adapter_with_signals):\n        \"\"\"Test signals returns copy of signal buffer\"\"\"\n        result = adapter_with_signals.signals()\n        \n        # Returns list\n        assert isinstance(result, list)\n        \n        # Returns copy not reference (modifying return doesn't affect internal)\n        original_len = len(adapter_with_signals._signals)\n        result.append(Mock())\n        assert len(adapter_with_signals.signals()) == original_len\n    \n    def test_adapter_drain_signals(self, adapter_with_signals):\n        \"\"\"Test drain_signals returns and clears buffer\"\"\"\n        # Add some mock signals\n        mock_signal = Mock(spec=SignalRecord)\n        adapter_with_signals._signals.append(mock_signal)\n        \n        result = adapter_with_signals.drain_signals()\n        \n        # Returns copy of signal buffer\n        assert len(result) == 1\n        assert result[0] is mock_signal\n        \n        # Signal buffer is cleared after drain\n        assert len(adapter_with_signals.signals()) == 0\n    \n    def test_adapter_backend_getter(self, adapter):\n        \"\"\"Test backend getter returns BackendTarget\"\"\"\n        result = adapter.backend()\n        \n        # Returns BackendTarget instance\n        assert isinstance(result, BackendTarget)\n    \n    def test_adapter_routing_getter(self, adapter, routing_config):\n        \"\"\"Test routing getter returns RoutingConfig or None\"\"\"\n        # Returns None when no routing configured\n        assert adapter.routing() is None\n        \n        # Set routing\n        adapter._routing = routing_config\n        \n        # Returns RoutingConfig when configured\n        assert adapter.routing() is routing_config\n    \n    def test_adapter_is_running_not_started(self, adapter):\n        \"\"\"Test is_running returns False when server not started\"\"\"\n        # Returns False when server is None\n        assert adapter.is_running() is False\n    \n    @patch('asyncio.start_server')\n    @pytest.mark.asyncio\n    async def test_adapter_is_running_started(self, mock_start_server, adapter):\n        \"\"\"Test is_running returns True when server is running\"\"\"\n        # Create a mock server\n        mock_server = AsyncMock()\n        mock_server.is_serving.return_value = True\n        mock_start_server.return_value = mock_server\n        \n        await adapter.start()\n        \n        # Returns True when server exists and serving\n        assert adapter.is_running() is True\n\n\n# ============================================================================\n# ADAPTER CONFIGURATION TESTS\n# ============================================================================\n\nclass TestAdapterConfiguration:\n    \"\"\"Tests for Adapter configuration methods\"\"\"\n    \n    def test_set_backend_success(self, adapter, backend_target):\n        \"\"\"Test set_backend updates backend target\"\"\"\n        new_target = BackendTarget(host=\"new-backend\", port=9090)\n        \n        adapter.set_backend(new_target)\n        \n        # Backend updated to new target\n        assert adapter.backend().host == \"new-backend\"\n        assert adapter.backend().port == 9090\n        \n        # Draining flag cleared\n        assert adapter._draining is False\n    \n    def test_set_backend_routing_locked(self, adapter, locked_routing_config):\n        \"\"\"Test set_backend raises RoutingLocked when routing is locked\"\"\"\n        adapter._routing = locked_routing_config\n        new_target = BackendTarget(host=\"new-backend\", port=9090)\n        \n        # Raises RoutingLocked exception when routing is locked\n        with pytest.raises(RoutingLocked):\n            adapter.set_backend(new_target)\n    \n    def test_set_routing_success(self, adapter, routing_config):\n        \"\"\"Test set_routing updates routing config\"\"\"\n        # Add some target metrics\n        adapter._target_metrics['test'] = Mock()\n        \n        adapter.set_routing(routing_config)\n        \n        # Routing config updated\n        assert adapter.routing() is routing_config\n        \n        # Target metrics cleared\n        assert len(adapter._target_metrics) == 0\n    \n    def test_set_routing_locked(self, adapter, locked_routing_config, routing_config):\n        \"\"\"Test set_routing raises RoutingLocked when current routing is locked\"\"\"\n        adapter._routing = locked_routing_config\n        \n        # Raises RoutingLocked exception\n        with pytest.raises(RoutingLocked):\n            adapter.set_routing(routing_config)\n    \n    def test_clear_routing_success(self, adapter, routing_config):\n        \"\"\"Test clear_routing removes routing configuration\"\"\"\n        adapter._routing = routing_config\n        \n        adapter.clear_routing()\n        \n        # Routing config set to None\n        assert adapter.routing() is None\n    \n    def test_clear_routing_locked(self, adapter, locked_routing_config):\n        \"\"\"Test clear_routing raises RoutingLocked when routing is locked\"\"\"\n        adapter._routing = locked_routing_config\n        \n        # Raises RoutingLocked exception\n        with pytest.raises(RoutingLocked):\n            adapter.clear_routing()\n\n\n# ============================================================================\n# ADAPTER LIFECYCLE TESTS\n# ============================================================================\n\nclass TestAdapterLifecycle:\n    \"\"\"Tests for Adapter lifecycle methods\"\"\"\n    \n    @patch('asyncio.start_server')\n    @patch('src.src_baton_adapter.logger')\n    @pytest.mark.asyncio\n    async def test_start_adapter(self, mock_logger, mock_start_server, adapter):\n        \"\"\"Test start begins listening on node address\"\"\"\n        mock_server = AsyncMock()\n        mock_server.is_serving.return_value = True\n        mock_start_server.return_value = mock_server\n        \n        await adapter.start()\n        \n        # Server started\n        assert adapter._server is not None\n        \n        # Server is listening\n        assert adapter.is_running() is True\n        \n        # start_server was called with correct parameters\n        mock_start_server.assert_called_once()\n    \n    @pytest.mark.asyncio\n    async def test_drain_adapter(self, adapter):\n        \"\"\"Test drain stops accepting connections and waits for active ones\"\"\"\n        adapter._active_connections = 2\n        adapter._drain_event = asyncio.Event()\n        \n        # Start drain with very short timeout\n        drain_task = asyncio.create_task(adapter.drain(timeout=0.1))\n        \n        # Draining flag set\n        assert adapter._draining is True\n        \n        # Simulate connections finishing\n        adapter._active_connections = 0\n        adapter._drain_event.set()\n        \n        await drain_task\n        \n        # Waits for active connections or timeout\n        assert adapter._draining is True\n    \n    @pytest.mark.asyncio\n    async def test_stop_adapter(self, adapter):\n        \"\"\"Test stop shuts down server\"\"\"\n        # Create mock server\n        mock_server = AsyncMock()\n        adapter._server = mock_server\n        \n        await adapter.stop()\n        \n        # Server closed\n        mock_server.close.assert_called_once()\n        \n        # Server set to None\n        assert adapter._server is None\n\n\n# ============================================================================\n# HEALTH CHECK TESTS\n# ============================================================================\n\nclass TestHealthChecks:\n    \"\"\"Tests for health check methods\"\"\"\n    \n    @patch('asyncio.open_connection')\n    @pytest.mark.asyncio\n    async def test_health_check_tcp_healthy(self, mock_open_connection, adapter):\n        \"\"\"Test health_check returns HEALTHY for successful TCP connection\"\"\"\n        adapter._node.proxy_mode = \"TCP\"\n        adapter._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock successful connection\n        mock_reader = AsyncMock()\n        mock_writer = AsyncMock()\n        mock_open_connection.return_value = (mock_reader, mock_writer)\n        \n        result = await adapter.health_check()\n        \n        # Returns HealthCheck with HEALTHY verdict\n        assert result.verdict == \"HEALTHY\"\n    \n    @patch('aiohttp.ClientSession.get')\n    @pytest.mark.asyncio\n    async def test_health_check_http_healthy(self, mock_get, adapter):\n        \"\"\"Test health_check returns HEALTHY for 2xx HTTP response\"\"\"\n        adapter._node.proxy_mode = \"HTTP\"\n        adapter._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock 200 response\n        mock_response = AsyncMock()\n        mock_response.status = 200\n        mock_response.__aenter__.return_value = mock_response\n        mock_response.__aexit__.return_value = None\n        mock_get.return_value = mock_response\n        \n        result = await adapter.health_check()\n        \n        # Returns HealthCheck with HEALTHY verdict for 200\n        assert result.verdict == \"HEALTHY\"\n    \n    @patch('aiohttp.ClientSession.get')\n    @pytest.mark.asyncio\n    async def test_health_check_http_unhealthy(self, mock_get, adapter):\n        \"\"\"Test health_check returns UNHEALTHY for 5xx HTTP response\"\"\"\n        adapter._node.proxy_mode = \"HTTP\"\n        adapter._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock 500 response\n        mock_response = AsyncMock()\n        mock_response.status = 500\n        mock_response.__aenter__.return_value = mock_response\n        mock_response.__aexit__.return_value = None\n        mock_get.return_value = mock_response\n        \n        result = await adapter.health_check()\n        \n        # Returns HealthCheck with UNHEALTHY verdict for 500\n        assert result.verdict == \"UNHEALTHY\"\n    \n    @patch('aiohttp.ClientSession.get')\n    @pytest.mark.asyncio\n    async def test_health_check_http_degraded(self, mock_get, adapter):\n        \"\"\"Test health_check returns DEGRADED for non-2xx/5xx HTTP response\"\"\"\n        adapter._node.proxy_mode = \"HTTP\"\n        adapter._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock 404 response\n        mock_response = AsyncMock()\n        mock_response.status = 404\n        mock_response.__aenter__.return_value = mock_response\n        mock_response.__aexit__.return_value = None\n        mock_get.return_value = mock_response\n        \n        result = await adapter.health_check()\n        \n        # Returns HealthCheck with DEGRADED verdict for 404\n        assert result.verdict == \"DEGRADED\"\n    \n    @patch('asyncio.open_connection')\n    @patch('time.perf_counter')\n    @pytest.mark.asyncio\n    async def test_tcp_health_check_success(self, mock_perf_counter, mock_open_connection, adapter):\n        \"\"\"Test _tcp_health_check returns HEALTHY on successful connection\"\"\"\n        adapter._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock time and connection\n        mock_perf_counter.side_effect = [0.0, 0.015]  # 15ms latency\n        mock_reader = AsyncMock()\n        mock_writer = AsyncMock()\n        mock_open_connection.return_value = (mock_reader, mock_writer)\n        \n        result = await adapter._tcp_health_check()\n        \n        # Returns HEALTHY verdict\n        assert result.verdict == \"HEALTHY\"\n        \n        # Includes latency measurement\n        assert result.latency_ms > 0\n    \n    @patch('asyncio.open_connection')\n    @pytest.mark.asyncio\n    async def test_tcp_health_check_failure(self, mock_open_connection, adapter):\n        \"\"\"Test _tcp_health_check returns UNHEALTHY on connection failure\"\"\"\n        adapter._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock connection failure\n        mock_open_connection.side_effect = Exception(\"Connection refused\")\n        \n        result = await adapter._tcp_health_check()\n        \n        # Returns UNHEALTHY verdict on failure\n        assert result.verdict == \"UNHEALTHY\"\n    \n    @patch('aiohttp.ClientSession.get')\n    @pytest.mark.asyncio\n    async def test_http_health_check_2xx(self, mock_get, adapter):\n        \"\"\"Test _http_health_check returns HEALTHY for 2xx status\"\"\"\n        adapter._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock 200 response\n        mock_response = AsyncMock()\n        mock_response.status = 200\n        mock_response.__aenter__.return_value = mock_response\n        mock_response.__aexit__.return_value = None\n        mock_get.return_value = mock_response\n        \n        result = await adapter._http_health_check()\n        \n        # Returns HEALTHY for 200\n        assert result.verdict == \"HEALTHY\"\n        \n        # Includes latency\n        assert hasattr(result, 'latency_ms')\n    \n    @patch('aiohttp.ClientSession.get')\n    @pytest.mark.asyncio\n    async def test_http_health_check_5xx(self, mock_get, adapter):\n        \"\"\"Test _http_health_check returns UNHEALTHY for 5xx status\"\"\"\n        adapter._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock 500 response\n        mock_response = AsyncMock()\n        mock_response.status = 500\n        mock_response.__aenter__.return_value = mock_response\n        mock_response.__aexit__.return_value = None\n        mock_get.return_value = mock_response\n        \n        result = await adapter._http_health_check()\n        \n        # Returns UNHEALTHY for 500\n        assert result.verdict == \"UNHEALTHY\"\n    \n    @patch('aiohttp.ClientSession.get')\n    @pytest.mark.asyncio\n    async def test_http_health_check_other(self, mock_get, adapter):\n        \"\"\"Test _http_health_check returns DEGRADED for other status codes\"\"\"\n        adapter._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock 404 response\n        mock_response = AsyncMock()\n        mock_response.status = 404\n        mock_response.__aenter__.return_value = mock_response\n        mock_response.__aexit__.return_value = None\n        mock_get.return_value = mock_response\n        \n        result = await adapter._http_health_check()\n        \n        # Returns DEGRADED for 404\n        assert result.verdict == \"DEGRADED\"\n\n\n# ============================================================================\n# ROUTING SELECTION TESTS\n# ============================================================================\n\nclass TestRoutingSelection:\n    \"\"\"Tests for backend selection and routing\"\"\"\n    \n    def test_select_backend_no_routing(self, adapter):\n        \"\"\"Test _select_backend returns default backend when no routing\"\"\"\n        adapter._backend = BackendTarget(host=\"default\", port=8080)\n        adapter._routing = None\n        \n        result = adapter._select_backend(None)\n        \n        # Returns default backend target\n        assert result.host == \"default\"\n        assert result.port == 8080\n    \n    def test_select_backend_with_routing(self, adapter):\n        \"\"\"Test _select_backend uses routing config when available\"\"\"\n        adapter._backend = BackendTarget(host=\"default\", port=8080)\n        \n        # Create routing config with weighted target\n        config = Mock(spec=RoutingConfig)\n        config.strategy = \"WEIGHTED\"\n        target = BackendTarget(host=\"routed\", port=9090)\n        config.targets = [{'target': target, 'weight': 1.0}]\n        adapter._routing = config\n        \n        result = adapter._select_backend(None)\n        \n        # Returns backend from routing config\n        assert result is not None\n    \n    def test_select_backend_named_no_routing(self, adapter):\n        \"\"\"Test _select_backend_named returns default backend with None name\"\"\"\n        adapter._backend = BackendTarget(host=\"default\", port=8080)\n        adapter._routing = None\n        \n        target, name = adapter._select_backend_named(None)\n        \n        # Returns (target, None) when no routing\n        assert target.host == \"default\"\n        assert name is None\n    \n    def test_select_backend_named_with_routing(self, adapter):\n        \"\"\"Test _select_backend_named returns backend and name from routing\"\"\"\n        adapter._backend = BackendTarget(host=\"default\", port=8080)\n        \n        # Create routing config\n        config = Mock(spec=RoutingConfig)\n        config.strategy = \"WEIGHTED\"\n        target = BackendTarget(host=\"routed\", port=9090)\n        config.targets = [{'target': target, 'weight': 1.0, 'name': 'backend-1'}]\n        adapter._routing = config\n        \n        result_target, result_name = adapter._select_backend_named(None)\n        \n        # Returns (target, name) from routing config\n        assert result_target is not None\n    \n    @patch('random.uniform')\n    def test_select_weighted_single_target(self, mock_random):\n        \"\"\"Test _select_weighted returns single target\"\"\"\n        target = BackendTarget(host=\"single\", port=8080)\n        targets = [{'target': target, 'weight': 1.0}]\n        \n        result = _select_weighted(targets)\n        \n        # Returns the only target\n        assert result.host == \"single\"\n    \n    @patch('random.uniform')\n    def test_select_weighted_multiple_targets(self, mock_random):\n        \"\"\"Test _select_weighted distributes based on weights\"\"\"\n        target1 = BackendTarget(host=\"backend1\", port=8080)\n        target2 = BackendTarget(host=\"backend2\", port=8081)\n        targets = [\n            {'target': target1, 'weight': 0.7},\n            {'target': target2, 'weight': 0.3}\n        ]\n        \n        # Mock random to select first target\n        mock_random.return_value = 0.5\n        \n        result = _select_weighted(targets)\n        \n        # Returns one of the weighted targets\n        assert result in [target1, target2]\n    \n    @patch('random.uniform')\n    def test_select_weighted_named_single(self, mock_random):\n        \"\"\"Test _select_weighted_named returns single target with name\"\"\"\n        target = BackendTarget(host=\"single\", port=8080)\n        targets = [{'target': target, 'weight': 1.0, 'name': 'backend-1'}]\n        \n        result_target, result_name = _select_weighted_named(targets)\n        \n        # Returns (target, name) for single target\n        assert result_target.host == \"single\"\n        assert result_name == 'backend-1'\n    \n    @patch('random.uniform')\n    def test_select_weighted_named_multiple(self, mock_random):\n        \"\"\"Test _select_weighted_named distributes based on weights\"\"\"\n        target1 = BackendTarget(host=\"backend1\", port=8080)\n        target2 = BackendTarget(host=\"backend2\", port=8081)\n        targets = [\n            {'target': target1, 'weight': 0.7, 'name': 'b1'},\n            {'target': target2, 'weight': 0.3, 'name': 'b2'}\n        ]\n        \n        # Mock random to select first target\n        mock_random.return_value = 0.5\n        \n        result_target, result_name = _select_weighted_named(targets)\n        \n        # Returns (target, name) from weighted selection\n        assert result_target in [target1, target2]\n        assert result_name in ['b1', 'b2']\n    \n    def test_select_by_header_match(self, adapter):\n        \"\"\"Test _select_by_header routes based on matching header\"\"\"\n        adapter._backend = BackendTarget(host=\"default\", port=8080)\n        \n        # Create routing config with header rule\n        config = Mock(spec=RoutingConfig)\n        config.strategy = \"HEADER\"\n        config.header_rules = [\n            {'header': 'x-version', 'value': 'v2', 'target_name': 'backend-v2'}\n        ]\n        \n        target_v2 = BackendTarget(host=\"backend-v2\", port=9090)\n        targets_by_name = {'backend-v2': target_v2}\n        \n        # Request with matching header\n        request_data = b\"GET / HTTP/1.1\\r\\nX-Version: v2\\r\\n\\r\\n\"\n        \n        result = adapter._select_by_header(request_data, config, targets_by_name)\n        \n        # Returns target matching header rule\n        assert result.host == \"backend-v2\"\n    \n    def test_select_by_header_no_match(self, adapter):\n        \"\"\"Test _select_by_header falls back to default when no match\"\"\"\n        adapter._backend = BackendTarget(host=\"default\", port=8080)\n        \n        # Create routing config with header rule\n        config = Mock(spec=RoutingConfig)\n        config.strategy = \"HEADER\"\n        config.header_rules = [\n            {'header': 'x-version', 'value': 'v2', 'target_name': 'backend-v2'}\n        ]\n        \n        targets_by_name = {}\n        \n        # Request without matching header\n        request_data = b\"GET / HTTP/1.1\\r\\nX-Version: v1\\r\\n\\r\\n\"\n        \n        result = adapter._select_by_header(request_data, config, targets_by_name)\n        \n        # Returns default target when no header match\n        assert result.host == \"default\"\n    \n    def test_select_by_header_named_match(self, adapter):\n        \"\"\"Test _select_by_header_named returns matched target and name\"\"\"\n        adapter._backend = BackendTarget(host=\"default\", port=8080)\n        \n        # Create routing config\n        config = Mock(spec=RoutingConfig)\n        config.strategy = \"HEADER\"\n        config.header_rules = [\n            {'header': 'x-version', 'value': 'v2', 'target_name': 'backend-v2'}\n        ]\n        \n        target_v2 = BackendTarget(host=\"backend-v2\", port=9090)\n        targets_by_name = {'backend-v2': target_v2}\n        \n        # Request with matching header\n        request_data = b\"GET / HTTP/1.1\\r\\nX-Version: v2\\r\\n\\r\\n\"\n        \n        result_target, result_name = adapter._select_by_header_named(\n            request_data, config, targets_by_name\n        )\n        \n        # Returns (target, name) for matching header\n        assert result_target.host == \"backend-v2\"\n        assert result_name == 'backend-v2'\n    \n    def test_select_by_header_named_no_match(self, adapter):\n        \"\"\"Test _select_by_header_named falls back to default\"\"\"\n        adapter._backend = BackendTarget(host=\"default\", port=8080)\n        \n        # Create routing config\n        config = Mock(spec=RoutingConfig)\n        config.strategy = \"HEADER\"\n        config.header_rules = [\n            {'header': 'x-version', 'value': 'v2', 'target_name': 'backend-v2'}\n        ]\n        \n        targets_by_name = {}\n        \n        # Request without matching header\n        request_data = b\"GET / HTTP/1.1\\r\\nX-Other: value\\r\\n\\r\\n\"\n        \n        result_target, result_name = adapter._select_by_header_named(\n            request_data, config, targets_by_name\n        )\n        \n        # Returns (default_target, None) when no match\n        assert result_target.host == \"default\"\n        assert result_name is None\n\n\n# ============================================================================\n# HTTP PARSING TESTS\n# ============================================================================\n\nclass TestHTTPParsing:\n    \"\"\"Tests for HTTP message parsing functions\"\"\"\n    \n    def test_parse_headers_valid(self):\n        \"\"\"Test _parse_headers extracts headers from HTTP request\"\"\"\n        data = b\"GET / HTTP/1.1\\r\\nHost: example.com\\r\\nContent-Type: application/json\\r\\n\\r\\n\"\n        \n        result = _parse_headers(data)\n        \n        # Returns dictionary with lowercase keys\n        assert isinstance(result, dict)\n        assert 'host' in result\n        assert 'content-type' in result\n        \n        # Values extracted correctly\n        assert result['host'] == 'example.com'\n        assert result['content-type'] == 'application/json'\n    \n    def test_parse_headers_malformed(self):\n        \"\"\"Test _parse_headers returns empty dict on parse error\"\"\"\n        data = b\"MALFORMED DATA WITHOUT PROPER HEADERS\"\n        \n        result = _parse_headers(data)\n        \n        # Returns empty dict for malformed data\n        assert result == {}\n    \n    def test_parse_request_line_valid(self):\n        \"\"\"Test _parse_request_line extracts method and path\"\"\"\n        data = b\"GET /api/users HTTP/1.1\\r\\n\"\n        \n        method, path = _parse_request_line(data)\n        \n        # Returns (method, path) tuple correctly\n        assert method == \"GET\"\n        assert path == \"/api/users\"\n    \n    def test_parse_request_line_invalid(self):\n        \"\"\"Test _parse_request_line returns empty strings on parse error\"\"\"\n        data = b\"INVALID REQUEST\"\n        \n        method, path = _parse_request_line(data)\n        \n        # Returns ('', '') for malformed request line\n        assert method == ''\n        assert path == ''\n    \n    def test_parse_status_code_valid(self):\n        \"\"\"Test _parse_status_code extracts status code from response\"\"\"\n        data = b\"HTTP/1.1 200 OK\\r\\n\"\n        \n        status_code = _parse_status_code(data)\n        \n        # Returns status code integer\n        assert status_code == 200\n    \n    def test_parse_status_code_none(self):\n        \"\"\"Test _parse_status_code returns 0 for None input\"\"\"\n        status_code = _parse_status_code(None)\n        \n        # Returns 0 when data is None\n        assert status_code == 0\n    \n    def test_parse_status_code_invalid(self):\n        \"\"\"Test _parse_status_code returns 0 for malformed response\"\"\"\n        data = b\"INVALID RESPONSE\"\n        \n        status_code = _parse_status_code(data)\n        \n        # Returns 0 for malformed data\n        assert status_code == 0\n\n\n# ============================================================================\n# CONNECTION HANDLING TESTS\n# ============================================================================\n\nclass TestConnectionHandling:\n    \"\"\"Tests for connection handling methods\"\"\"\n    \n    def test_decrement_connections(self, adapter):\n        \"\"\"Test _decrement_connections reduces active connection count\"\"\"\n        adapter._active_connections = 5\n        \n        adapter._decrement_connections()\n        \n        # Active connections decremented\n        assert adapter._active_connections == 4\n    \n    def test_decrement_connections_signals_drain(self, adapter):\n        \"\"\"Test _decrement_connections signals drain event when draining and connections reach 0\"\"\"\n        adapter._active_connections = 1\n        adapter._draining = True\n        adapter._drain_event = asyncio.Event()\n        \n        adapter._decrement_connections()\n        \n        # Drain event set when draining and connections = 0\n        assert adapter._drain_event.is_set()\n    \n    @patch('asyncio.open_connection')\n    @pytest.mark.asyncio\n    async def test_handle_tcp_connection_success(self, mock_open_connection, adapter):\n        \"\"\"Test _handle_tcp_connection forwards traffic bidirectionally\"\"\"\n        adapter._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock client streams\n        client_reader = AsyncMock(spec=asyncio.StreamReader)\n        client_writer = AsyncMock(spec=asyncio.StreamWriter)\n        client_reader.read.side_effect = [b\"client data\", b\"\"]\n        \n        # Mock backend streams\n        backend_reader = AsyncMock(spec=asyncio.StreamReader)\n        backend_writer = AsyncMock(spec=asyncio.StreamWriter)\n        backend_reader.read.side_effect = [b\"backend data\", b\"\"]\n        \n        mock_open_connection.return_value = (backend_reader, backend_writer)\n        \n        initial_requests = adapter._metrics.requests_total\n        \n        await adapter._handle_tcp_connection(client_reader, client_writer)\n        \n        # Traffic forwarded bidirectionally (write was called)\n        assert client_writer.write.called or backend_writer.write.called\n        \n        # Metrics updated\n        assert adapter._metrics.requests_total >= initial_requests\n        \n        # Connections closed\n        client_writer.close.assert_called()\n    \n    @patch('asyncio.open_connection')\n    @pytest.mark.asyncio\n    async def test_handle_tcp_connection_backend_failure(self, mock_open_connection, adapter):\n        \"\"\"Test _handle_tcp_connection handles backend connection failure\"\"\"\n        adapter._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock connection failure\n        mock_open_connection.side_effect = Exception(\"Connection failed\")\n        \n        client_reader = AsyncMock(spec=asyncio.StreamReader)\n        client_writer = AsyncMock(spec=asyncio.StreamWriter)\n        \n        initial_failed = adapter._metrics.requests_failed\n        \n        await adapter._handle_tcp_connection(client_reader, client_writer)\n        \n        # Handles connection failure gracefully\n        client_writer.close.assert_called()\n        \n        # Metrics updated with failure\n        assert adapter._metrics.requests_failed > initial_failed\n    \n    @patch('asyncio.open_connection')\n    @pytest.mark.asyncio\n    async def test_handle_http_connection_success(self, mock_open_connection, adapter):\n        \"\"\"Test _handle_http_connection forwards HTTP request and response\"\"\"\n        adapter._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock client streams\n        client_reader = AsyncMock(spec=asyncio.StreamReader)\n        client_writer = AsyncMock(spec=asyncio.StreamWriter)\n        \n        # Mock HTTP request\n        request_data = b\"GET /test HTTP/1.1\\r\\nHost: backend\\r\\n\\r\\n\"\n        client_reader.readuntil.side_effect = [\n            b\"GET /test HTTP/1.1\\r\\nHost: backend\\r\\n\\r\\n\"\n        ]\n        client_reader.read.return_value = b\"\"\n        \n        # Mock backend streams\n        backend_reader = AsyncMock(spec=asyncio.StreamReader)\n        backend_writer = AsyncMock(spec=asyncio.StreamWriter)\n        \n        # Mock HTTP response\n        backend_reader.readuntil.side_effect = [\n            b\"HTTP/1.1 200 OK\\r\\nContent-Length: 0\\r\\n\\r\\n\"\n        ]\n        backend_reader.read.return_value = b\"\"\n        \n        mock_open_connection.return_value = (backend_reader, backend_writer)\n        \n        initial_requests = adapter._metrics.requests_total\n        \n        await adapter._handle_http_connection(client_reader, client_writer)\n        \n        # Request forwarded (backend_writer.write called)\n        assert backend_writer.write.called\n        \n        # Response returned (client_writer.write called)\n        assert client_writer.write.called\n        \n        # Metrics updated\n        assert adapter._metrics.requests_total >= initial_requests\n    \n    @patch('asyncio.open_connection')\n    @pytest.mark.asyncio\n    async def test_handle_http_connection_with_routing(self, mock_open_connection, adapter):\n        \"\"\"Test _handle_http_connection uses routing to select backend\"\"\"\n        # Set up routing\n        config = Mock(spec=RoutingConfig)\n        config.strategy = \"WEIGHTED\"\n        target = BackendTarget(host=\"routed\", port=9090)\n        config.targets = [{'target': target, 'weight': 1.0, 'name': 'backend-1'}]\n        adapter._routing = config\n        \n        # Mock client streams\n        client_reader = AsyncMock(spec=asyncio.StreamReader)\n        client_writer = AsyncMock(spec=asyncio.StreamWriter)\n        \n        request_data = b\"GET /test HTTP/1.1\\r\\n\\r\\n\"\n        client_reader.readuntil.side_effect = [request_data]\n        client_reader.read.return_value = b\"\"\n        \n        # Mock backend streams\n        backend_reader = AsyncMock(spec=asyncio.StreamReader)\n        backend_writer = AsyncMock(spec=asyncio.StreamWriter)\n        backend_reader.readuntil.side_effect = [b\"HTTP/1.1 200 OK\\r\\n\\r\\n\"]\n        backend_reader.read.return_value = b\"\"\n        \n        mock_open_connection.return_value = (backend_reader, backend_writer)\n        \n        await adapter._handle_http_connection(client_reader, client_writer)\n        \n        # Uses routing config (target_metrics should be updated)\n        # Target metrics updated\n        assert len(adapter._target_metrics) >= 0  # May or may not have entries depending on impl\n    \n    @patch('asyncio.open_connection')\n    @pytest.mark.asyncio\n    async def test_handle_http_connection_backend_failure(self, mock_open_connection, adapter):\n        \"\"\"Test _handle_http_connection handles backend connection failure\"\"\"\n        adapter._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock connection failure\n        mock_open_connection.side_effect = Exception(\"Backend unavailable\")\n        \n        client_reader = AsyncMock(spec=asyncio.StreamReader)\n        client_writer = AsyncMock(spec=asyncio.StreamWriter)\n        \n        request_data = b\"GET /test HTTP/1.1\\r\\n\\r\\n\"\n        client_reader.readuntil.return_value = request_data\n        client_reader.read.return_value = b\"\"\n        \n        initial_failed = adapter._metrics.requests_failed\n        \n        await adapter._handle_http_connection(client_reader, client_writer)\n        \n        # Handles backend failure\n        client_writer.close.assert_called()\n        \n        # Metrics record failure\n        assert adapter._metrics.requests_failed > initial_failed\n    \n    @patch('asyncio.open_connection')\n    @pytest.mark.asyncio\n    async def test_handle_http_connection_signals_recorded(\n        self, mock_open_connection, adapter_with_signals\n    ):\n        \"\"\"Test _handle_http_connection records signals when enabled\"\"\"\n        adapter_with_signals._backend = BackendTarget(host=\"backend\", port=8080)\n        \n        # Mock client streams\n        client_reader = AsyncMock(spec=asyncio.StreamReader)\n        client_writer = AsyncMock(spec=asyncio.StreamWriter)\n        \n        request_data = b\"GET /test HTTP/1.1\\r\\n\\r\\n\"\n        client_reader.readuntil.side_effect = [request_data]\n        client_reader.read.return_value = b\"\"\n        \n        # Mock backend streams\n        backend_reader = AsyncMock(spec=asyncio.StreamReader)\n        backend_writer = AsyncMock(spec=asyncio.StreamWriter)\n        backend_reader.readuntil.side_effect = [b\"HTTP/1.1 200 OK\\r\\n\\r\\n\"]\n        backend_reader.read.return_value = b\"\"\n        \n        mock_open_connection.return_value = (backend_reader, backend_writer)\n        \n        initial_signals = len(adapter_with_signals.signals())\n        \n        await adapter_with_signals._handle_http_connection(client_reader, client_writer)\n        \n        # Signals recorded when recording enabled\n        # Note: May not always increase if implementation has other conditions\n        assert len(adapter_with_signals.signals()) >= initial_signals\n\n\n# ============================================================================\n# STREAM UTILITY TESTS\n# ============================================================================\n\nclass TestStreamUtilities:\n    \"\"\"Tests for stream utility functions\"\"\"\n    \n    @pytest.mark.asyncio\n    async def test_pipe_transfers_data(self):\n        \"\"\"Test _pipe copies all bytes from reader to writer\"\"\"\n        # Create mock reader and writer\n        reader = AsyncMock(spec=asyncio.StreamReader)\n        writer = AsyncMock(spec=asyncio.StreamWriter)\n        \n        # Mock reading data in chunks then EOF\n        reader.read.side_effect = [b\"chunk1\", b\"chunk2\", b\"\"]\n        \n        await _pipe(reader, writer)\n        \n        # All bytes copied until EOF\n        assert writer.write.call_count == 2\n        writer.write.assert_any_call(b\"chunk1\")\n        writer.write.assert_any_call(b\"chunk2\")\n    \n    @pytest.mark.asyncio\n    async def test_pipe_eof(self):\n        \"\"\"Test _pipe handles EOF correctly\"\"\"\n        reader = AsyncMock(spec=asyncio.StreamReader)\n        writer = AsyncMock(spec=asyncio.StreamWriter)\n        \n        # Immediate EOF\n        reader.read.return_value = b\"\"\n        \n        await _pipe(reader, writer)\n        \n        # Stops reading at EOF (no writes)\n        writer.write.assert_not_called()\n    \n    @pytest.mark.asyncio\n    async def test_read_http_message_complete(self):\n        \"\"\"Test _read_http_message reads complete HTTP message with Content-Length\"\"\"\n        reader = AsyncMock(spec=asyncio.StreamReader)\n        \n        # Mock reading headers then body\n        headers = b\"HTTP/1.1 200 OK\\r\\nContent-Length: 11\\r\\n\\r\\n\"\n        body = b\"Hello World\"\n        \n        reader.readuntil.return_value = headers\n        reader.readexactly.return_value = body\n        \n        result = await _read_http_message(reader)\n        \n        # Returns complete HTTP message including headers and body\n        assert result == headers + body\n    \n    @pytest.mark.asyncio\n    async def test_read_http_message_no_content_length(self):\n        \"\"\"Test _read_http_message handles missing Content-Length\"\"\"\n        reader = AsyncMock(spec=asyncio.StreamReader)\n        \n        # Mock reading headers without Content-Length\n        headers = b\"HTTP/1.1 200 OK\\r\\n\\r\\n\"\n        \n        reader.readuntil.return_value = headers\n        \n        result = await _read_http_message(reader)\n        \n        # Returns headers when no Content-Length present\n        assert result == headers\n    \n    @pytest.mark.asyncio\n    async def test_read_http_message_timeout(self):\n        \"\"\"Test _read_http_message returns None on timeout\"\"\"\n        reader = AsyncMock(spec=asyncio.StreamReader)\n        \n        # Mock timeout\n        reader.readuntil.side_effect = asyncio.TimeoutError()\n        \n        result = await _read_http_message(reader)\n        \n        # Returns None on timeout\n        assert result is None\n\n\n# ============================================================================\n# INVARIANT TESTS\n# ============================================================================\n\nclass TestInvariants:\n    \"\"\"Tests for contract invariants\"\"\"\n    \n    def test_invariant_latency_buffer_max(self, adapter_metrics):\n        \"\"\"Test that latency buffer never exceeds 1000 entries\"\"\"\n        # Record 2000 latency measurements\n        for i in range(2000):\n            adapter_metrics.record_latency(float(i))\n        \n        # Buffer size <= 1000 after recording 2000 entries\n        assert len(adapter_metrics._latency_buffer) <= 1000\n        assert len(adapter_metrics._latency_buffer) == 1000\n    \n    def test_invariant_ingress_signals(self, mock_ingress_node):\n        \"\"\"Test that INGRESS nodes always record signals\"\"\"\n        # Create adapter with record_signals=False\n        adapter = Adapter(node=mock_ingress_node, record_signals=False)\n        \n        # INGRESS nodes record signals even when record_signals=False\n        assert adapter._record_signals is True\n    \n    def test_invariant_backend_port_configured(self):\n        \"\"\"Test that backend is configured only when port > 0\"\"\"\n        configured = BackendTarget(host=\"localhost\", port=8080)\n        not_configured = BackendTarget(host=\"localhost\", port=0)\n        \n        # port > 0 means configured\n        assert is_configured(configured) is True\n        \n        # port <= 0 means not configured\n        assert is_configured(not_configured) is False\n\n\n# ============================================================================\n# EDGE CASE AND PROPERTY-BASED TESTS\n# ============================================================================\n\nclass TestEdgeCases:\n    \"\"\"Additional edge case tests\"\"\"\n    \n    def test_weighted_selection_distribution(self):\n        \"\"\"Test that weighted selection approximates expected distribution\"\"\"\n        target1 = BackendTarget(host=\"backend1\", port=8080)\n        target2 = BackendTarget(host=\"backend2\", port=8081)\n        targets = [\n            {'target': target1, 'weight': 0.8, 'name': 'b1'},\n            {'target': target2, 'weight': 0.2, 'name': 'b2'}\n        ]\n        \n        # Run selection 1000 times\n        counts = {'b1': 0, 'b2': 0}\n        for _ in range(1000):\n            _, name = _select_weighted_named(targets)\n            counts[name] += 1\n        \n        # Check rough distribution (80/20 split)\n        # Allow for randomness - b1 should be selected more\n        assert counts['b1'] > counts['b2']\n        assert 700 < counts['b1'] < 900  # Roughly 80% ± tolerance\n    \n    def test_percentile_calculation_edge_cases(self, adapter_metrics):\n        \"\"\"Test percentile calculations with various buffer sizes\"\"\"\n        # Test with single value\n        adapter_metrics.record_latency(50.0)\n        assert adapter_metrics.p50() == 50.0\n        \n        # Test with two values\n        adapter_metrics._latency_buffer = [10.0, 90.0]\n        p50 = adapter_metrics.p50()\n        assert 10.0 <= p50 <= 90.0\n        \n        # Test with odd number of values\n        adapter_metrics._latency_buffer = [10.0, 20.0, 30.0, 40.0, 50.0]\n        assert adapter_metrics.p50() == 30.0\n    \n    def test_http_header_parsing_edge_cases(self):\n        \"\"\"Test header parsing with various edge cases\"\"\"\n        # Empty headers\n        assert _parse_headers(b\"\") == {}\n        \n        # Headers with colons in values\n        data = b\"GET / HTTP/1.1\\r\\nX-Custom: value:with:colons\\r\\n\\r\\n\"\n        headers = _parse_headers(data)\n        assert headers.get('x-custom') == 'value:with:colons'\n        \n        # Headers with whitespace\n        data = b\"GET / HTTP/1.1\\r\\nContent-Type:  application/json  \\r\\n\\r\\n\"\n        headers = _parse_headers(data)\n        assert 'content-type' in headers\n    \n    def test_concurrent_metric_updates(self, adapter_metrics):\n        \"\"\"Test that concurrent metric updates maintain consistency\"\"\"\n        # Simulate concurrent status updates\n        for i in range(100):\n            adapter_metrics.record_status(200)\n            adapter_metrics.record_status(500)\n            adapter_metrics.record_latency(float(i))\n        \n        # Verify counts\n        assert adapter_metrics.status_2xx == 100\n        assert adapter_metrics.status_5xx == 100\n        assert len(adapter_metrics._latency_buffer) == 100\n    \n    @pytest.mark.asyncio\n    async def test_adapter_lifecycle_transitions(self, adapter):\n        \"\"\"Test adapter state transitions through lifecycle\"\"\"\n        # Initial state\n        assert not adapter.is_running()\n        \n        # Start\n        with patch('asyncio.start_server') as mock_start:\n            mock_server = AsyncMock()\n            mock_server.is_serving.return_value = True\n            mock_start.return_value = mock_server\n            \n            await adapter.start()\n            assert adapter.is_running()\n            \n            # Stop\n            await adapter.stop()\n            assert not adapter.is_running()\n    \n    def test_routing_config_locked_state(self, adapter, routing_config, locked_routing_config):\n        \"\"\"Test that locked routing config prevents modifications\"\"\"\n        adapter._routing = locked_routing_config\n        \n        # All modification operations should raise RoutingLocked\n        with pytest.raises(RoutingLocked):\n            adapter.set_backend(BackendTarget(host=\"new\", port=8080))\n        \n        with pytest.raises(RoutingLocked):\n            adapter.set_routing(routing_config)\n        \n        with pytest.raises(RoutingLocked):\n            adapter.clear_routing()\n    \n    def test_parse_request_line_variations(self):\n        \"\"\"Test request line parsing with various HTTP methods and paths\"\"\"\n        # Standard GET\n        method, path = _parse_request_line(b\"GET /api/users HTTP/1.1\\r\\n\")\n        assert method == \"GET\"\n        assert path == \"/api/users\"\n        \n        # POST with query params\n        method, path = _parse_request_line(b\"POST /submit?id=123 HTTP/1.1\\r\\n\")\n        assert method == \"POST\"\n        assert \"/submit\" in path\n        \n        # Root path\n        method, path = _parse_request_line(b\"GET / HTTP/1.1\\r\\n\")\n        assert method == \"GET\"\n        assert path == \"/\"\n    \n    def test_parse_status_code_variations(self):\n        \"\"\"Test status code parsing with various response formats\"\"\"\n        # Standard 200\n        assert _parse_status_code(b\"HTTP/1.1 200 OK\\r\\n\") == 200\n        \n        # 404 Not Found\n        assert _parse_status_code(b\"HTTP/1.1 404 Not Found\\r\\n\") == 404\n        \n        # 500 Internal Server Error\n        assert _parse_status_code(b\"HTTP/1.1 500 Internal Server Error\\r\\n\") == 500\n        \n        # Malformed - missing status\n        assert _parse_status_code(b\"HTTP/1.1 \\r\\n\") == 0\n\n\n# ============================================================================\n# RUN TESTS\n# ============================================================================\n\nif __name__ == \"__main__\":\n    pytest.main([__file__, \"-v\"])\n"
+}

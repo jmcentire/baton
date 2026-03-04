@@ -1,0 +1,431 @@
+{
+  "component_id": "src_baton_telemetry",
+  "name": "Baton Telemetry",
+  "description": "Persistent telemetry collection that periodically snapshots metrics to .baton/metrics.jsonl and supports Prometheus text exposition format",
+  "version": 1,
+  "types": [
+    {
+      "name": "TelemetryCollector",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "_adapters",
+          "type_ref": "dict[str, Adapter]",
+          "required": true,
+          "default": "",
+          "description": "Dictionary mapping adapter names to Adapter instances",
+          "validators": []
+        },
+        {
+          "name": "_state",
+          "type_ref": "CircuitState",
+          "required": true,
+          "default": "",
+          "description": "Current circuit state",
+          "validators": []
+        },
+        {
+          "name": "_circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "Circuit specification",
+          "validators": []
+        },
+        {
+          "name": "_project_dir",
+          "type_ref": "Path",
+          "required": true,
+          "default": "",
+          "description": "Project directory path",
+          "validators": []
+        },
+        {
+          "name": "_flush_interval",
+          "type_ref": "float",
+          "required": true,
+          "default": "",
+          "description": "Interval in seconds between metric snapshots",
+          "validators": []
+        },
+        {
+          "name": "_running",
+          "type_ref": "bool",
+          "required": true,
+          "default": "",
+          "description": "Flag indicating if the collector is currently running",
+          "validators": []
+        },
+        {
+          "name": "_task",
+          "type_ref": "asyncio.Task | None",
+          "required": true,
+          "default": "",
+          "description": "Reference to the running async task",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Class that periodically snapshots metrics to .baton/metrics.jsonl"
+    }
+  ],
+  "functions": [
+    {
+      "name": "__init__",
+      "description": "Initialize TelemetryCollector with adapters, state, circuit spec, project directory, and optional flush interval",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "TelemetryCollector",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "adapters",
+          "type_ref": "dict[str, Adapter]",
+          "required": true,
+          "default": "",
+          "description": "Dictionary of adapter instances",
+          "validators": []
+        },
+        {
+          "name": "state",
+          "type_ref": "CircuitState",
+          "required": true,
+          "default": "",
+          "description": "Circuit state object",
+          "validators": []
+        },
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "Circuit specification object",
+          "validators": []
+        },
+        {
+          "name": "project_dir",
+          "type_ref": "str | Path",
+          "required": true,
+          "default": "",
+          "description": "Project directory path",
+          "validators": []
+        },
+        {
+          "name": "flush_interval",
+          "type_ref": "float",
+          "required": false,
+          "default": "30.0",
+          "description": "Interval in seconds between flushes",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "_adapters is set to adapters parameter",
+        "_state is set to state parameter",
+        "_circuit is set to circuit parameter",
+        "_project_dir is converted to Path object",
+        "_flush_interval is set to flush_interval parameter",
+        "_running is set to False",
+        "_task is set to None"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Initializes instance state"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "TelemetryCollector instance",
+          "description": "Initializes all instance variables"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "is_running",
+      "description": "Property that returns whether the telemetry collector is currently running",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "TelemetryCollector",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "bool",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns the current value of _running flag"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "run",
+      "description": "Async loop that snapshots metrics and appends to JSONL every flush_interval seconds until stopped",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "TelemetryCollector",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [
+        {
+          "name": "asyncio.CancelledError",
+          "condition": "When the async task is cancelled",
+          "error_type": "asyncio.CancelledError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "_running is set to False when the function exits",
+        "Metrics are periodically written to disk while running"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Sets _running to True at start",
+        "Calls flush_now() periodically",
+        "Sleeps for _flush_interval seconds between flushes",
+        "Sets _running to False on exit"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "_running",
+          "description": "Sets to True at start, False on exit"
+        },
+        {
+          "kind": "writes_file",
+          "target": "metrics.jsonl",
+          "description": "Periodically writes metric snapshots"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "stop",
+      "description": "Signal the run loop to stop by setting _running flag to False",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "TelemetryCollector",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "_running is set to False"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Sets _running to False"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "_running",
+          "description": "Sets running flag to False"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "flush_now",
+      "description": "Immediately collects a snapshot of metrics and writes to JSONL file, catching and logging any exceptions",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "TelemetryCollector",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [
+        {
+          "name": "exception_caught",
+          "condition": "Any exception during snapshot collection or file write",
+          "error_type": "Exception",
+          "error_data": {
+            "handling": "Caught and logged at debug level, does not propagate"
+          }
+        }
+      ],
+      "preconditions": [],
+      "postconditions": [
+        "Metrics snapshot is appended to metrics.jsonl if successful",
+        "Errors are logged at debug level if flush fails"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Calls collect() to gather metrics",
+        "Writes to metrics.jsonl file",
+        "Logs errors to logger.debug on exception"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "writes_file",
+          "target": "metrics.jsonl",
+          "description": "Appends metric snapshot to JSONL file"
+        },
+        {
+          "kind": "logging",
+          "target": "logger.debug",
+          "description": "Logs telemetry flush errors"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "load_history",
+      "description": "Static method that reads telemetry history from JSONL file with optional filtering by node and limiting to last N records",
+      "inputs": [
+        {
+          "name": "project_dir",
+          "type_ref": "str | Path",
+          "required": true,
+          "default": "",
+          "description": "Project directory path",
+          "validators": []
+        },
+        {
+          "name": "node",
+          "type_ref": "str | None",
+          "required": false,
+          "default": "None",
+          "description": "Optional node name to filter by",
+          "validators": []
+        },
+        {
+          "name": "last_n",
+          "type_ref": "int | None",
+          "required": false,
+          "default": "None",
+          "description": "Optional limit to last N records",
+          "validators": []
+        }
+      ],
+      "output_type": "list[dict]",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns all records if node is None",
+        "Returns filtered records with timestamp and node data if node is specified",
+        "Returns at most last_n records if specified"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Reads from metrics.jsonl file"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "metrics.jsonl",
+          "description": "Reads metric history from JSONL file"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "format_prometheus",
+      "description": "Static method that formats a DashboardSnapshot as Prometheus text exposition format with per-node metrics",
+      "inputs": [
+        {
+          "name": "snapshot",
+          "type_ref": "DashboardSnapshot",
+          "required": true,
+          "default": "",
+          "description": "Dashboard snapshot containing node metrics",
+          "validators": []
+        }
+      ],
+      "output_type": "str",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns Prometheus-formatted text with newline-separated metrics",
+        "Each node generates 6 metric lines: requests_total, requests_failed, error_rate, latency_p50_ms, latency_p95_ms, active_connections",
+        "Metrics include labels for node name and role",
+        "Output ends with newline character"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "asyncio",
+    "dataclasses",
+    "logging",
+    "pathlib",
+    "baton.adapter",
+    "baton.dashboard",
+    "baton.schemas",
+    "baton.state"
+  ],
+  "dependency_contracts": {
+    "baton.adapter": [
+      "Adapter"
+    ],
+    "baton.dashboard": [
+      "DashboardSnapshot",
+      "collect"
+    ],
+    "baton.schemas": [
+      "CircuitSpec",
+      "CircuitState"
+    ],
+    "baton.state": [
+      "append_jsonl",
+      "read_jsonl"
+    ]
+  },
+  "invariants": [
+    "METRICS_FILE constant is 'metrics.jsonl'",
+    "_running flag accurately reflects whether the run loop is active",
+    "_project_dir is always stored as a Path object regardless of input type",
+    "flush_now() never raises exceptions (all caught and logged)",
+    "Default flush_interval is 30.0 seconds"
+  ],
+  "requires": []
+}

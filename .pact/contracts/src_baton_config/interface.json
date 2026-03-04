@@ -1,0 +1,499 @@
+{
+  "component_id": "src_baton_config",
+  "name": "Baton Configuration Loader",
+  "description": "Configuration loading for Baton. Reads baton.yaml from a project directory and produces a CircuitSpec. Supports both topology-first (baton.yaml nodes/edges) and service-first (baton-service.yaml manifests) workflows.",
+  "version": 1,
+  "types": [
+    {
+      "name": "Path",
+      "kind": "primitive",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "pathlib.Path type for filesystem paths"
+    },
+    {
+      "name": "CircuitSpec",
+      "kind": "struct",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Schema object representing a circuit configuration from baton.schemas"
+    },
+    {
+      "name": "NodeSpec",
+      "kind": "struct",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Schema object representing a node in the circuit from baton.schemas"
+    },
+    {
+      "name": "EdgeSpec",
+      "kind": "struct",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Schema object representing an edge in the circuit from baton.schemas"
+    }
+  ],
+  "functions": [
+    {
+      "name": "load_circuit",
+      "description": "Load CircuitSpec from baton.yaml in the given directory. Returns an empty CircuitSpec if the YAML file contains only null/empty content.",
+      "inputs": [
+        {
+          "name": "project_dir",
+          "type_ref": "str | Path",
+          "required": true,
+          "default": "",
+          "description": "Directory containing baton.yaml file",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitSpec",
+      "error_cases": [
+        {
+          "name": "file_not_found",
+          "condition": "baton.yaml does not exist in project_dir",
+          "error_type": "FileNotFoundError",
+          "error_data": {
+            "message": "No baton.yaml found in {project_dir}"
+          }
+        },
+        {
+          "name": "yaml_parse_error",
+          "condition": "YAML content is malformed",
+          "error_type": "yaml.YAMLError",
+          "error_data": {}
+        },
+        {
+          "name": "file_read_error",
+          "condition": "Cannot open or read the file",
+          "error_type": "OSError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "project_dir must be a valid path",
+        "baton.yaml must exist in project_dir"
+      ],
+      "postconditions": [
+        "Returns a CircuitSpec object parsed from YAML",
+        "Returns empty CircuitSpec() if YAML content is None"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Reads baton.yaml file from filesystem"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "{project_dir}/baton.yaml",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "save_circuit",
+      "description": "Save CircuitSpec to baton.yaml in the given directory. Serializes the CircuitSpec and writes it as YAML with no flow style and unsorted keys.",
+      "inputs": [
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "CircuitSpec object to serialize and save",
+          "validators": []
+        },
+        {
+          "name": "project_dir",
+          "type_ref": "str | Path",
+          "required": true,
+          "default": "",
+          "description": "Directory where baton.yaml will be written",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [
+        {
+          "name": "file_write_error",
+          "condition": "Cannot write to the file or directory",
+          "error_type": "OSError",
+          "error_data": {}
+        },
+        {
+          "name": "yaml_dump_error",
+          "condition": "Circuit data cannot be serialized to YAML",
+          "error_type": "yaml.YAMLError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "project_dir must be a valid path",
+        "circuit must be a valid CircuitSpec object"
+      ],
+      "postconditions": [
+        "baton.yaml file is written to project_dir with serialized circuit data",
+        "YAML is formatted with default_flow_style=False and sort_keys=False"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Writes baton.yaml file to filesystem"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "writes_file",
+          "target": "{project_dir}/baton.yaml",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "load_circuit_from_services",
+      "description": "Derive CircuitSpec from service manifests. If service_dirs is None, discovers them from baton.yaml's 'services' key or by scanning subdirectories for baton-service.yaml files. Loads manifests and derives a circuit using the registry module.",
+      "inputs": [
+        {
+          "name": "project_dir",
+          "type_ref": "str | Path",
+          "required": true,
+          "default": "",
+          "description": "Base project directory",
+          "validators": []
+        },
+        {
+          "name": "service_dirs",
+          "type_ref": "list[str | Path] | None",
+          "required": false,
+          "default": "None",
+          "description": "Optional list of service directories; if None, auto-discovers",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitSpec",
+      "error_cases": [
+        {
+          "name": "no_services_found",
+          "condition": "service_dirs is empty after discovery",
+          "error_type": "FileNotFoundError",
+          "error_data": {
+            "message": "No service directories found"
+          }
+        },
+        {
+          "name": "yaml_parse_error",
+          "condition": "Cannot parse baton.yaml when reading circuit name",
+          "error_type": "yaml.YAMLError",
+          "error_data": {}
+        },
+        {
+          "name": "manifest_load_error",
+          "condition": "load_manifests fails to load service manifests",
+          "error_type": "Exception",
+          "error_data": {}
+        },
+        {
+          "name": "derive_circuit_error",
+          "condition": "derive_circuit fails to create CircuitSpec",
+          "error_type": "Exception",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "project_dir must be a valid path",
+        "If service_dirs is None, discoverable service directories must exist"
+      ],
+      "postconditions": [
+        "Returns CircuitSpec derived from service manifests",
+        "Circuit name is extracted from baton.yaml if it exists, otherwise defaults to 'default'"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Reads baton.yaml if it exists",
+        "Calls external functions load_manifests and derive_circuit from baton.registry",
+        "May read multiple service manifest files"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "{project_dir}/baton.yaml",
+          "description": "Conditionally reads if file exists"
+        },
+        {
+          "kind": "reads_file",
+          "target": "service manifest files",
+          "description": "Via load_manifests call"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_discover_service_dirs",
+      "description": "Auto-discover service directories. First checks baton.yaml for a 'services' list of paths. Otherwise, scans immediate subdirectories for baton-service.yaml files.",
+      "inputs": [
+        {
+          "name": "project_dir",
+          "type_ref": "Path",
+          "required": true,
+          "default": "",
+          "description": "Base project directory to search",
+          "validators": []
+        }
+      ],
+      "output_type": "list[Path]",
+      "error_cases": [
+        {
+          "name": "yaml_parse_error",
+          "condition": "Cannot parse baton.yaml",
+          "error_type": "yaml.YAMLError",
+          "error_data": {}
+        },
+        {
+          "name": "file_read_error",
+          "condition": "Cannot read baton.yaml",
+          "error_type": "OSError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "project_dir must be a Path object"
+      ],
+      "postconditions": [
+        "Returns list of Path objects for discovered service directories",
+        "Returns empty list if no services found",
+        "Service directories are sorted if discovered by scanning"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Reads baton.yaml if it exists",
+        "Iterates through subdirectories to check for baton-service.yaml"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "{project_dir}/baton.yaml",
+          "description": "Conditionally reads if file exists"
+        },
+        {
+          "kind": "reads_file",
+          "target": "filesystem directory structure",
+          "description": "Scans subdirectories for manifest files"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "add_service_path",
+      "description": "Add a service directory path to baton.yaml's services list. Reads existing config, appends service_path if not already present, and writes back to file.",
+      "inputs": [
+        {
+          "name": "project_dir",
+          "type_ref": "str | Path",
+          "required": true,
+          "default": "",
+          "description": "Directory containing baton.yaml",
+          "validators": []
+        },
+        {
+          "name": "service_path",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Service directory path to add",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [
+        {
+          "name": "file_not_found",
+          "condition": "baton.yaml does not exist in project_dir",
+          "error_type": "FileNotFoundError",
+          "error_data": {
+            "message": "No baton.yaml found in {project_dir}"
+          }
+        },
+        {
+          "name": "yaml_parse_error",
+          "condition": "Cannot parse existing baton.yaml",
+          "error_type": "yaml.YAMLError",
+          "error_data": {}
+        },
+        {
+          "name": "file_write_error",
+          "condition": "Cannot write updated config back to file",
+          "error_type": "OSError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "baton.yaml must exist in project_dir"
+      ],
+      "postconditions": [
+        "service_path is added to services list in baton.yaml if not already present",
+        "baton.yaml is updated with new services list",
+        "If service_path already exists in list, no duplicate is added"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Reads baton.yaml from filesystem",
+        "Writes updated baton.yaml to filesystem"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "reads_file",
+          "target": "{project_dir}/baton.yaml",
+          "description": ""
+        },
+        {
+          "kind": "writes_file",
+          "target": "{project_dir}/baton.yaml",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_parse_circuit",
+      "description": "Parse raw YAML dict into CircuitSpec. Extracts nodes and edges from the dictionary and constructs NodeSpec and EdgeSpec objects.",
+      "inputs": [
+        {
+          "name": "raw",
+          "type_ref": "dict",
+          "required": true,
+          "default": "",
+          "description": "Raw dictionary from YAML parsing",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitSpec",
+      "error_cases": [
+        {
+          "name": "node_spec_error",
+          "condition": "Node data cannot be unpacked into NodeSpec",
+          "error_type": "TypeError",
+          "error_data": {}
+        },
+        {
+          "name": "edge_spec_error",
+          "condition": "Edge data cannot be unpacked into EdgeSpec",
+          "error_type": "TypeError",
+          "error_data": {}
+        },
+        {
+          "name": "circuit_spec_error",
+          "condition": "CircuitSpec constructor fails with provided data",
+          "error_type": "TypeError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "raw must be a dictionary"
+      ],
+      "postconditions": [
+        "Returns CircuitSpec with parsed nodes and edges",
+        "name defaults to 'default' if not in raw dict",
+        "version defaults to 1 if not in raw dict",
+        "nodes and edges default to empty lists if not in raw dict"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_serialize_circuit",
+      "description": "Convert CircuitSpec to a YAML-serializable dict. Selectively includes fields based on non-default values (host != '127.0.0.1', proxy_mode != 'http', role != 'service', etc.).",
+      "inputs": [
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "CircuitSpec object to serialize",
+          "validators": []
+        }
+      ],
+      "output_type": "dict",
+      "error_cases": [
+        {
+          "name": "attribute_error",
+          "condition": "CircuitSpec object missing expected attributes",
+          "error_type": "AttributeError",
+          "error_data": {}
+        }
+      ],
+      "preconditions": [
+        "circuit must be a valid CircuitSpec object"
+      ],
+      "postconditions": [
+        "Returns dictionary with name and version always present",
+        "nodes list included if circuit.nodes is non-empty",
+        "edges list included if circuit.edges is non-empty",
+        "Node fields only included if they differ from defaults",
+        "Edge label only included if present"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "pathlib",
+    "yaml",
+    "baton.schemas",
+    "baton.registry",
+    "baton.manifest"
+  ],
+  "dependency_contracts": {
+    "pathlib": [
+      "Path"
+    ],
+    "yaml": [
+      "safe_load",
+      "dump",
+      "YAMLError"
+    ],
+    "baton.schemas": [
+      "CircuitSpec",
+      "EdgeSpec",
+      "NodeSpec"
+    ],
+    "baton.registry": [
+      "derive_circuit",
+      "load_manifests"
+    ],
+    "baton.manifest": [
+      "MANIFEST_FILENAME"
+    ]
+  },
+  "invariants": [
+    "CONFIG_FILENAME = 'baton.yaml'",
+    "Default circuit name is 'default'",
+    "Default circuit version is 1",
+    "Default node host is '127.0.0.1'",
+    "Default node proxy_mode is 'http'",
+    "Default node role is 'service'"
+  ],
+  "requires": []
+}

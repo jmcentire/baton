@@ -1,0 +1,469 @@
+{
+  "component_id": "src_baton_providers_gcp",
+  "name": "GCP Cloud Run Deployment Provider",
+  "description": "Deploys circuit nodes as Google Cloud Run services. Each node becomes a Cloud Run service with its own URL. Edges are realized via BATON_<TARGET>_URL environment variables injected into each service. Requires google-cloud-run>=0.10 package.",
+  "version": 1,
+  "types": [
+    {
+      "name": "GCPProvider",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "_service_urls",
+          "type_ref": "dict[str, str]",
+          "required": true,
+          "default": "",
+          "description": "Maps node names to their deployed Cloud Run service URLs",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Deploy circuit nodes as Google Cloud Run services. Maintains internal state of service URLs."
+    }
+  ],
+  "functions": [
+    {
+      "name": "_now_iso",
+      "description": "Returns the current UTC timestamp in ISO 8601 format",
+      "inputs": [],
+      "output_type": "str",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns ISO 8601 formatted timestamp string in UTC timezone"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "_service_id",
+      "description": "Generate a Cloud Run service ID from circuit name, node name, and optional namespace. Converts to lowercase and replaces underscores with hyphens.",
+      "inputs": [
+        {
+          "name": "circuit_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the circuit",
+          "validators": []
+        },
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the node within the circuit",
+          "validators": []
+        },
+        {
+          "name": "namespace",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Optional namespace prefix for the service ID",
+          "validators": []
+        }
+      ],
+      "output_type": "str",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns hyphen-separated service ID in lowercase",
+        "Underscores are replaced with hyphens",
+        "If namespace is truthy, format is '{namespace}-{circuit_name}-{node_name}'",
+        "If namespace is falsy, format is '{circuit_name}-{node_name}'"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "__init__",
+      "description": "Initialize GCPProvider with empty service URL mapping",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "GCPProvider",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "self._service_urls is initialized as empty dict"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Initializes instance state _service_urls to empty dict"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "self._service_urls",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "deploy",
+      "description": "Deploy each node in the circuit as a Google Cloud Run service. Optionally builds Docker images, creates/updates services, sets IAM policies for public access, and injects neighbor service URLs as environment variables in two passes.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "GCPProvider",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "Circuit specification containing nodes to deploy",
+          "validators": []
+        },
+        {
+          "name": "target",
+          "type_ref": "DeploymentTarget",
+          "required": true,
+          "default": "",
+          "description": "Deployment target with config including project, region, image_template, build settings",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitState",
+      "error_cases": [
+        {
+          "name": "missing_google_cloud_run",
+          "condition": "google-cloud-run package not installed",
+          "error_type": "RuntimeError",
+          "error_data": {
+            "message": "GCP provider requires google-cloud-run. Install with: pip install baton[gcp]"
+          }
+        },
+        {
+          "name": "missing_project_config",
+          "condition": "target.config['project'] is not provided",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "GCP provider requires 'project' in deployment config"
+          }
+        },
+        {
+          "name": "service_deployment_failure",
+          "condition": "Exception during service creation/update that is not 'already exists'",
+          "error_type": "Exception",
+          "error_data": {
+            "handling": "Logged as error, node marked as FAULTED, deployment continues"
+          }
+        },
+        {
+          "name": "iam_policy_failure",
+          "condition": "Exception during IAM policy setting",
+          "error_type": "Exception",
+          "error_data": {
+            "handling": "Logged as warning, deployment continues"
+          }
+        },
+        {
+          "name": "neighbor_url_update_failure",
+          "condition": "Exception during second pass service update with neighbor URLs",
+          "error_type": "Exception",
+          "error_data": {
+            "handling": "Logged as warning, deployment continues"
+          }
+        }
+      ],
+      "preconditions": [
+        "target.config['project'] must be provided",
+        "google-cloud-run package must be installed"
+      ],
+      "postconditions": [
+        "Returns CircuitState with adapter states for each node",
+        "self._service_urls contains mappings for successfully deployed nodes",
+        "CircuitState.collapse_level is set to FULL_LIVE",
+        "Each successful node has status ACTIVE in state.adapters",
+        "Failed nodes have status FAULTED in state.adapters"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Creates/updates Google Cloud Run services",
+        "Sets IAM policies to make services publicly accessible",
+        "Builds and pushes Docker images if target.config['build'] == 'true'",
+        "Updates self._service_urls with deployed service URLs",
+        "Logs info, warning, and error messages"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "Google Cloud Run API",
+          "description": "Creates, updates services and sets IAM policies"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "self._service_urls",
+          "description": "Stores deployed service URLs"
+        },
+        {
+          "kind": "logging",
+          "target": "logger",
+          "description": "Info, warning, and error logs"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "teardown",
+      "description": "Delete all Cloud Run services associated with the circuit nodes and clear internal service URL cache",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "GCPProvider",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "Circuit specification containing nodes to teardown",
+          "validators": []
+        },
+        {
+          "name": "target",
+          "type_ref": "DeploymentTarget",
+          "required": true,
+          "default": "",
+          "description": "Deployment target with config including project and region",
+          "validators": []
+        }
+      ],
+      "output_type": "None",
+      "error_cases": [
+        {
+          "name": "missing_google_cloud_run",
+          "condition": "google-cloud-run package not installed",
+          "error_type": "RuntimeError",
+          "error_data": {
+            "message": "GCP provider requires google-cloud-run"
+          }
+        },
+        {
+          "name": "missing_project_config",
+          "condition": "target.config['project'] is not provided",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "GCP provider requires 'project' in deployment config"
+          }
+        },
+        {
+          "name": "service_deletion_failure",
+          "condition": "Exception during service deletion",
+          "error_type": "Exception",
+          "error_data": {
+            "handling": "Logged as warning, teardown continues for remaining services"
+          }
+        }
+      ],
+      "preconditions": [
+        "target.config['project'] must be provided",
+        "google-cloud-run package must be installed"
+      ],
+      "postconditions": [
+        "All Cloud Run services for circuit nodes are deleted",
+        "self._service_urls is cleared"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Deletes Cloud Run services via GCP API",
+        "Clears self._service_urls dictionary",
+        "Logs info and warning messages"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "Google Cloud Run API",
+          "description": "Deletes services"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "self._service_urls",
+          "description": "Clears service URL cache"
+        },
+        {
+          "kind": "logging",
+          "target": "logger",
+          "description": "Info and warning logs"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "status",
+      "description": "Check the status of Cloud Run services for all circuit nodes. Determines readiness based on RoutesReady and ConfigurationsReady conditions, and sets collapse level based on live node count.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "GCPProvider",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "circuit",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "Circuit specification containing nodes to check",
+          "validators": []
+        },
+        {
+          "name": "target",
+          "type_ref": "DeploymentTarget",
+          "required": true,
+          "default": "",
+          "description": "Deployment target with config including project and region",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitState",
+      "error_cases": [
+        {
+          "name": "missing_google_cloud_run",
+          "condition": "google-cloud-run package not installed",
+          "error_type": "RuntimeError",
+          "error_data": {
+            "message": "GCP provider requires google-cloud-run"
+          }
+        },
+        {
+          "name": "missing_project_config",
+          "condition": "target.config['project'] is not provided",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "GCP provider requires 'project' in deployment config"
+          }
+        },
+        {
+          "name": "service_status_retrieval_failure",
+          "condition": "Exception when getting service status",
+          "error_type": "Exception",
+          "error_data": {
+            "handling": "Node marked as IDLE, logged as debug, status check continues"
+          }
+        }
+      ],
+      "preconditions": [
+        "target.config['project'] must be provided",
+        "google-cloud-run package must be installed"
+      ],
+      "postconditions": [
+        "Returns CircuitState with current status for each node",
+        "Nodes with ready services have status ACTIVE",
+        "Nodes with services not ready have status LISTENING",
+        "Nodes without accessible services have status IDLE",
+        "collapse_level is FULL_MOCK if no nodes are live",
+        "collapse_level is FULL_LIVE if all nodes are live",
+        "collapse_level is PARTIAL if some nodes are live",
+        "self._service_urls is updated with current service URLs"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Queries Google Cloud Run API for service status",
+        "Updates self._service_urls with retrieved URLs",
+        "Logs debug messages for services that cannot be retrieved"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "network_call",
+          "target": "Google Cloud Run API",
+          "description": "Retrieves service status"
+        },
+        {
+          "kind": "mutates_state",
+          "target": "self._service_urls",
+          "description": "Updates service URL cache"
+        },
+        {
+          "kind": "logging",
+          "target": "logger",
+          "description": "Debug logs for status retrieval failures"
+        }
+      ],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "logging",
+    "datetime",
+    "baton.schemas",
+    "google.cloud.run_v2",
+    "google.iam.v1.policy_pb2",
+    "baton.image"
+  ],
+  "dependency_contracts": {
+    "baton.schemas": [
+      "AdapterState",
+      "CircuitSpec",
+      "CircuitState",
+      "CollapseLevel",
+      "DeploymentTarget",
+      "NodeStatus",
+      "ServiceSlot"
+    ],
+    "google.cloud.run_v2": [
+      "ServicesAsyncClient",
+      "Service",
+      "RevisionTemplate",
+      "Container",
+      "ContainerPort",
+      "EnvVar"
+    ],
+    "google.iam.v1.policy_pb2": [
+      "Policy",
+      "Binding"
+    ],
+    "baton.image": [
+      "ImageBuilder"
+    ]
+  },
+  "invariants": [
+    "Service IDs are always lowercase with underscores replaced by hyphens",
+    "Container port is always 8080 for Cloud Run services",
+    "Default region is 'us-central1' if not specified",
+    "Default image template is 'gcr.io/{project}/{circuit}-{node}:latest'",
+    "Environment variable BATON_NODE_NAME is always set for each service",
+    "Neighbor URLs are injected as BATON_{NEIGHBOR}_URL environment variables in uppercase with hyphens replaced by underscores",
+    "Services are made publicly accessible with roles/run.invoker for allUsers",
+    "Cloud Run condition state value 4 indicates CONDITION_SUCCEEDED"
+  ],
+  "requires": []
+}

@@ -292,6 +292,11 @@
       <p>Weighted splits, canary rollouts, header-based routing. Config locking prevents accidental overrides during tests.</p>
     </div>
     <div class="feature">
+      <span class="icon">%&gt;&gt;</span>
+      <h3>Canary Auto-Promotion</h3>
+      <p>Automated canary evaluation with error rate and latency thresholds. Promotes through weight steps or rolls back. Per-target metrics for accurate comparison.</p>
+    </div>
+    <div class="feature">
       <span class="icon">+/-</span>
       <h3>Hot-Swap</h3>
       <p>Replace running services with zero downtime. Drain connections from old instance, start new, switch. Atomic and safe.</p>
@@ -305,6 +310,16 @@
       <span class="icon">~&gt;</span>
       <h3>Observability</h3>
       <p>Live dashboard with per-node metrics, request signals, and per-path statistics. Prometheus export. JSONL persistence for offline analysis.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">[#]</span>
+      <h3>Image Building</h3>
+      <p>Auto-detect Python or Node runtimes, generate Dockerfiles, build and push container images. Integrated into deploy pipeline.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">GCP</span>
+      <h3>Cloud Deploy</h3>
+      <p>Deploy to GCP Cloud Run with --build. Each node becomes a service. Edges auto-wired via environment variables. Neighbor URL injection.</p>
     </div>
   </div>
 </section>
@@ -335,8 +350,11 @@
 <span class="comment"># Monitor health</span>
 <span class="cmd">baton watch</span>
 
-<span class="comment"># Deploy to GCP Cloud Run</span>
-<span class="cmd">baton deploy</span> <span class="flag">--provider</span> <span class="arg">gcp</span> <span class="flag">--project</span> <span class="arg">my-project</span>
+<span class="comment"># Canary with auto-promotion (evaluates health, promotes or rolls back)</span>
+<span class="cmd">baton route canary</span> <span class="arg">api</span> <span class="arg">"python app_v2.py"</span> <span class="flag">--pct</span> <span class="arg">10</span> <span class="flag">--promote</span>
+
+<span class="comment"># Build images and deploy to GCP Cloud Run</span>
+<span class="cmd">baton deploy</span> <span class="flag">--provider</span> <span class="arg">gcp</span> <span class="flag">--build</span> <span class="flag">--project</span> <span class="arg">my-project</span>
     </div>
   </div>
 </section>
@@ -395,6 +413,10 @@
       <div class="concept">
         <h4>Dashboard</h4>
         <p>Live UI. Node cards, bar charts, signal log, topology. Polls every 2s.</p>
+      </div>
+      <div class="concept">
+        <h4>Canary</h4>
+        <p>Auto-promote or rollback. Compares error rate + latency against thresholds.</p>
       </div>
     </div>
   </div>

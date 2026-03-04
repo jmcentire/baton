@@ -14,11 +14,13 @@ Core concepts:
 - **Circuit** — the board. Nodes + edges + addresses. First-class artifact.
 - **Adapter** — async reverse proxy at each node. Handles hot-swap, drain, health, A/B routing.
 - **Routing** — weighted, header-based, or canary routing at the adapter level. Config locking prevents accidental overrides.
+- **Canary** — auto-promotion controller evaluates error rate + latency vs thresholds, promotes through weight steps or rolls back.
 - **Mock** — auto-generated from OpenAPI/JSON Schema contracts.
 - **Collapse** — compress circuit: full mock (one process) through partial to full live.
 - **Custodian** — monitors adapters, self-heals with atomic repairs.
 - **Node Roles** — `service` (default), `ingress` (entry from outside), `egress` (outbound to external APIs, auto-mocked).
-- **Providers** — deployment backends: local (default), GCP Cloud Run, AWS (planned).
+- **Image Building** — auto-detect runtime (Python/Node), generate Dockerfiles, build/push container images.
+- **Providers** — deployment backends: local (default), GCP Cloud Run (with `--build`), AWS (planned).
 
 ## Structure
 
@@ -34,6 +36,8 @@ src/baton/
   adapter.py          # Async reverse proxy with A/B routing, HTTP health checks, latency percentiles
   adapter_control.py  # Adapter management API (/health, /metrics, /status, /routing)
   routing.py          # Pre-baked routing patterns (ab_split, canary, header_route, weighted_split)
+  canary.py           # CanaryController: auto-promotion/rollback with per-target metrics
+  image.py            # ImageBuilder: runtime detection, Dockerfile generation, build/push
   mock.py             # Mock server generation
   custodian.py        # Health monitoring + repair
   process.py          # Subprocess management
@@ -76,6 +80,7 @@ baton down                             # tear down
 baton route show <node>                # show routing config
 baton route ab <node> <cmd> [--split]  # A/B split (reuses existing as A)
 baton route canary <node> <cmd> [--pct]# canary rollout
+baton route canary <node> <cmd> --promote # auto-promote/rollback canary
 baton route set <node> --strategy ...  # custom routing config
 baton route lock <node>                # lock routing (prevents slot/swap)
 baton route unlock <node>              # unlock routing
@@ -88,8 +93,14 @@ baton metrics --prometheus            # Prometheus text exposition format
 baton signals [--node N] [--path P]   # recent request signals
 baton signals --stats                 # per-path statistics (count, avg latency, error rate)
 
+# Images
+baton image build [--node N] [--path P] # detect runtime, generate Dockerfile, build
+baton image push [--node N] [--tag T]   # push image to registry
+baton image list                        # list built images
+
 # Deployment
 baton deploy [--provider local|gcp]    # deploy circuit to provider
+baton deploy --provider gcp --build    # auto-build + deploy to Cloud Run
 baton teardown [--provider local|gcp]  # tear down deployment
 baton deploy-status [--provider ...]   # check deployment status
 ```
