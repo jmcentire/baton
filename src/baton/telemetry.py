@@ -15,6 +15,7 @@ from baton.adapter import Adapter
 from baton.dashboard import DashboardSnapshot, collect
 from baton.schemas import CircuitSpec, CircuitState
 from baton.state import append_jsonl, read_jsonl
+from baton.tracing import MetricExporter, SpanExporter
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,8 @@ class TelemetryCollector:
         circuit: CircuitSpec,
         project_dir: str | Path,
         flush_interval: float = 30.0,
+        span_exporter: SpanExporter | None = None,
+        metric_exporter: MetricExporter | None = None,
     ):
         self._adapters = adapters
         self._state = state
@@ -39,6 +42,8 @@ class TelemetryCollector:
         self._flush_interval = flush_interval
         self._running = False
         self._task: asyncio.Task | None = None
+        self._span_exporter = span_exporter
+        self._metric_exporter = metric_exporter
 
     @property
     def is_running(self) -> bool:
@@ -61,11 +66,23 @@ class TelemetryCollector:
         self._running = False
 
     async def flush_now(self) -> None:
-        """Immediate snapshot + write."""
+        """Immediate snapshot + write + drain spans."""
         try:
             snapshot = await collect(self._adapters, self._state, self._circuit)
             data = dataclasses.asdict(snapshot)
             append_jsonl(self._project_dir, METRICS_FILE, data)
+
+            # Export metrics via exporter if configured
+            if self._metric_exporter:
+                self._metric_exporter.export(data)
+
+            # Drain and export spans from all adapters
+            if self._span_exporter:
+                all_spans = []
+                for adapter in self._adapters.values():
+                    all_spans.extend(adapter.drain_spans())
+                if all_spans:
+                    self._span_exporter.export(all_spans)
         except Exception as e:
             logger.debug(f"Telemetry flush error: {e}")
 

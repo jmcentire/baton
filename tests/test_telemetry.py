@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -18,6 +19,7 @@ from baton.schemas import (
     NodeStatus,
 )
 from baton.telemetry import METRICS_FILE, TelemetryCollector
+from baton.tracing import NullExporter, SpanData
 
 
 class TestTelemetryFlush:
@@ -212,3 +214,89 @@ class TestTelemetryRunStop:
         # Should have written at least 2 snapshots
         records = TelemetryCollector.load_history(d)
         assert len(records) >= 2
+
+
+class TestTelemetrySpanDrain:
+    async def test_flush_drains_spans(self, project_dir: Path):
+        """flush_now drains spans from adapters and exports them."""
+        d = project_dir / "p"
+        d.mkdir(parents=True)
+        (d / ".baton").mkdir()
+
+        circuit = CircuitSpec(
+            name="test",
+            nodes=[NodeSpec(name="api", port=15020, proxy_mode="tcp")],
+        )
+        state = CircuitState(
+            circuit_name="test",
+            adapters={"api": AdapterState(node_name="api", status=NodeStatus.ACTIVE)},
+        )
+        adapter = Adapter(circuit.nodes[0])
+        # Pre-populate span buffer
+        adapter._span_buffer.append(
+            SpanData(name="test-span", trace_id="a" * 32, span_id="b" * 16, node_name="api")
+        )
+
+        exporter = MagicMock()
+        exporter.export = MagicMock()
+
+        collector = TelemetryCollector(
+            {"api": adapter}, state, circuit, d,
+            flush_interval=0.1, span_exporter=exporter,
+        )
+        await collector.flush_now()
+
+        # Span exporter should have been called with the spans
+        exporter.export.assert_called_once()
+        exported_spans = exporter.export.call_args[0][0]
+        assert len(exported_spans) == 1
+        assert exported_spans[0].name == "test-span"
+
+        # Adapter buffer should be empty after drain
+        assert len(adapter._span_buffer) == 0
+
+    async def test_flush_calls_metric_exporter(self, project_dir: Path):
+        """flush_now calls metric exporter if configured."""
+        d = project_dir / "p"
+        d.mkdir(parents=True)
+        (d / ".baton").mkdir()
+
+        circuit = CircuitSpec(
+            name="test",
+            nodes=[NodeSpec(name="api", port=15021, proxy_mode="tcp")],
+        )
+        state = CircuitState(
+            circuit_name="test",
+            adapters={"api": AdapterState(node_name="api")},
+        )
+        adapter = Adapter(circuit.nodes[0])
+
+        metric_exporter = MagicMock()
+        metric_exporter.export = MagicMock()
+
+        collector = TelemetryCollector(
+            {"api": adapter}, state, circuit, d,
+            metric_exporter=metric_exporter,
+        )
+        await collector.flush_now()
+
+        metric_exporter.export.assert_called_once()
+
+    async def test_flush_no_exporters(self, project_dir: Path):
+        """flush_now works fine without exporters."""
+        d = project_dir / "p"
+        d.mkdir(parents=True)
+        (d / ".baton").mkdir()
+
+        circuit = CircuitSpec(
+            name="test",
+            nodes=[NodeSpec(name="api", port=15022, proxy_mode="tcp")],
+        )
+        state = CircuitState(
+            circuit_name="test",
+            adapters={"api": AdapterState(node_name="api")},
+        )
+        adapter = Adapter(circuit.nodes[0])
+
+        collector = TelemetryCollector({"api": adapter}, state, circuit, d)
+        await collector.flush_now()  # should not raise

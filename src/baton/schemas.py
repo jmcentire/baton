@@ -26,6 +26,9 @@ class NodeStatus(StrEnum):
 class ProxyMode(StrEnum):
     HTTP = "http"
     TCP = "tcp"
+    GRPC = "grpc"
+    PROTOBUF = "protobuf"
+    SOAP = "soap"
 
 
 class NodeRole(StrEnum):
@@ -53,6 +56,8 @@ class CustodianAction(StrEnum):
     BOOT_SECONDARY = "boot_secondary"
     REROUTE = "reroute"
     ESCALATE = "escalate"
+    FEDERATED_FAILOVER = "federated_failover"
+    FEDERATED_RESTORE = "federated_restore"
 
 
 class RoutingStrategy(StrEnum):
@@ -86,6 +91,12 @@ class NodeSpec(BaseModel):
             if mgmt > 65535:
                 mgmt = self.port + 1000
             object.__setattr__(self, "management_port", mgmt)
+        # Validate metadata values contain no control characters
+        for key, val in self.metadata.items():
+            if any(c in val for c in ("\r", "\n", "\x00")):
+                raise ValueError(
+                    f"Metadata value for '{key}' contains control characters"
+                )
         return self
 
 
@@ -98,11 +109,24 @@ class EdgeSpec(BaseModel):
     target: str = Field(min_length=1)
     label: str = ""
 
+    policy: "EdgePolicy | None" = None
+
     @model_validator(mode="after")
     def no_self_loop(self) -> EdgeSpec:
         if self.source == self.target:
             raise ValueError(f"Self-loop not allowed: {self.source}")
         return self
+
+
+class EdgePolicy(BaseModel):
+    """Per-edge resilience policy."""
+
+    model_config = ConfigDict(frozen=True)
+
+    timeout_ms: int = Field(default=30000, ge=0)
+    retries: int = Field(default=0, ge=0, le=10)
+    retry_backoff_ms: int = Field(default=100, ge=0)
+    circuit_breaker_threshold: int = Field(default=0, ge=0)  # 0 = disabled
 
 
 class DependencySpec(BaseModel):
@@ -339,6 +363,8 @@ class SignalRecord(BaseModel):
     body_bytes: int = 0
     latency_ms: float = 0.0
     timestamp: str = ""
+    trace_id: str = ""
+    span_id: str = ""
 
 
 # -- Custodian Events --
@@ -379,3 +405,203 @@ class DeploymentTarget(BaseModel):
     region: str = ""
     namespace: str = ""
     config: dict[str, str] = Field(default_factory=dict)
+
+
+# -- Declarative Config --
+
+
+class TLSMode(StrEnum):
+    OFF = "off"
+    CIRCUIT = "circuit"
+    FULL = "full"
+
+
+class TLSConfig(BaseModel):
+    """TLS configuration for circuit communication."""
+
+    model_config = ConfigDict(frozen=True)
+
+    mode: TLSMode = TLSMode.OFF
+    cert: str = ""
+    key: str = ""
+    auto_rotate: bool = False
+    rotate_check_interval_s: float = 3600.0
+    warning_days: int = 30
+    critical_days: int = 7
+
+
+class ControlAuthConfig(BaseModel):
+    """Authentication for the adapter control plane."""
+
+    model_config = ConfigDict(frozen=True)
+
+    auth: bool = False
+    token_env: str = ""
+
+
+class SecurityConfig(BaseModel):
+    """Combined security settings."""
+
+    model_config = ConfigDict(frozen=True)
+
+    tls: TLSConfig = Field(default_factory=TLSConfig)
+    control: ControlAuthConfig = Field(default_factory=ControlAuthConfig)
+
+
+class TelemetryClassRule(BaseModel):
+    """Maps request patterns to semantic telemetry classes."""
+
+    model_config = ConfigDict(frozen=True)
+
+    match: str = ""
+    telemetry_class: str = ""
+    slo_p95_ms: int = Field(default=0, ge=0)
+    owner: str = ""
+
+
+class NodeTelemetryConfig(BaseModel):
+    """Per-node telemetry class overrides."""
+
+    model_config = ConfigDict(frozen=True)
+
+    classes: list[TelemetryClassRule] = Field(default_factory=list)
+
+
+class ObservabilityConfig(BaseModel):
+    """Observability settings from baton.yaml."""
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = False
+    sink: str = "jsonl"
+    otlp_endpoint: str = ""
+    otlp_protocol: str = "grpc"
+    service_name: str = ""
+    trace_sample_rate: float = Field(default=1.0, ge=0.0, le=1.0)
+
+
+class DeployConfig(BaseModel):
+    """Deployment configuration from baton.yaml."""
+
+    model_config = ConfigDict(frozen=True)
+
+    provider: str = "local"
+    project: str = ""
+    region: str = ""
+    namespace: str = ""
+    build: bool = False
+    image: str = ""
+
+
+# -- Federation --
+
+
+class ClusterIdentity(BaseModel):
+    """Identity of a cluster in a federation."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str = Field(min_length=1)
+    api_endpoint: str = Field(min_length=1)
+    region: str = ""
+    priority: int = Field(default=0, ge=0)
+
+
+class FederationEdge(BaseModel):
+    """Connection between two clusters in a federation."""
+
+    model_config = ConfigDict(frozen=True)
+
+    source_cluster: str = Field(min_length=1)
+    target_cluster: str = Field(min_length=1)
+    node_mapping: dict[str, str] = Field(default_factory=dict)
+
+
+class PeerState(BaseModel):
+    """State of a remote peer cluster."""
+
+    cluster_name: str = ""
+    reachable: bool = False
+    last_heartbeat: str = ""
+    node_count: int = 0
+    live_nodes: list[str] = Field(default_factory=list)
+    health_summary: dict[str, str] = Field(default_factory=dict)
+
+
+class FederationConfig(BaseModel):
+    """Federation configuration for multi-cluster communication."""
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = False
+    identity: ClusterIdentity | None = None
+    peers: list[ClusterIdentity] = Field(default_factory=list)
+    edges: list[FederationEdge] = Field(default_factory=list)
+    heartbeat_interval_s: float = Field(default=30.0, ge=0.1)
+    heartbeat_timeout_s: float = Field(default=10.0, ge=0.1)
+    failover_threshold: int = Field(default=3, ge=1)
+
+
+class CircuitConfig(BaseModel):
+    """Full declarative configuration from baton.yaml.
+
+    Extends CircuitSpec with routing, deploy, and security sections.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str = "default"
+    version: int = 1
+    nodes: list[NodeSpec] = Field(default_factory=list)
+    edges: list[EdgeSpec] = Field(default_factory=list)
+    routing: dict[str, RoutingConfig] = Field(default_factory=dict)
+    deploy: DeployConfig = Field(default_factory=DeployConfig)
+    security: SecurityConfig = Field(default_factory=SecurityConfig)
+    observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
+    node_telemetry: dict[str, NodeTelemetryConfig] = Field(default_factory=dict)
+    federation: FederationConfig = Field(default_factory=FederationConfig)
+
+    @model_validator(mode="after")
+    def unique_node_names(self) -> CircuitConfig:
+        names = [n.name for n in self.nodes]
+        if len(names) != len(set(names)):
+            dupes = [n for n in names if names.count(n) > 1]
+            raise ValueError(f"Duplicate node names: {set(dupes)}")
+        return self
+
+    @model_validator(mode="after")
+    def unique_ports(self) -> CircuitConfig:
+        ports = [n.port for n in self.nodes]
+        if len(ports) != len(set(ports)):
+            raise ValueError("Duplicate ports in circuit")
+        return self
+
+    @model_validator(mode="after")
+    def egress_not_edge_source(self) -> CircuitConfig:
+        egress_names = {n.name for n in self.nodes if n.role == NodeRole.EGRESS}
+        for e in self.edges:
+            if e.source in egress_names:
+                raise ValueError(
+                    f"Egress node '{e.source}' cannot be an edge source "
+                    f"(egress nodes are external dependencies, not producers)"
+                )
+        return self
+
+    @model_validator(mode="after")
+    def edges_reference_existing_nodes(self) -> CircuitConfig:
+        names = {n.name for n in self.nodes}
+        for e in self.edges:
+            if e.source not in names:
+                raise ValueError(f"Edge source '{e.source}' not in nodes")
+            if e.target not in names:
+                raise ValueError(f"Edge target '{e.target}' not in nodes")
+        return self
+
+    def to_circuit_spec(self) -> CircuitSpec:
+        """Convert to a plain CircuitSpec (drops routing/deploy/security)."""
+        return CircuitSpec(
+            name=self.name,
+            version=self.version,
+            nodes=list(self.nodes),
+            edges=list(self.edges),
+        )

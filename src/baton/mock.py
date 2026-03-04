@@ -12,10 +12,14 @@ import json
 import logging
 import random
 import string
+import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
+
+if TYPE_CHECKING:
+    from baton.tracing import SpanExporter
 
 logger = logging.getLogger(__name__)
 
@@ -164,9 +168,16 @@ class MockServer:
     Can serve routes for multiple ports simultaneously (collapsed mode).
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        span_exporter: "SpanExporter | None" = None,
+        node_name: str = "",
+    ):
         self._route_tables: dict[int, dict[str, dict[str, Any]]] = {}
         self._servers: list[asyncio.Server] = []
+        self._span_exporter = span_exporter
+        self._node_name = node_name
+        self._span_buffer: list = []
 
     def add_routes(self, port: int, routes: dict[str, dict[str, Any]]) -> None:
         """Register routes for a port."""
@@ -200,6 +211,12 @@ class MockServer:
     def is_running(self) -> bool:
         return len(self._servers) > 0
 
+    def drain_spans(self) -> list:
+        """Return and clear the span buffer."""
+        drained = self._span_buffer[:]
+        self._span_buffer.clear()
+        return drained
+
     async def _handle(
         self,
         reader: asyncio.StreamReader,
@@ -208,16 +225,23 @@ class MockServer:
     ) -> None:
         """Handle an HTTP request: match route, return canned response."""
         try:
+            start = time.monotonic()
             request_line = await asyncio.wait_for(reader.readline(), timeout=5.0)
             if not request_line:
                 writer.close()
                 return
 
-            # Read remaining headers
+            # Read remaining headers and extract traceparent
+            headers: dict[str, str] = {}
             while True:
                 line = await reader.readline()
                 if line in (b"\r\n", b"\n", b""):
                     break
+                if b":" in line:
+                    key, val = line.split(b":", 1)
+                    headers[key.strip().decode("ascii", errors="replace").lower()] = (
+                        val.strip().decode("ascii", errors="replace")
+                    )
 
             parts = request_line.decode("ascii", errors="replace").strip().split()
             method = parts[0] if parts else "GET"
@@ -233,7 +257,9 @@ class MockServer:
                 route = routes.get(alt_path, {})
                 body = route.get(method)
 
+            status_code = 200
             if body is None:
+                status_code = 404
                 resp_body = json.dumps({"error": "not found", "path": path}).encode()
                 writer.write(
                     f"HTTP/1.1 404 Not Found\r\n"
@@ -255,6 +281,37 @@ class MockServer:
                 writer.write(resp_body)
 
             await writer.drain()
+
+            # Create span if exporter is configured
+            if self._span_exporter:
+                from baton.tracing import (
+                    SpanData,
+                    generate_span_id,
+                    generate_trace_id,
+                    parse_traceparent,
+                )
+
+                parent_ctx = parse_traceparent(headers.get("traceparent", ""))
+                trace_id = parent_ctx.trace_id if parent_ctx else generate_trace_id()
+                span_id = generate_span_id()
+                span = SpanData(
+                    name=f"mock_{self._node_name}_{method}",
+                    trace_id=trace_id,
+                    span_id=span_id,
+                    parent_span_id=parent_ctx.span_id if parent_ctx else "",
+                    start_time_ns=int(start * 1e9),
+                    end_time_ns=int(time.monotonic() * 1e9),
+                    attributes={
+                        "http.method": method,
+                        "http.path": path,
+                        "http.status_code": str(status_code),
+                        "mock": "true",
+                    },
+                    status="ok" if status_code < 400 else "error",
+                    node_name=self._node_name,
+                )
+                self._span_buffer.append(span)
+
         except Exception as e:
             logger.debug(f"Mock server error: {e}")
         finally:

@@ -9,9 +9,10 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 
 from baton.adapter import Adapter
-from baton.schemas import HealthVerdict
+from baton.schemas import HealthVerdict, SecurityConfig
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +20,21 @@ logger = logging.getLogger(__name__)
 class AdapterControlServer:
     """Management HTTP server for a single adapter."""
 
-    def __init__(self, adapter: Adapter):
+    def __init__(self, adapter: Adapter, security: SecurityConfig | None = None):
         self._adapter = adapter
         self._server: asyncio.Server | None = None
+        self._security = security
+        self._auth_required = False
+        self._auth_token: str | None = None
+        if security and security.control.auth:
+            self._auth_required = True
+            if security.control.token_env:
+                self._auth_token = os.environ.get(security.control.token_env)
+            if not self._auth_token:
+                logger.warning(
+                    f"Auth enabled but token not found (env: {security.control.token_env}). "
+                    "All control API requests will be rejected."
+                )
 
     @property
     def is_running(self) -> bool:
@@ -30,8 +43,18 @@ class AdapterControlServer:
     async def start(self) -> None:
         """Start the control server on the adapter's management port."""
         node = self._adapter.node
+        ssl_ctx = None
+        if self._security and self._security.tls.mode in ("circuit", "full"):
+            from pathlib import Path as _Path
+            cert = _Path(self._security.tls.cert) if self._security.tls.cert else None
+            key = _Path(self._security.tls.key) if self._security.tls.key else None
+            if cert and key and cert.exists() and key.exists():
+                import ssl
+                ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                ssl_ctx.load_cert_chain(str(cert), str(key))
         self._server = await asyncio.start_server(
-            self._handle, node.host, node.management_port
+            self._handle, node.host, node.management_port,
+            ssl=ssl_ctx,
         )
         logger.info(
             f"Control [{node.name}] listening on "
@@ -58,15 +81,34 @@ class AdapterControlServer:
                 writer.close()
                 return
 
-            # Read remaining headers (discard)
+            # Read and accumulate headers
+            headers: dict[str, str] = {}
             while True:
                 line = await reader.readline()
                 if line in (b"\r\n", b"\n", b""):
                     break
+                decoded = line.decode("ascii", errors="replace").strip()
+                if ":" in decoded:
+                    key, val = decoded.split(":", 1)
+                    headers[key.strip().lower()] = val.strip()
 
             parts = request_line.decode("ascii", errors="replace").strip().split()
             method = parts[0] if parts else ""
             path = parts[1] if len(parts) > 1 else ""
+
+            # Auth check (fail-closed: if auth required but token missing, reject all)
+            if self._auth_required:
+                if self._auth_token is None:
+                    self._write_response(writer, 503, json.dumps({"error": "auth misconfigured"}))
+                    await writer.drain()
+                    writer.close()
+                    return
+                auth_val = headers.get("authorization", "")
+                if not auth_val.startswith("Bearer ") or auth_val[7:] != self._auth_token:
+                    self._write_response(writer, 401, json.dumps({"error": "unauthorized"}))
+                    await writer.drain()
+                    writer.close()
+                    return
 
             if method == "GET" and path == "/health":
                 body = await self._handle_health()
@@ -144,7 +186,7 @@ class AdapterControlServer:
 
     @staticmethod
     def _write_response(writer: asyncio.StreamWriter, status: int, body: str) -> None:
-        reason = {200: "OK", 404: "Not Found", 500: "Internal Server Error"}.get(
+        reason = {200: "OK", 401: "Unauthorized", 404: "Not Found", 500: "Internal Server Error", 503: "Service Unavailable"}.get(
             status, "Unknown"
         )
         body_bytes = body.encode("utf-8")

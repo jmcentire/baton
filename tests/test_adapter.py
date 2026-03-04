@@ -6,8 +6,9 @@ import asyncio
 
 import pytest
 
-from baton.adapter import Adapter, AdapterMetrics, BackendTarget
+from baton.adapter import Adapter, AdapterMetrics, BackendTarget, _inject_traceparent
 from baton.schemas import (
+    EdgePolicy,
     HealthVerdict,
     NodeSpec,
     ProxyMode,
@@ -15,7 +16,9 @@ from baton.schemas import (
     RoutingRule,
     RoutingStrategy,
     RoutingTarget,
+    TelemetryClassRule,
 )
+from baton.tracing import NullExporter, SpanData, parse_traceparent
 
 
 async def _start_echo_http_server(port: int) -> asyncio.Server:
@@ -228,6 +231,62 @@ class TestAdapterTCP:
             await adapter.stop()
             backend.close()
             await backend.wait_closed()
+
+
+class TestAdapterGRPC:
+    async def test_grpc_proxy(self):
+        """gRPC mode forwards bytes like TCP."""
+        backend = await _start_echo_tcp_server(18190)
+        node = NodeSpec(name="test-grpc", port=18191, proxy_mode="grpc")
+        adapter = Adapter(node)
+        await adapter.start()
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18190))
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18191)
+            # Send HTTP/2 preface as test data
+            writer.write(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
+            await writer.drain()
+            writer.write_eof()
+            response = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            assert response == b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
+            writer.close()
+        finally:
+            await adapter.stop()
+            backend.close()
+            await backend.wait_closed()
+
+    async def test_grpc_health_check(self):
+        """gRPC health check uses TCP connectivity."""
+        backend = await asyncio.start_server(
+            lambda r, w: w.close(), "127.0.0.1", 18192,
+        )
+        node = NodeSpec(name="test-grpc-hc", port=18193, proxy_mode="grpc")
+        adapter = Adapter(node)
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18192))
+        try:
+            health = await adapter.health_check()
+            assert health.verdict == HealthVerdict.HEALTHY
+        finally:
+            backend.close()
+            await backend.wait_closed()
+
+    async def test_grpc_no_backend(self):
+        """gRPC mode with no backend closes connection."""
+        node = NodeSpec(name="test-grpc-noback", port=18194, proxy_mode="grpc")
+        adapter = Adapter(node)
+        await adapter.start()
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18194)
+            writer.write(b"test")
+            await writer.drain()
+            try:
+                data = await asyncio.wait_for(reader.read(4096), timeout=2.0)
+                assert data == b""  # connection closed cleanly
+            except ConnectionResetError:
+                pass  # also acceptable: reset by peer
+            writer.close()
+        finally:
+            await adapter.stop()
 
 
 class TestHealthCheck:
@@ -600,6 +659,50 @@ class TestHTTPHealthCheck:
         health = await adapter.health_check()
         assert health.verdict == HealthVerdict.UNHEALTHY
 
+    async def test_health_path_injection_returns_unknown(self):
+        """Health path with special characters returns UNKNOWN verdict."""
+        node = NodeSpec(
+            name="test-inject-health", port=18987,
+            metadata={"health_path": "/health?q=<script>alert(1)</script>"},
+        )
+        adapter = Adapter(node)
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18986))
+        health = await adapter.health_check()
+        assert health.verdict == HealthVerdict.UNKNOWN
+        assert "Invalid health_path" in health.detail
+
+    async def test_valid_custom_health_path(self):
+        """Valid custom health_path is used in health check."""
+        async def handle(reader, writer):
+            try:
+                data = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=5.0)
+                assert b"GET /status/ready" in data
+                writer.write(
+                    b"HTTP/1.1 200 OK\r\n"
+                    b"Content-Length: 2\r\n"
+                    b"Connection: close\r\n\r\n"
+                    b"OK"
+                )
+                await writer.drain()
+            except Exception:
+                pass
+            finally:
+                writer.close()
+
+        backend = await asyncio.start_server(handle, "127.0.0.1", 18988)
+        node = NodeSpec(
+            name="test-custom-health", port=18989,
+            metadata={"health_path": "/status/ready"},
+        )
+        adapter = Adapter(node)
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18988))
+        try:
+            health = await adapter.health_check()
+            assert health.verdict == HealthVerdict.HEALTHY
+        finally:
+            backend.close()
+            await backend.wait_closed()
+
 
 class TestStatusCodeTracking:
     async def test_proxied_request_records_status(self):
@@ -633,3 +736,415 @@ class TestDrain:
             await asyncio.wait_for(adapter.drain(timeout=1.0), timeout=2.0)
         finally:
             await adapter.stop()
+
+
+class TestEdgePolicyEnforcement:
+    async def test_timeout_enforced(self):
+        """Policy with low timeout_ms causes request to fail fast against unreachable backend."""
+        node = NodeSpec(name="test-policy-timeout", port=18976)
+        adapter = Adapter(node)
+        adapter.set_policy(EdgePolicy(timeout_ms=500))
+        await adapter.start()
+        # Point at a port nobody is listening on
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18997))
+
+        try:
+            import time
+            start = time.monotonic()
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18976)
+            writer.write(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            response = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            elapsed = (time.monotonic() - start) * 1000
+            writer.close()
+            # Should get 502 (retry exhausted) and be fast (connection refused)
+            assert b"502" in response
+            assert elapsed < 3000
+        finally:
+            await adapter.stop()
+
+    async def test_retry_on_failure(self):
+        """With retries=2, first 2 attempts fail (empty response), 3rd succeeds."""
+        attempt_count = 0
+
+        async def flaky_handler(reader, writer):
+            nonlocal attempt_count
+            attempt_count += 1
+            try:
+                await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=5.0)
+                if attempt_count <= 2:
+                    # Close without responding -- triggers OSError in retry loop
+                    writer.close()
+                    return
+                writer.write(
+                    b"HTTP/1.1 200 OK\r\n"
+                    b"Content-Length: 2\r\n"
+                    b"Connection: close\r\n\r\n"
+                    b"OK"
+                )
+                await writer.drain()
+            except Exception:
+                pass
+            finally:
+                writer.close()
+
+        backend = await asyncio.start_server(flaky_handler, "127.0.0.1", 18977)
+        node = NodeSpec(name="test-policy-retry", port=18978)
+        adapter = Adapter(node)
+        adapter.set_policy(EdgePolicy(timeout_ms=2000, retries=2, retry_backoff_ms=50))
+        await adapter.start()
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18977))
+
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18978)
+            writer.write(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            response = await asyncio.wait_for(reader.read(4096), timeout=10.0)
+            writer.close()
+            assert b"200 OK" in response
+            assert attempt_count == 3
+        finally:
+            await adapter.stop()
+            backend.close()
+            await backend.wait_closed()
+
+    async def test_circuit_breaker_opens(self):
+        """After threshold failures, returns 503 without connecting."""
+        node = NodeSpec(name="test-cb-open", port=18979)
+        adapter = Adapter(node)
+        adapter.set_policy(EdgePolicy(
+            timeout_ms=500,
+            retries=0,
+            circuit_breaker_threshold=2,
+        ))
+        await adapter.start()
+        # Point at a port nobody is listening on
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18998))
+
+        try:
+            # First 2 requests fail and increment cb counter
+            for _ in range(2):
+                reader, writer = await asyncio.open_connection("127.0.0.1", 18979)
+                writer.write(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+                await writer.drain()
+                resp = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+                writer.close()
+                assert b"502" in resp
+
+            # 3rd request should get 503 from circuit breaker (fast)
+            import time
+            start = time.monotonic()
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18979)
+            writer.write(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            resp = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            elapsed = (time.monotonic() - start) * 1000
+            writer.close()
+            assert b"503" in resp
+            assert elapsed < 500  # no connection attempt, so fast
+        finally:
+            await adapter.stop()
+
+    async def test_circuit_breaker_resets(self):
+        """After breaker opens, a successful request resets the counter."""
+        node = NodeSpec(name="test-cb-reset", port=18980)
+        adapter = Adapter(node)
+        adapter.set_policy(EdgePolicy(
+            timeout_ms=500,
+            retries=0,
+            circuit_breaker_threshold=2,
+        ))
+        # Manually set cb state to trigger then reset
+        target_key = "127.0.0.1:18981"
+        adapter._cb_failures[target_key] = 5
+        adapter._cb_open[target_key] = 0  # expired cooldown (time=0 is far in the past)
+
+        # Start a real backend
+        backend = await _start_echo_http_server(18981)
+        await adapter.start()
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18981))
+
+        try:
+            # Cooldown expired, so probe goes through and succeeds
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18980)
+            writer.write(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            resp = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            writer.close()
+            assert b"200" in resp
+            # Counter should be reset
+            assert adapter._cb_failures.get(target_key, 0) == 0
+        finally:
+            await adapter.stop()
+            backend.close()
+            await backend.wait_closed()
+
+    async def test_no_policy_default_behavior(self):
+        """No policy set -> existing 30s timeout, single attempt."""
+        backend = await _start_echo_http_server(18982)
+        node = NodeSpec(name="test-no-policy", port=18983)
+        adapter = Adapter(node)
+        assert adapter.policy is None
+        await adapter.start()
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18982))
+
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18983)
+            writer.write(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            resp = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            writer.close()
+            assert b"200" in resp
+            assert adapter.metrics.requests_total == 1
+        finally:
+            await adapter.stop()
+            backend.close()
+            await backend.wait_closed()
+
+    def test_set_policy(self):
+        """set_policy stores and policy property retrieves it."""
+        node = NodeSpec(name="test-set-policy", port=18984)
+        adapter = Adapter(node)
+        assert adapter.policy is None
+        policy = EdgePolicy(timeout_ms=5000, retries=3)
+        adapter.set_policy(policy)
+        assert adapter.policy is policy
+        assert adapter.policy.timeout_ms == 5000
+        assert adapter.policy.retries == 3
+
+
+class TestAdapterSSL:
+    def test_no_ssl_default(self):
+        """Adapter without ssl_context starts normally."""
+        node = NodeSpec(name="test-no-ssl", port=18985)
+        adapter = Adapter(node)
+        assert adapter._ssl_context is None
+
+    def test_ssl_context_stored(self):
+        """Adapter with ssl_context stores it."""
+        import ssl
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        node = NodeSpec(name="test-ssl-store", port=18986)
+        adapter = Adapter(node, ssl_context=ctx)
+        assert adapter._ssl_context is ctx
+
+
+class TestInjectTraceparent:
+    def test_injects_header(self):
+        data = b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"
+        result = _inject_traceparent(data, "00-abc-def-01")
+        assert b"traceparent: 00-abc-def-01\r\n" in result
+        # Should still have the body boundary
+        assert b"\r\n\r\n" in result
+
+    def test_replaces_existing(self):
+        data = b"GET / HTTP/1.1\r\ntraceparent: old-value\r\nHost: localhost\r\n\r\n"
+        result = _inject_traceparent(data, "00-new-value-01")
+        assert b"traceparent: 00-new-value-01" in result
+        assert b"old-value" not in result
+
+    def test_preserves_body(self):
+        data = b"POST / HTTP/1.1\r\nContent-Length: 4\r\n\r\nbody"
+        result = _inject_traceparent(data, "00-abc-def-01")
+        assert result.endswith(b"body")
+        assert b"traceparent: 00-abc-def-01" in result
+
+
+class TestAdapterTracePropagation:
+    async def test_traceparent_injected_into_backend(self):
+        """Adapter injects traceparent header into requests to backend."""
+        received_headers = {}
+
+        async def capture_handler(reader, writer):
+            try:
+                data = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=5.0)
+                # Parse headers from the request
+                for line in data.split(b"\r\n")[1:]:
+                    if b":" in line:
+                        key, val = line.split(b":", 1)
+                        received_headers[key.strip().decode().lower()] = val.strip().decode()
+                writer.write(
+                    b"HTTP/1.1 200 OK\r\n"
+                    b"Content-Length: 2\r\n"
+                    b"Connection: close\r\n\r\n"
+                    b"OK"
+                )
+                await writer.drain()
+            except Exception:
+                pass
+            finally:
+                writer.close()
+
+        backend = await asyncio.start_server(capture_handler, "127.0.0.1", 18987)
+        node = NodeSpec(name="test-trace-inject", port=18988)
+        adapter = Adapter(node)
+        adapter.set_span_exporter(NullExporter())
+        await adapter.start()
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18987))
+
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18988)
+            writer.write(b"GET /test HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            writer.close()
+            await asyncio.sleep(0.1)
+
+            assert "traceparent" in received_headers
+            ctx = parse_traceparent(received_headers["traceparent"])
+            assert ctx is not None
+            assert len(ctx.trace_id) == 32
+            assert len(ctx.span_id) == 16
+        finally:
+            await adapter.stop()
+            backend.close()
+            await backend.wait_closed()
+
+    async def test_traceparent_propagates_trace_id(self):
+        """When inbound request has traceparent, adapter preserves trace_id."""
+        received_headers = {}
+
+        async def capture_handler(reader, writer):
+            try:
+                data = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=5.0)
+                for line in data.split(b"\r\n")[1:]:
+                    if b":" in line:
+                        key, val = line.split(b":", 1)
+                        received_headers[key.strip().decode().lower()] = val.strip().decode()
+                writer.write(
+                    b"HTTP/1.1 200 OK\r\n"
+                    b"Content-Length: 2\r\n"
+                    b"Connection: close\r\n\r\n"
+                    b"OK"
+                )
+                await writer.drain()
+            except Exception:
+                pass
+            finally:
+                writer.close()
+
+        backend = await asyncio.start_server(capture_handler, "127.0.0.1", 18989)
+        node = NodeSpec(name="test-trace-prop", port=18990)
+        adapter = Adapter(node)
+        adapter.set_span_exporter(NullExporter())
+        await adapter.start()
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18989))
+
+        try:
+            inbound_trace = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18990)
+            writer.write(f"GET /test HTTP/1.1\r\nHost: localhost\r\ntraceparent: {inbound_trace}\r\n\r\n".encode())
+            await writer.drain()
+            await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            writer.close()
+            await asyncio.sleep(0.1)
+
+            # Backend should have received the same trace_id
+            ctx = parse_traceparent(received_headers["traceparent"])
+            assert ctx.trace_id == "0af7651916cd43dd8448eb211c80319c"
+            # But a new span_id (not the parent's)
+            assert ctx.span_id != "b7ad6b7169203331"
+        finally:
+            await adapter.stop()
+            backend.close()
+            await backend.wait_closed()
+
+    async def test_span_created_on_success(self):
+        """Adapter creates SpanData on successful proxy."""
+        backend = await _start_echo_http_server(18991)
+        node = NodeSpec(name="test-span-create", port=18992)
+        adapter = Adapter(node)
+        adapter.set_span_exporter(NullExporter())
+        await adapter.start()
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18991))
+
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18992)
+            writer.write(b"GET /test HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            writer.close()
+            await asyncio.sleep(0.1)
+
+            spans = adapter.drain_spans()
+            assert len(spans) == 1
+            span = spans[0]
+            assert span.node_name == "test-span-create"
+            assert span.attributes["http.method"] == "GET"
+            assert span.attributes["http.path"] == "/test"
+            assert span.attributes["http.status_code"] == "200"
+            assert len(span.trace_id) == 32
+            assert len(span.span_id) == 16
+        finally:
+            await adapter.stop()
+            backend.close()
+            await backend.wait_closed()
+
+    async def test_signal_records_trace_ids(self):
+        """SignalRecord includes trace_id and span_id."""
+        backend = await _start_echo_http_server(18993)
+        node = NodeSpec(name="test-sig-trace", port=18994, role="ingress")
+        adapter = Adapter(node)
+        adapter.set_span_exporter(NullExporter())
+        await adapter.start()
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18993))
+
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18994)
+            writer.write(b"GET /test HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            writer.close()
+            await asyncio.sleep(0.1)
+
+            signals = adapter.signals
+            assert len(signals) == 1
+            assert signals[0].trace_id != ""
+            assert signals[0].span_id != ""
+            assert len(signals[0].trace_id) == 32
+        finally:
+            await adapter.stop()
+            backend.close()
+            await backend.wait_closed()
+
+    async def test_no_spans_without_exporter(self):
+        """No spans buffered when exporter is not set."""
+        backend = await _start_echo_http_server(18995)
+        node = NodeSpec(name="test-no-exporter", port=18996)
+        adapter = Adapter(node)
+        # Don't set an exporter
+        await adapter.start()
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18995))
+
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18996)
+            writer.write(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            writer.close()
+            await asyncio.sleep(0.1)
+
+            spans = adapter.drain_spans()
+            assert len(spans) == 0
+        finally:
+            await adapter.stop()
+            backend.close()
+            await backend.wait_closed()
+
+    def test_telemetry_rules(self):
+        """set_telemetry_rules stores rules on adapter."""
+        node = NodeSpec(name="test-tel-rules", port=19001)
+        adapter = Adapter(node)
+        rules = [TelemetryClassRule(match="POST /pay", telemetry_class="payment")]
+        adapter.set_telemetry_rules(rules)
+        assert len(adapter._telemetry_rules) == 1
+        assert adapter._telemetry_rules[0].telemetry_class == "payment"
+
+    def test_drain_spans_clears_buffer(self):
+        """drain_spans returns and clears the buffer."""
+        node = NodeSpec(name="test-drain-span", port=19002)
+        adapter = Adapter(node)
+        adapter._span_buffer.append(SpanData(name="test", trace_id="a" * 32, span_id="b" * 16))
+        spans = adapter.drain_spans()
+        assert len(spans) == 1
+        assert len(adapter._span_buffer) == 0

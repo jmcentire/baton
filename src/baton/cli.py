@@ -9,9 +9,9 @@ import sys
 from pathlib import Path
 
 from baton.circuit import add_edge, add_node, remove_edge, remove_node, set_contract
-from baton.config import CONFIG_FILENAME, load_circuit, save_circuit
+from baton.config import CONFIG_FILENAME, load_circuit, load_circuit_config, save_circuit, save_circuit_config, _serialize_circuit_config
 from baton.schemas import CircuitSpec, NodeStatus
-from baton.state import ensure_baton_dir, load_state
+from baton.state import ensure_baton_dir, load_circuit_spec, load_state
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -33,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     p_node_add = node_sub.add_parser("add", help="Add a node")
     p_node_add.add_argument("name", help="Node name")
     p_node_add.add_argument("--port", type=int, default=0, help="Port number")
-    p_node_add.add_argument("--mode", default="http", choices=["http", "tcp"], help="Proxy mode")
+    p_node_add.add_argument("--mode", default="http", choices=["http", "tcp", "grpc", "protobuf", "soap"], help="Proxy mode")
     p_node_add.add_argument("--role", default="service", choices=["service", "ingress", "egress"], help="Node role")
     p_node_add.add_argument("--dir", default=".", help="Project directory")
 
@@ -234,6 +234,39 @@ def main(argv: list[str] | None = None) -> int:
     p_check.add_argument("--service", default="", help="Check specific service (default: all)")
     p_check.add_argument("--dir", default=".", help="Project directory")
 
+    # baton apply
+    p_apply = sub.add_parser("apply", help="Apply declarative config (converge desired vs running)")
+    p_apply.add_argument("--dir", default=".", help="Project directory")
+    p_apply.add_argument("--dry-run", action="store_true", help="Show what would change without applying")
+
+    # baton export
+    p_export = sub.add_parser("export", help="Export running state as YAML config")
+    p_export.add_argument("--dir", default=".", help="Project directory")
+    p_export.add_argument("--output", default="", help="Output file (default: stdout)")
+
+    # baton federation
+    p_fed = sub.add_parser("federation", help="Multi-cluster federation")
+    fed_sub = p_fed.add_subparsers(dest="federation_command")
+
+    p_fed_status = fed_sub.add_parser("status", help="Show federation status")
+    p_fed_status.add_argument("--dir", default=".", help="Project directory")
+    p_fed_status.add_argument("--json", action="store_true", dest="json_output", help="JSON output")
+
+    p_fed_peers = fed_sub.add_parser("peers", help="Show peer cluster states")
+    p_fed_peers.add_argument("--dir", default=".", help="Project directory")
+    p_fed_peers.add_argument("--json", action="store_true", dest="json_output", help="JSON output")
+
+    # baton certs
+    p_certs = sub.add_parser("certs", help="Certificate management")
+    certs_sub = p_certs.add_subparsers(dest="certs_command")
+
+    p_certs_status = certs_sub.add_parser("status", help="Show certificate status")
+    p_certs_status.add_argument("--dir", default=".", help="Project directory")
+    p_certs_status.add_argument("--json", action="store_true", dest="json_output", help="JSON output")
+
+    p_certs_rotate = certs_sub.add_parser("rotate", help="Force certificate rotation")
+    p_certs_rotate.add_argument("--dir", default=".", help="Project directory")
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -275,6 +308,16 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print("Usage: baton image {build|push|list}", file=sys.stderr)
                 return 1
+        elif args.command == "apply":
+            if args.dry_run:
+                return _cmd_apply_dry_run(args)
+            return asyncio.run(_cmd_async(args))
+        elif args.command == "export":
+            return _cmd_export(args)
+        elif args.command == "federation":
+            return _cmd_federation(args)
+        elif args.command == "certs":
+            return _cmd_certs(args)
         elif args.command in ("up", "down", "slot", "swap", "collapse", "watch", "deploy", "teardown", "deploy-status", "dashboard"):
             return asyncio.run(_cmd_async(args))
         else:
@@ -316,6 +359,8 @@ async def _cmd_async(args: argparse.Namespace) -> int:
         return await _cmd_dashboard(args)
     elif args.command == "image":
         return await _cmd_image_async(args)
+    elif args.command == "apply":
+        return await _cmd_apply(args)
     return 1
 
 
@@ -1181,3 +1226,318 @@ def _cmd_status(args: argparse.Namespace) -> int:
             print(f"    {e.source} -> {e.target}{label}")
 
     return 0
+
+
+# -- Apply / Export --
+
+
+def _cmd_apply_dry_run(args: argparse.Namespace) -> int:
+    """Show what baton apply would do without actually doing it."""
+    from baton.lifecycle import _compute_convergence_actions
+
+    project_dir = Path(args.dir)
+    config = load_circuit_config(project_dir)
+    desired = config.to_circuit_spec()
+    current_state = load_state(project_dir)
+
+    # Load the previously-applied circuit spec (persisted in .baton/)
+    current_circuit = load_circuit_spec(project_dir)
+
+    actions = _compute_convergence_actions(config, desired, current_state, current_circuit)
+
+    if not actions:
+        print("No changes needed. Circuit is already converged.")
+        return 0
+
+    print("Convergence plan:")
+    for action_type, data in actions:
+        if action_type == "boot":
+            print(f"  BOOT: Start circuit '{config.name}' with {len(config.nodes)} nodes")
+            for n in config.nodes:
+                print(f"    - {n.name} :{n.port} ({n.proxy_mode}, {n.role})")
+            if config.routing:
+                for name, rc in config.routing.items():
+                    print(f"    - routing[{name}]: {rc.strategy}")
+        elif action_type == "reboot":
+            print("  REBOOT: Topology changed, will tear down and reboot")
+        elif action_type == "add_node":
+            n = data["node"]
+            print(f"  ADD NODE: {n.name} :{n.port} ({n.proxy_mode}, {n.role})")
+        elif action_type == "remove_node":
+            print(f"  REMOVE NODE: {data['node_name']}")
+        elif action_type == "add_edge":
+            print(f"  ADD EDGE: {data['source']} -> {data['target']}")
+        elif action_type == "remove_edge":
+            print(f"  REMOVE EDGE: {data['source']} -> {data['target']}")
+        elif action_type == "update_routing":
+            rc = data["routing_config"]
+            print(f"  UPDATE ROUTING: {data['node_name']} -> {rc.strategy}")
+        elif action_type == "clear_routing":
+            print(f"  CLEAR ROUTING: {data['node_name']}")
+
+    if config.deploy.provider != "local":
+        print(f"\n  Provider: {config.deploy.provider}")
+        if config.deploy.project:
+            print(f"  Project: {config.deploy.project}")
+        if config.deploy.region:
+            print(f"  Region: {config.deploy.region}")
+
+    if config.security.tls.mode != "off":
+        print(f"\n  Note: TLS mode is '{config.security.tls.mode}'")
+
+    return 0
+
+
+async def _cmd_apply(args: argparse.Namespace) -> int:
+    """Apply declarative config -- converge desired vs running state."""
+    from baton.lifecycle import LifecycleManager
+
+    project_dir = Path(args.dir)
+    config = load_circuit_config(project_dir)
+
+    if config.security.tls.mode != "off":
+        print(f"Note: TLS mode is '{config.security.tls.mode}'", file=sys.stderr)
+
+    mgr = LifecycleManager(project_dir)
+    state = await mgr.apply(config)
+
+    print(f"Circuit '{config.name}' applied ({len(state.adapters)} nodes)")
+
+    # Only block on Ctrl+C for local provider
+    if config.deploy.provider == "local":
+        stop = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, stop.set)
+
+        try:
+            await stop.wait()
+        except asyncio.CancelledError:
+            pass
+        finally:
+            await mgr.down()
+            print("\nCircuit torn down.")
+
+    return 0
+
+
+def _cmd_export(args: argparse.Namespace) -> int:
+    """Export running state as YAML config."""
+    import yaml as _yaml
+
+    project_dir = Path(args.dir)
+
+    # Load existing config as base
+    try:
+        config = load_circuit_config(project_dir)
+    except FileNotFoundError:
+        print(f"Error: No {CONFIG_FILENAME} found in {project_dir}", file=sys.stderr)
+        return 1
+
+    # Overlay runtime routing from state
+    current_state = load_state(project_dir)
+    routing = dict(config.routing)
+    if current_state:
+        from baton.schemas import RoutingConfig as RC
+        for name, adapter in current_state.adapters.items():
+            if adapter.routing_config is not None:
+                routing[name] = RC(**adapter.routing_config)
+
+    # Build new config with runtime routing
+    from baton.schemas import CircuitConfig as CC
+    exported = CC(
+        name=config.name,
+        version=config.version,
+        nodes=list(config.nodes),
+        edges=list(config.edges),
+        routing=routing,
+        deploy=config.deploy,
+        security=config.security,
+    )
+
+    data = _serialize_circuit_config(exported)
+    output = _yaml.dump(data, default_flow_style=False, sort_keys=False)
+
+    if args.output:
+        Path(args.output).write_text(output)
+        print(f"Exported to {args.output}")
+    else:
+        print(output, end="")
+
+    return 0
+
+
+def _cmd_federation(args: argparse.Namespace) -> int:
+    """Handle federation status/peers commands."""
+    import json as _json
+
+    if not getattr(args, "federation_command", None):
+        print("Usage: baton federation {status|peers}", file=sys.stderr)
+        return 1
+
+    project_dir = Path(args.dir)
+
+    try:
+        config = load_circuit_config(project_dir)
+    except FileNotFoundError:
+        print(f"Error: No {CONFIG_FILENAME} found in {project_dir}", file=sys.stderr)
+        return 1
+
+    fed = config.federation
+    if fed is None or not fed.enabled:
+        if getattr(args, "json_output", False):
+            print(_json.dumps({"enabled": False}))
+        else:
+            print("Federation: not configured")
+        return 0
+
+    if args.federation_command == "status":
+        identity = fed.identity
+        data = {
+            "enabled": True,
+            "cluster": identity.name if identity else "",
+            "endpoint": identity.api_endpoint if identity else "",
+            "region": identity.region if identity else "",
+            "peer_count": len(fed.peers),
+            "edge_count": len(fed.edges),
+            "heartbeat_interval_s": fed.heartbeat_interval_s,
+            "failover_threshold": fed.failover_threshold,
+        }
+        if getattr(args, "json_output", False):
+            print(_json.dumps(data, indent=2))
+        else:
+            print(f"Federation: enabled")
+            print(f"  Cluster: {data['cluster']}")
+            print(f"  Endpoint: {data['endpoint']}")
+            if data["region"]:
+                print(f"  Region: {data['region']}")
+            print(f"  Peers: {data['peer_count']}")
+            print(f"  Edges: {data['edge_count']}")
+            print(f"  Heartbeat: every {data['heartbeat_interval_s']}s")
+            print(f"  Failover threshold: {data['failover_threshold']} failures")
+        return 0
+
+    elif args.federation_command == "peers":
+        peers = []
+        for p in fed.peers:
+            peers.append({
+                "name": p.name,
+                "endpoint": p.api_endpoint,
+                "region": p.region,
+                "priority": p.priority,
+            })
+        if getattr(args, "json_output", False):
+            print(_json.dumps({"peers": peers}, indent=2))
+        else:
+            if not peers:
+                print("No peers configured")
+            else:
+                print(f"Peers ({len(peers)}):")
+                for p in peers:
+                    region = f" ({p['region']})" if p["region"] else ""
+                    print(f"  {p['name']}: {p['endpoint']}{region} [priority={p['priority']}]")
+        return 0
+
+    return 1
+
+
+def _cmd_certs(args: argparse.Namespace) -> int:
+    """Handle certs status/rotate commands."""
+    import json as _json
+
+    if not getattr(args, "certs_command", None):
+        print("Usage: baton certs {status|rotate}", file=sys.stderr)
+        return 1
+
+    project_dir = Path(args.dir)
+
+    try:
+        config = load_circuit_config(project_dir)
+    except FileNotFoundError:
+        print(f"Error: No {CONFIG_FILENAME} found in {project_dir}", file=sys.stderr)
+        return 1
+
+    tls = config.security.tls
+
+    if args.certs_command == "status":
+        if not tls.cert:
+            if getattr(args, "json_output", False):
+                print(_json.dumps({"configured": False}))
+            else:
+                print("TLS: no certificate configured")
+            return 0
+
+        data: dict = {
+            "configured": True,
+            "cert_path": tls.cert,
+            "key_path": tls.key,
+            "mode": str(tls.mode),
+            "auto_rotate": tls.auto_rotate,
+        }
+
+        # Try to parse the certificate
+        cert_path = project_dir / tls.cert if not Path(tls.cert).is_absolute() else Path(tls.cert)
+        try:
+            from baton.certs import parse_certificate
+            info = parse_certificate(cert_path)
+            data["subject"] = info.subject
+            data["issuer"] = info.issuer
+            data["not_before"] = info.not_before
+            data["not_after"] = info.not_after
+            data["san"] = info.san
+            data["fingerprint_sha256"] = info.fingerprint_sha256
+            data["days_until_expiry"] = info.days_until_expiry
+            data["expired"] = info.is_expired
+        except FileNotFoundError:
+            data["error"] = f"Certificate file not found: {cert_path}"
+        except Exception as e:
+            data["error"] = str(e)
+
+        if getattr(args, "json_output", False):
+            print(_json.dumps(data, indent=2))
+        else:
+            print(f"TLS Certificate:")
+            print(f"  Path: {tls.cert}")
+            print(f"  Mode: {tls.mode}")
+            print(f"  Auto-rotate: {tls.auto_rotate}")
+            if "error" in data:
+                print(f"  Error: {data['error']}")
+            elif "subject" in data:
+                print(f"  Subject: {data['subject']}")
+                print(f"  Issuer: {data['issuer']}")
+                print(f"  Valid: {data['not_before']} to {data['not_after']}")
+                if data["san"]:
+                    print(f"  SAN: {', '.join(data['san'])}")
+                print(f"  Expiry: {data['days_until_expiry']} days")
+                if data["expired"]:
+                    print(f"  WARNING: Certificate is expired!")
+        return 0
+
+    elif args.certs_command == "rotate":
+        if not tls.cert or not tls.key:
+            print("Error: No cert/key configured in security.tls", file=sys.stderr)
+            return 1
+
+        cert_path = project_dir / tls.cert if not Path(tls.cert).is_absolute() else Path(tls.cert)
+        key_path = project_dir / tls.key if not Path(tls.key).is_absolute() else Path(tls.key)
+
+        try:
+            import ssl as _ssl
+            from baton.certs import CertificateRotator
+            ctx = _ssl.SSLContext(_ssl.PROTOCOL_TLS_CLIENT)
+            rotator = CertificateRotator(ctx, cert_path, key_path)
+            success = rotator.rotate()
+            if success:
+                print("Certificate rotated successfully")
+                return 0
+            else:
+                print("Error: Certificate rotation failed", file=sys.stderr)
+                return 1
+        except FileNotFoundError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+
+    return 1

@@ -5,11 +5,15 @@ Reads baton-service.yaml files from service directories.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
 
 from baton.schemas import DependencySpec, ServiceManifest
+
+_ENV_VAR_RE = re.compile(r"\$[A-Z_][A-Z0-9_]*")
+_SHELL_META_RE = re.compile(r"[;&|`$()\{}<>!]")
 
 MANIFEST_FILENAME = "baton-service.yaml"
 
@@ -37,12 +41,23 @@ def _parse_manifest(raw: dict) -> ServiceManifest:
         else:
             deps.append(d)
 
+    command = raw.get("command", "")
+    if command:
+        # Strip $VAR patterns, then check for remaining shell metacharacters
+        cleaned = _ENV_VAR_RE.sub("", command)
+        match = _SHELL_META_RE.search(cleaned)
+        if match:
+            raise ValueError(
+                f"Command contains disallowed shell metacharacter "
+                f"'{match.group()}': {command!r}"
+            )
+
     return ServiceManifest(
         name=raw["name"],
         version=raw.get("version", "0.0.0"),
         api_spec=raw.get("api_spec", ""),
         mock_spec=raw.get("mock_spec", ""),
-        command=raw.get("command", ""),
+        command=command,
         port=raw.get("port", 0),
         proxy_mode=raw.get("proxy_mode", "http"),
         role=raw.get("role", "service"),

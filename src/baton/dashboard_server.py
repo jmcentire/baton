@@ -181,12 +181,28 @@ class DashboardServer:
             path = "/index.html"
 
         # Sanitize: prevent directory traversal
-        file_path = (self._static_dir / path.lstrip("/")).resolve()
-        if not str(file_path).startswith(str(self._static_dir.resolve())):
+        if "\x00" in path or ".." in path:
             self._write_json_response(
                 writer, 403, json.dumps({"error": "forbidden"})
             )
             return
+
+        resolved_static = self._static_dir.resolve()
+        file_path = (resolved_static / path.lstrip("/")).resolve()
+        if not file_path.is_relative_to(resolved_static):
+            self._write_json_response(
+                writer, 403, json.dumps({"error": "forbidden"})
+            )
+            return
+
+        # Reject symlinks that escape the static directory
+        if file_path.is_symlink():
+            real = file_path.resolve()
+            if not real.is_relative_to(resolved_static):
+                self._write_json_response(
+                    writer, 403, json.dumps({"error": "forbidden"})
+                )
+                return
 
         if not file_path.exists() or file_path.is_dir():
             self._write_json_response(

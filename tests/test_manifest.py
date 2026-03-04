@@ -112,6 +112,18 @@ class TestLoadManifest:
         with pytest.raises(KeyError):
             load_manifest(tmp_path)
 
+    def test_command_injection_rejected(self, tmp_path: Path):
+        data = {"name": "evil", "command": "python3 app.py; rm -rf /"}
+        (tmp_path / MANIFEST_FILENAME).write_text(yaml.dump(data))
+        with pytest.raises(ValueError, match="disallowed shell metacharacter"):
+            load_manifest(tmp_path)
+
+    def test_command_with_env_var_allowed(self, tmp_path: Path):
+        data = {"name": "api", "command": "python3 -m http.server $BATON_PORT"}
+        (tmp_path / MANIFEST_FILENAME).write_text(yaml.dump(data))
+        m = load_manifest(tmp_path)
+        assert "$BATON_PORT" in m.command
+
     def test_invalid_name(self, tmp_path: Path):
         (tmp_path / MANIFEST_FILENAME).write_text(yaml.dump({"name": "Bad-Name"}))
         from pydantic import ValidationError

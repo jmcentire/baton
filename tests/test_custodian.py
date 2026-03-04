@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from baton.adapter import Adapter, BackendTarget
-from baton.custodian import Custodian, RepairPlaybook
+from baton.custodian import AnomalyDetector, Custodian, RepairPlaybook
 from baton.schemas import (
     AdapterState,
     CircuitState,
@@ -17,6 +17,7 @@ from baton.schemas import (
     NodeSpec,
     NodeStatus,
     ServiceSlot,
+    TelemetryClassRule,
 )
 
 
@@ -179,3 +180,92 @@ class TestCustodian:
         custodian.stop()
         await asyncio.wait_for(task, timeout=2.0)
         assert not custodian.is_running
+
+
+class TestAnomalyDetector:
+    def test_no_anomaly_on_healthy(self):
+        node = NodeSpec(name="api", port=14010, proxy_mode="tcp")
+        adapter = Adapter(node)
+        # Normal latency data
+        for i in range(50):
+            adapter.metrics.record_latency(10.0 + i * 0.1)
+        adapter.metrics.requests_total = 100
+        adapter.metrics.requests_failed = 1
+
+        detector = AnomalyDetector()
+        anomalies = detector.check(adapter)
+        assert len(anomalies) == 0
+
+    def test_detects_latency_spike(self):
+        node = NodeSpec(name="api", port=14011, proxy_mode="tcp")
+        adapter = Adapter(node)
+        # Normal latency, then a massive spike
+        for _ in range(99):
+            adapter.metrics.record_latency(10.0)
+        adapter.metrics.record_latency(1000.0)  # huge spike
+
+        detector = AnomalyDetector(z_threshold=2.0)
+        anomalies = detector.check(adapter)
+        assert len(anomalies) >= 1
+        assert "z-score" in anomalies[0]
+
+    def test_detects_slo_violation(self):
+        node = NodeSpec(name="api", port=14012, proxy_mode="tcp")
+        adapter = Adapter(node)
+        # All latencies above SLO
+        for _ in range(100):
+            adapter.metrics.record_latency(300.0)
+
+        rules = [TelemetryClassRule(
+            match="POST /pay", telemetry_class="payment", slo_p95_ms=200,
+        )]
+        detector = AnomalyDetector()
+        anomalies = detector.check(adapter, slo_rules=rules)
+        assert any("SLO" in a for a in anomalies)
+
+    def test_detects_high_error_rate(self):
+        node = NodeSpec(name="api", port=14013, proxy_mode="tcp")
+        adapter = Adapter(node)
+        adapter.metrics.requests_total = 20
+        adapter.metrics.requests_failed = 15
+        for _ in range(20):
+            adapter.metrics.record_latency(10.0)
+
+        detector = AnomalyDetector()
+        anomalies = detector.check(adapter)
+        assert any("error rate" in a for a in anomalies)
+
+    def test_no_anomaly_with_few_samples(self):
+        node = NodeSpec(name="api", port=14014, proxy_mode="tcp")
+        adapter = Adapter(node)
+        # Too few data points for statistical detection
+        adapter.metrics.record_latency(10.0)
+        adapter.metrics.record_latency(1000.0)
+
+        detector = AnomalyDetector()
+        anomalies = detector.check(adapter)
+        # Not enough data for z-score, and requests_total < 10
+        assert len(anomalies) == 0
+
+
+class TestRepairPlaybookWithAnomalies:
+    def test_reroute_on_anomaly(self):
+        playbook = RepairPlaybook()
+        state = AdapterState(
+            node_name="api",
+            service=ServiceSlot(command="./run.sh", is_mock=False),
+            last_health_verdict=HealthVerdict.HEALTHY,
+        )
+        result = playbook.decide(state, anomalies=["SLO violation"])
+        assert result == CustodianAction.REROUTE
+
+    def test_anomaly_ignored_when_unhealthy(self):
+        playbook = RepairPlaybook()
+        state = AdapterState(
+            node_name="api",
+            service=ServiceSlot(command="./run.sh", is_mock=False),
+            last_health_verdict=HealthVerdict.UNHEALTHY,
+            consecutive_failures=3,
+        )
+        result = playbook.decide(state, anomalies=["SLO violation"])
+        assert result == CustodianAction.RESTART_SERVICE

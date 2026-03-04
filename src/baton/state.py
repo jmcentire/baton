@@ -8,10 +8,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from baton.schemas import CircuitState
+from baton.schemas import CircuitSpec, CircuitState
 
 BATON_DIR = ".baton"
 STATE_FILE = "state.json"
+CIRCUIT_FILE = "circuit.json"
 
 
 def ensure_baton_dir(project_dir: str | Path) -> Path:
@@ -37,6 +38,24 @@ def load_state(project_dir: str | Path) -> CircuitState | None:
     with open(path) as f:
         data = json.load(f)
     return CircuitState(**data)
+
+
+def save_circuit_spec(circuit: CircuitSpec, project_dir: str | Path) -> None:
+    """Save the running CircuitSpec to .baton/circuit.json for dry-run comparison."""
+    d = ensure_baton_dir(project_dir)
+    path = d / CIRCUIT_FILE
+    with open(path, "w") as f:
+        json.dump(circuit.model_dump(), f, indent=2)
+
+
+def load_circuit_spec(project_dir: str | Path) -> CircuitSpec | None:
+    """Load the previously-applied CircuitSpec from .baton/circuit.json."""
+    path = Path(project_dir) / BATON_DIR / CIRCUIT_FILE
+    if not path.exists():
+        return None
+    with open(path) as f:
+        data = json.load(f)
+    return CircuitSpec(**data)
 
 
 def clear_state(project_dir: str | Path) -> None:

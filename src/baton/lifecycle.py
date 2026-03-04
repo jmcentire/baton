@@ -12,25 +12,63 @@ from pathlib import Path
 
 from baton.adapter import Adapter, BackendTarget
 from baton.adapter_control import AdapterControlServer
-from baton.config import load_circuit, save_circuit
+from baton.config import load_circuit, load_circuit_config, save_circuit
 from baton.process import ProcessManager
 from baton.schemas import (
     AdapterState,
+    CircuitConfig,
     CircuitSpec,
     CircuitState,
     CollapseLevel,
+    EdgePolicy,
     NodeRole,
     NodeStatus,
     RoutingConfig,
+    SecurityConfig,
     ServiceSlot,
 )
-from baton.state import ensure_baton_dir, load_state, save_state
+from baton.state import ensure_baton_dir, load_state, save_circuit_spec, save_state
+from baton.tracing import SpanExporter, create_span_exporter
 
 logger = logging.getLogger(__name__)
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _resolve_node_policy(circuit: CircuitSpec, node_name: str) -> EdgePolicy | None:
+    """Collect edge policies targeting a node and merge with most-restrictive logic."""
+    policies = [e.policy for e in circuit.edges if e.target == node_name and e.policy is not None]
+    if not policies:
+        return None
+    if len(policies) == 1:
+        return policies[0]
+    # Merge: min timeout, max retries, min backoff, min nonzero threshold
+    timeout = min(p.timeout_ms for p in policies)
+    retries = max(p.retries for p in policies)
+    backoff = min(p.retry_backoff_ms for p in policies)
+    thresholds = [p.circuit_breaker_threshold for p in policies if p.circuit_breaker_threshold > 0]
+    threshold = min(thresholds) if thresholds else 0
+    return EdgePolicy(
+        timeout_ms=timeout, retries=retries,
+        retry_backoff_ms=backoff, circuit_breaker_threshold=threshold,
+    )
+
+
+def _build_ssl_context(tls_config) -> "ssl.SSLContext | None":
+    """Create an SSL context from TLS config if cert/key exist."""
+    import ssl
+    from pathlib import Path as _Path
+    if tls_config.mode == "off":
+        return None
+    cert_path = _Path(tls_config.cert) if tls_config.cert else None
+    key_path = _Path(tls_config.key) if tls_config.key else None
+    if cert_path and key_path and cert_path.exists() and key_path.exists():
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.load_cert_chain(str(cert_path), str(key_path))
+        return ctx
+    return None
 
 
 class LifecycleManager:
@@ -43,6 +81,11 @@ class LifecycleManager:
         self._process_mgr = ProcessManager()
         self._circuit: CircuitSpec | None = None
         self._state: CircuitState | None = None
+        self._span_exporter: SpanExporter | None = None
+        self._cert_manager = None  # CertificateManager
+        self._federation_server = None  # FederationServer
+        self._federation_manager = None  # FederationManager
+        self._federation_task: asyncio.Task | None = None
 
     @property
     def adapters(self) -> dict[str, Adapter]:
@@ -93,6 +136,26 @@ class LifecycleManager:
 
     async def down(self) -> None:
         """Tear down the circuit: stop all adapters and processes."""
+        # Stop federation
+        if self._federation_manager:
+            self._federation_manager.stop()
+        if self._federation_task and not self._federation_task.done():
+            self._federation_task.cancel()
+            try:
+                await self._federation_task
+            except asyncio.CancelledError:
+                pass
+            self._federation_task = None
+        if self._federation_server:
+            await self._federation_server.stop()
+            self._federation_server = None
+        self._federation_manager = None
+
+        # Stop cert manager
+        if self._cert_manager:
+            self._cert_manager.stop()
+            self._cert_manager = None
+
         await self._process_mgr.stop_all()
 
         for name, control in self._controls.items():
@@ -506,6 +569,208 @@ class LifecycleManager:
             if service.command and not service.is_mock:
                 await self.slot(node_name, service.command)
 
+    async def _apply_via_provider(self, config: CircuitConfig) -> CircuitState:
+        """Delegate apply to a deployment provider (non-local)."""
+        from baton.providers import create_provider
+        from baton.schemas import DeploymentTarget
+
+        spec = config.to_circuit_spec()
+        provider = create_provider(config.deploy.provider)
+        target = DeploymentTarget(
+            provider=config.deploy.provider,
+            region=config.deploy.region,
+            namespace=config.deploy.namespace,
+            config={
+                "project_dir": str(self.project_dir),
+                "project": config.deploy.project,
+                **({"build": "true"} if config.deploy.build else {}),
+                **({"image_template": config.deploy.image} if config.deploy.image else {}),
+            },
+        )
+        state = await provider.deploy(spec, target)
+        self._state = state
+        save_state(state, self.project_dir)
+        return state
+
+    async def apply(self, config: CircuitConfig) -> CircuitState:
+        """Converge running state to match the declarative CircuitConfig.
+
+        1. No running state -> boot circuit + apply routing
+        2. Same topology, different routing -> update routing in-place
+        3. Topology changed -> incremental add/remove or reboot
+        4. Same config twice -> no-op (idempotent)
+        5. Non-local provider -> delegate to provider
+        """
+        if config.deploy.provider != "local":
+            return await self._apply_via_provider(config)
+
+        current_state = load_state(self.project_dir)
+        desired_spec = config.to_circuit_spec()
+
+        actions = _compute_convergence_actions(config, desired_spec, current_state, self._circuit)
+
+        for action_type, data in actions:
+            if action_type == "boot":
+                # Full boot from scratch
+                self._circuit = desired_spec
+                ensure_baton_dir(self.project_dir)
+                self._state = CircuitState(
+                    circuit_name=desired_spec.name,
+                    collapse_level=CollapseLevel.FULL_MOCK,
+                    started_at=_now_iso(),
+                    updated_at=_now_iso(),
+                )
+                ssl_ctx = _build_ssl_context(config.security.tls)
+
+                # Create span exporter from observability config
+                self._span_exporter = create_span_exporter(
+                    config.observability.sink, config.observability, self.project_dir,
+                )
+
+                for node in desired_spec.nodes:
+                    adapter = Adapter(node, ssl_context=ssl_ctx)
+                    await adapter.start()
+                    # Set edge policy
+                    node_policy = _resolve_node_policy(desired_spec, node.name)
+                    if node_policy:
+                        adapter.set_policy(node_policy)
+                    # Wire observability
+                    adapter.set_span_exporter(self._span_exporter)
+                    node_tel = config.node_telemetry.get(node.name)
+                    if node_tel:
+                        adapter.set_telemetry_rules(node_tel.classes)
+                    self._adapters[node.name] = adapter
+
+                    control = AdapterControlServer(adapter, security=config.security)
+                    await control.start()
+                    self._controls[node.name] = control
+
+                    self._state.adapters[node.name] = AdapterState(
+                        node_name=node.name,
+                        status=NodeStatus.LISTENING,
+                    )
+                save_state(self._state, self.project_dir)
+                logger.info(f"Circuit '{desired_spec.name}' booted with {len(self._adapters)} nodes")
+
+                # Start certificate manager if auto_rotate is enabled
+                if ssl_ctx and config.security.tls.auto_rotate:
+                    self._start_cert_manager(config, ssl_ctx)
+
+                # Start federation if configured
+                if config.federation.enabled:
+                    await self._start_federation(config)
+
+            elif action_type == "reboot":
+                # Topology changed -- tear down and reboot
+                await self.down()
+                return await self.apply(config)
+
+            elif action_type == "add_node":
+                node = data["node"]
+                ssl_ctx = _build_ssl_context(config.security.tls)
+                adapter = Adapter(node, ssl_context=ssl_ctx)
+                await adapter.start()
+                node_policy = _resolve_node_policy(desired_spec, node.name)
+                if node_policy:
+                    adapter.set_policy(node_policy)
+                # Wire observability
+                if self._span_exporter:
+                    adapter.set_span_exporter(self._span_exporter)
+                node_tel = config.node_telemetry.get(node.name)
+                if node_tel:
+                    adapter.set_telemetry_rules(node_tel.classes)
+                self._adapters[node.name] = adapter
+
+                control = AdapterControlServer(adapter, security=config.security)
+                await control.start()
+                self._controls[node.name] = control
+
+                if self._state:
+                    self._state.adapters[node.name] = AdapterState(
+                        node_name=node.name,
+                        status=NodeStatus.LISTENING,
+                    )
+                # Apply routing if config has it
+                if node.name in config.routing:
+                    adapter.set_routing(config.routing[node.name])
+                    if self._state:
+                        self._state.adapters[node.name].routing_config = config.routing[node.name].model_dump()
+
+                logger.info(f"Added node '{node.name}' to circuit")
+
+            elif action_type == "remove_node":
+                node_name = data["node_name"]
+                adapter = self._adapters.get(node_name)
+                if adapter:
+                    await adapter.drain(timeout=5.0)
+                    await adapter.stop()
+                    del self._adapters[node_name]
+                control = self._controls.get(node_name)
+                if control:
+                    await control.stop()
+                    del self._controls[node_name]
+                # Stop any process for this node
+                if self._process_mgr.is_running(node_name):
+                    await self._process_mgr.stop(node_name)
+                if self._state:
+                    self._state.adapters.pop(node_name, None)
+                    if node_name in self._state.live_nodes:
+                        self._state.live_nodes.remove(node_name)
+                logger.info(f"Removed node '{node_name}' from circuit")
+
+            elif action_type == "add_edge":
+                # Recompute policy on target adapter
+                tgt = data["target"]
+                adapter = self._adapters.get(tgt)
+                if adapter:
+                    node_policy = _resolve_node_policy(desired_spec, tgt)
+                    adapter.set_policy(node_policy)
+
+            elif action_type == "remove_edge":
+                # Recompute policy on target adapter
+                tgt = data["target"]
+                adapter = self._adapters.get(tgt)
+                if adapter:
+                    node_policy = _resolve_node_policy(desired_spec, tgt)
+                    adapter.set_policy(node_policy)
+
+            elif action_type == "update_routing":
+                # Same topology, update routing in-place
+                node_name = data["node_name"]
+                routing_config = data["routing_config"]
+                adapter = self._adapters.get(node_name)
+                if adapter:
+                    adapter.set_routing(routing_config)
+                    if self._state and node_name in self._state.adapters:
+                        self._state.adapters[node_name].routing_config = routing_config.model_dump()
+
+            elif action_type == "clear_routing":
+                node_name = data["node_name"]
+                adapter = self._adapters.get(node_name)
+                if adapter:
+                    adapter.clear_routing()
+                    if self._state and node_name in self._state.adapters:
+                        self._state.adapters[node_name].routing_config = None
+
+        # Apply routing from config
+        if actions and actions[0][0] == "boot":
+            for node_name, routing_config in config.routing.items():
+                adapter = self._adapters.get(node_name)
+                if adapter:
+                    adapter.set_routing(routing_config)
+                    if self._state and node_name in self._state.adapters:
+                        self._state.adapters[node_name].routing_config = routing_config.model_dump()
+
+        # Update circuit to desired spec after processing all actions
+        self._circuit = desired_spec
+        save_circuit_spec(desired_spec, self.project_dir)
+
+        if self._state:
+            self._state.updated_at = _now_iso()
+            save_state(self._state, self.project_dir)
+
+        return self._state
+
     def _compute_collapse_level(self) -> CollapseLevel:
         if not self._state or not self._circuit:
             return CollapseLevel.FULL_MOCK
@@ -517,3 +782,142 @@ class LifecycleManager:
             return CollapseLevel.FULL_LIVE
         else:
             return CollapseLevel.PARTIAL
+
+    def _start_cert_manager(self, config: CircuitConfig, ssl_ctx) -> None:
+        """Start the CertificateManager for auto-rotation."""
+        from baton.certs import CertificateManager
+
+        tls = config.security.tls
+        if not tls.cert or not tls.key:
+            logger.warning("auto_rotate enabled but no cert/key paths configured")
+            return
+
+        self._cert_manager = CertificateManager(
+            ssl_context=ssl_ctx,
+            cert_path=tls.cert,
+            key_path=tls.key,
+            check_interval=tls.rotate_check_interval_s,
+            warning_days=tls.warning_days,
+            critical_days=tls.critical_days,
+        )
+        # Do initial check
+        self._cert_manager.check_now()
+        logger.info(f"Certificate manager started (interval={tls.rotate_check_interval_s}s)")
+
+    async def _start_federation(self, config: CircuitConfig) -> None:
+        """Start the FederationServer and FederationManager."""
+        from baton.federation import FederationManager, FederationServer
+
+        fed = config.federation
+        if not fed.identity:
+            logger.warning("Federation enabled but no identity configured")
+            return
+
+        self._federation_server = FederationServer(
+            identity=fed.identity,
+            get_local_state=lambda: self._state,
+        )
+        await self._federation_server.start()
+
+        self._federation_manager = FederationManager(
+            config=fed,
+            server=self._federation_server,
+            get_local_state=lambda: self._state,
+        )
+        self._federation_task = asyncio.create_task(self._federation_manager.run())
+        logger.info(f"Federation started (peers={[p.name for p in fed.peers]})")
+
+
+def _compute_convergence_actions(
+    config: CircuitConfig,
+    desired: CircuitSpec,
+    current_state: CircuitState | None,
+    current_circuit: CircuitSpec | None,
+) -> list[tuple[str, dict]]:
+    """Compute the actions needed to converge from current state to desired config.
+
+    Returns a list of (action_type, data) tuples.
+    """
+    actions: list[tuple[str, dict]] = []
+
+    # No running state -> full boot
+    if current_state is None or not current_state.adapters:
+        actions.append(("boot", {}))
+        return actions
+
+    if current_circuit is None:
+        actions.append(("boot", {}))
+        return actions
+
+    # Build lookup tables
+    current_nodes_by_name = {n.name: n for n in current_circuit.nodes}
+    desired_nodes_by_name = {n.name: n for n in desired.nodes}
+    current_node_names = set(current_nodes_by_name.keys())
+    desired_node_names = set(desired_nodes_by_name.keys())
+
+    current_edges = {(e.source, e.target) for e in current_circuit.edges}
+    desired_edges = {(e.source, e.target) for e in desired.edges}
+
+    new_nodes = desired_node_names - current_node_names
+    removed_nodes = current_node_names - desired_node_names
+    common_nodes = current_node_names & desired_node_names
+
+    # Check for changed nodes (same name but different port/mode/role)
+    for name in common_nodes:
+        cur = current_nodes_by_name[name]
+        des = desired_nodes_by_name[name]
+        if (cur.port, str(cur.proxy_mode), str(cur.role)) != (des.port, str(des.proxy_mode), str(des.role)):
+            actions.append(("reboot", {}))
+            return actions
+
+    # Check for port conflicts: new node's port collides with existing
+    current_ports = {current_nodes_by_name[n].port for n in common_nodes}
+    for name in new_nodes:
+        if desired_nodes_by_name[name].port in current_ports:
+            actions.append(("reboot", {}))
+            return actions
+
+    # Incremental node changes
+    for name in removed_nodes:
+        actions.append(("remove_node", {"node_name": name}))
+
+    for name in new_nodes:
+        actions.append(("add_node", {"node": desired_nodes_by_name[name]}))
+
+    # Edge changes
+    added_edges = desired_edges - current_edges
+    removed_edge_set = current_edges - desired_edges
+    for src, tgt in removed_edge_set:
+        actions.append(("remove_edge", {"source": src, "target": tgt}))
+    for src, tgt in added_edges:
+        # Find the edge spec with policy
+        edge_spec = None
+        for e in desired.edges:
+            if e.source == src and e.target == tgt:
+                edge_spec = e
+                break
+        actions.append(("add_edge", {"edge": edge_spec, "source": src, "target": tgt}))
+
+    # Same topology -- check routing changes
+    for node_name, desired_routing in config.routing.items():
+        adapter_state = current_state.adapters.get(node_name)
+        if adapter_state is None:
+            continue
+        current_routing = adapter_state.routing_config
+        desired_dump = desired_routing.model_dump()
+        if current_routing != desired_dump:
+            actions.append(("update_routing", {
+                "node_name": node_name,
+                "routing_config": desired_routing,
+            }))
+
+    # Check for routing that should be cleared
+    current_routed = {
+        name for name, a in current_state.adapters.items()
+        if a.routing_config is not None
+    }
+    desired_routed = set(config.routing.keys())
+    for node_name in current_routed - desired_routed:
+        actions.append(("clear_routing", {"node_name": node_name}))
+
+    return actions

@@ -29,9 +29,21 @@ gcp = [
 aws = [
     "boto3>=1.30",
 ]
+otel = [
+    "opentelemetry-api>=1.20",
+    "opentelemetry-sdk>=1.20",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20",
+]
+mcp = [
+    "mcp[cli]>=1.26.0",
+]
+certs = [
+    "cryptography>=41.0",
+]
 
 [project.scripts]
 baton = "baton.cli:main"
+baton-mcp = "baton.mcp_server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/baton"]

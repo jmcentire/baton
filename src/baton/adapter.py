@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -15,6 +16,7 @@ from datetime import datetime, timezone
 import random
 
 from baton.schemas import (
+    EdgePolicy,
     HealthCheck,
     HealthVerdict,
     NodeRole,
@@ -23,6 +25,17 @@ from baton.schemas import (
     RoutingConfig,
     RoutingStrategy,
     SignalRecord,
+    TelemetryClassRule,
+)
+from baton.tracing import (
+    SpanData,
+    SpanExporter,
+    TraceContext,
+    format_traceparent,
+    generate_span_id,
+    generate_trace_id,
+    parse_traceparent,
+    resolve_telemetry_class,
 )
 
 logger = logging.getLogger(__name__)
@@ -107,7 +120,7 @@ class Adapter:
         await adapter.stop()
     """
 
-    def __init__(self, node: NodeSpec, record_signals: bool = True):
+    def __init__(self, node: NodeSpec, record_signals: bool = True, ssl_context: "ssl.SSLContext | None" = None):
         self._node = node
         self._backend = BackendTarget()
         self._routing: RoutingConfig | None = None
@@ -120,6 +133,13 @@ class Adapter:
         self._draining = False
         self._active_connections = 0
         self._drain_event = asyncio.Event()
+        self._policy: EdgePolicy | None = None
+        self._cb_failures: dict[str, int] = {}      # target_key -> consecutive failures
+        self._cb_open: dict[str, float] = {}         # target_key -> time.monotonic when opened
+        self._ssl_context = ssl_context
+        self._span_exporter: SpanExporter | None = None
+        self._telemetry_rules: list[TelemetryClassRule] = []
+        self._span_buffer: list[SpanData] = []
 
     @property
     def node(self) -> NodeSpec:
@@ -176,15 +196,53 @@ class Adapter:
             raise RuntimeError("Cannot clear routing: config is locked")
         self._routing = None
 
+    def set_policy(self, policy: EdgePolicy | None) -> None:
+        """Set edge policy for timeout/retry/circuit-breaker enforcement."""
+        self._policy = policy
+
+    @property
+    def policy(self) -> EdgePolicy | None:
+        return self._policy
+
+    def set_span_exporter(self, exporter: SpanExporter | None) -> None:
+        """Set the span exporter for distributed tracing."""
+        self._span_exporter = exporter
+
+    def set_telemetry_rules(self, rules: list[TelemetryClassRule]) -> None:
+        """Set telemetry class rules for this adapter."""
+        self._telemetry_rules = list(rules)
+
+    def drain_spans(self) -> list[SpanData]:
+        """Return and clear the span buffer."""
+        drained = self._span_buffer[:]
+        self._span_buffer.clear()
+        return drained
+
     async def start(self) -> None:
         """Start listening on the node's assigned address."""
-        handler = (
-            self._handle_http_connection
-            if self._node.proxy_mode == ProxyMode.HTTP
-            else self._handle_tcp_connection
-        )
+        from baton.protocols import ConnectionContext, get_handler
+        # Ensure all protocol handlers are registered
+        import baton.protocols.http  # noqa: F401
+        import baton.protocols.tcp  # noqa: F401
+        import baton.protocols.protobuf  # noqa: F401
+        import baton.protocols.soap  # noqa: F401
+
+        handler_cls = get_handler(str(self._node.proxy_mode))
+        if handler_cls is None:
+            raise ValueError(f"No handler for proxy mode: {self._node.proxy_mode}")
+        proto_handler = handler_cls()
+        ctx = ConnectionContext(node=self._node, adapter=self)
+        self._protocol_handler = proto_handler
+        self._protocol_ctx = ctx
+
+        async def _dispatch(reader, writer):
+            await proto_handler.handle_connection(reader, writer, ctx)
+
+        handler = _dispatch
         self._server = await asyncio.start_server(
-            handler, self._node.host, self._node.port
+            handler, self._node.host, self._node.port,
+            ssl=self._ssl_context,
+            limit=self.MAX_HEADER_SIZE,
         )
         logger.info(
             f"Adapter [{self._node.name}] listening on "
@@ -211,7 +269,7 @@ class Adapter:
             self._server = None
 
     async def health_check(self) -> HealthCheck:
-        """Check backend reachability. Uses HTTP for HTTP-mode, TCP otherwise."""
+        """Check backend reachability via the registered protocol handler."""
         if not self._backend.is_configured:
             return HealthCheck(
                 node_name=self._node.name,
@@ -219,6 +277,15 @@ class Adapter:
                 detail="No backend configured",
                 timestamp=_now_iso(),
             )
+        handler = getattr(self, "_protocol_handler", None)
+        if handler is not None:
+            metadata = dict(self._node.metadata) if self._node.metadata else {}
+            metadata["_node_name"] = self._node.name
+            metadata["_adapter_ref"] = self  # For HTTP handler delegation
+            return await handler.health_check(
+                self._backend.host, self._backend.port, metadata
+            )
+        # Fallback if start() wasn't called -- use mode-appropriate check
         if self._node.proxy_mode == ProxyMode.HTTP:
             return await self._http_health_check()
         return await self._tcp_health_check()
@@ -250,9 +317,18 @@ class Adapter:
                 timestamp=_now_iso(),
             )
 
+    _SAFE_PATH_RE = re.compile(r"^/[a-zA-Z0-9/_.\-~%]*$")
+
     async def _http_health_check(self) -> HealthCheck:
         """Check backend health via HTTP GET /health."""
         health_path = (self._node.metadata or {}).get("health_path", "/health")
+        if not self._SAFE_PATH_RE.match(health_path):
+            return HealthCheck(
+                node_name=self._node.name,
+                verdict=HealthVerdict.UNKNOWN,
+                detail=f"Invalid health_path: {health_path!r}",
+                timestamp=_now_iso(),
+            )
         start = time.monotonic()
         try:
             reader, writer = await asyncio.wait_for(
@@ -375,6 +451,9 @@ class Adapter:
             return BackendTarget(host=t.host, port=t.port), t.name
         return self._backend, None
 
+    MAX_HEADERS = 100
+    MAX_HEADER_VALUE_LEN = 8192
+
     @staticmethod
     def _parse_headers(data: bytes) -> dict[str, str]:
         """Extract header key:value pairs from raw HTTP request bytes."""
@@ -382,13 +461,14 @@ class Adapter:
         try:
             header_section = data.split(b"\r\n\r\n", 1)[0]
             lines = header_section.split(b"\r\n")
-            # Skip request line (first line)
-            for line in lines[1:]:
+            # Skip request line (first line), limit header count
+            for line in lines[1:Adapter.MAX_HEADERS + 1]:
                 if b":" in line:
                     key, val = line.split(b":", 1)
-                    result[key.strip().decode("ascii", errors="replace").lower()] = (
-                        val.strip().decode("ascii", errors="replace")
-                    )
+                    key_str = key.strip().decode("ascii", errors="replace").lower()
+                    val_str = val.strip().decode("ascii", errors="replace")
+                    if len(val_str) <= Adapter.MAX_HEADER_VALUE_LEN:
+                        result[key_str] = val_str
         except Exception:
             pass
         return result
@@ -397,36 +477,6 @@ class Adapter:
         self._active_connections -= 1
         if self._draining and self._active_connections <= 0:
             self._drain_event.set()
-
-    async def _handle_tcp_connection(
-        self,
-        client_reader: asyncio.StreamReader,
-        client_writer: asyncio.StreamWriter,
-    ) -> None:
-        """Generic TCP forwarding: bidirectional byte pipe."""
-        if self._draining or not self._backend.is_configured:
-            client_writer.close()
-            return
-
-        self._active_connections += 1
-        backend_writer = None
-        try:
-            backend_reader, backend_writer = await asyncio.open_connection(
-                self._backend.host, self._backend.port
-            )
-            await asyncio.gather(
-                self._pipe(client_reader, backend_writer),
-                self._pipe(backend_reader, client_writer),
-            )
-            self._metrics.requests_total += 1
-        except Exception as e:
-            self._metrics.requests_failed += 1
-            logger.debug(f"[{self._node.name}] TCP proxy error: {e}")
-        finally:
-            self._decrement_connections()
-            client_writer.close()
-            if backend_writer:
-                backend_writer.close()
 
     async def _handle_http_connection(
         self,
@@ -446,11 +496,16 @@ class Adapter:
 
         self._active_connections += 1
         start = time.monotonic()
-        backend_writer = None
         try:
             request_data = await self._read_http_message(client_reader)
             if not request_data:
                 return
+
+            # Extract traceparent from inbound request
+            headers = self._parse_headers(request_data)
+            parent_ctx = parse_traceparent(headers.get("traceparent", ""))
+            trace_id = parent_ctx.trace_id if parent_ctx else generate_trace_id()
+            span_id = generate_span_id()
 
             target, target_name = self._select_backend_named(request_data)
             if target is None or not target.is_configured:
@@ -462,16 +517,84 @@ class Adapter:
                 await client_writer.drain()
                 return
 
-            backend_reader, backend_writer = await asyncio.open_connection(
-                target.host, target.port
-            )
-            backend_writer.write(request_data)
-            await backend_writer.drain()
+            target_key = f"{target.host}:{target.port}"
+            policy = self._policy
+            conn_timeout_s = policy.timeout_ms / 1000 if policy else 30.0
 
-            response_data = await self._read_http_message(backend_reader)
-            if response_data:
-                client_writer.write(response_data)
+            # Circuit breaker check
+            if policy and policy.circuit_breaker_threshold > 0:
+                failures = self._cb_failures.get(target_key, 0)
+                if failures >= policy.circuit_breaker_threshold:
+                    cooldown = policy.timeout_ms / 1000
+                    opened_at = self._cb_open.get(target_key, 0)
+                    if time.monotonic() - opened_at < cooldown:
+                        client_writer.write(
+                            b"HTTP/1.1 503 Service Unavailable\r\n"
+                            b"Content-Length: 0\r\n"
+                            b"Connection: close\r\n\r\n"
+                        )
+                        await client_writer.drain()
+                        self._metrics.requests_failed += 1
+                        return
+                    # Cooldown expired -- allow a probe request through
+
+            # Inject traceparent into outbound request
+            child_ctx = TraceContext(
+                trace_id=trace_id,
+                span_id=span_id,
+                parent_span_id=parent_ctx.span_id if parent_ctx else "",
+            )
+            outbound_data = _inject_traceparent(request_data, format_traceparent(child_ctx))
+
+            max_attempts = 1 + (policy.retries if policy else 0)
+            backoff_ms = policy.retry_backoff_ms if policy else 100
+            response_data = None
+            succeeded = False
+
+            for attempt in range(max_attempts):
+                backend_writer = None
+                try:
+                    backend_reader, backend_writer = await asyncio.wait_for(
+                        asyncio.open_connection(target.host, target.port),
+                        timeout=conn_timeout_s,
+                    )
+                    backend_writer.write(outbound_data)
+                    await backend_writer.drain()
+
+                    response_data = await self._read_http_message(backend_reader)
+                    if not response_data:
+                        # Connected but got no response -- treat as failure
+                        raise OSError("Empty response from backend")
+
+                    client_writer.write(response_data)
+                    await client_writer.drain()
+
+                    # Success -- reset circuit breaker
+                    self._cb_failures[target_key] = 0
+                    succeeded = True
+                    break
+                except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as conn_err:
+                    self._cb_failures[target_key] = self._cb_failures.get(target_key, 0) + 1
+                    if policy and policy.circuit_breaker_threshold > 0:
+                        if self._cb_failures[target_key] >= policy.circuit_breaker_threshold:
+                            self._cb_open[target_key] = time.monotonic()
+                    if attempt < max_attempts - 1:
+                        await asyncio.sleep(backoff_ms * (attempt + 1) / 1000)
+                    logger.debug(f"[{self._node.name}] attempt {attempt+1}/{max_attempts} failed: {conn_err}")
+                finally:
+                    if backend_writer:
+                        backend_writer.close()
+                        backend_writer = None
+
+            if not succeeded:
+                client_writer.write(
+                    b"HTTP/1.1 502 Bad Gateway\r\n"
+                    b"Content-Length: 0\r\n"
+                    b"Connection: close\r\n\r\n"
+                )
                 await client_writer.drain()
+                self._metrics.requests_failed += 1
+                return
 
             latency = (time.monotonic() - start) * 1000
             self._metrics.requests_total += 1
@@ -496,8 +619,31 @@ class Adapter:
                 if status_code:
                     tm.record_status(status_code)
 
+            # Create span data for tracing
+            method, path = self._parse_request_line(request_data)
+            if self._span_exporter is not None:
+                tel_class = resolve_telemetry_class(
+                    method, path, self._node.name, self._telemetry_rules,
+                )
+                span = SpanData(
+                    name=tel_class,
+                    trace_id=trace_id,
+                    span_id=span_id,
+                    parent_span_id=parent_ctx.span_id if parent_ctx else "",
+                    start_time_ns=int(start * 1e9),
+                    end_time_ns=int(time.monotonic() * 1e9),
+                    attributes={
+                        "http.method": method,
+                        "http.path": path,
+                        "http.status_code": str(status_code),
+                        "target": target_key,
+                    },
+                    status="ok" if 200 <= status_code < 400 else "error",
+                    node_name=self._node.name,
+                )
+                self._span_buffer.append(span)
+
             if self._record_signals:
-                method, path = self._parse_request_line(request_data)
                 status = self._parse_status_code(response_data) if response_data else 0
                 self._signals.append(
                     SignalRecord(
@@ -509,6 +655,8 @@ class Adapter:
                         body_bytes=len(response_data or b""),
                         latency_ms=latency,
                         timestamp=_now_iso(),
+                        trace_id=trace_id,
+                        span_id=span_id,
                     )
                 )
 
@@ -518,30 +666,17 @@ class Adapter:
         finally:
             self._decrement_connections()
             client_writer.close()
-            if backend_writer:
-                backend_writer.close()
 
-    @staticmethod
-    async def _pipe(
-        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ) -> None:
-        """Copy bytes from reader to writer until EOF."""
-        try:
-            while True:
-                data = await reader.read(65536)
-                if not data:
-                    break
-                writer.write(data)
-                await writer.drain()
-        except (ConnectionResetError, BrokenPipeError):
-            pass
+    MAX_HEADER_SIZE = 16384  # 16KB
 
     @staticmethod
     async def _read_http_message(reader: asyncio.StreamReader) -> bytes | None:
         """Read a full HTTP/1.1 message (headers + body via Content-Length)."""
         try:
             headers = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=30.0)
-        except (asyncio.TimeoutError, asyncio.IncompleteReadError, ConnectionResetError):
+            if len(headers) > Adapter.MAX_HEADER_SIZE:
+                return None
+        except (asyncio.TimeoutError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, ConnectionResetError):
             return None
 
         content_length = 0
@@ -589,3 +724,21 @@ class Adapter:
         except Exception:
             pass
         return 0
+
+
+def _inject_traceparent(request_data: bytes, traceparent: str) -> bytes:
+    """Insert traceparent header into HTTP request bytes.
+
+    Finds the \\r\\n\\r\\n boundary and inserts the header before it.
+    Replaces existing traceparent header if present.
+    """
+    header_line = f"traceparent: {traceparent}\r\n".encode("ascii")
+    # Remove existing traceparent header if present
+    lines = request_data.split(b"\r\n")
+    filtered = [line for line in lines if not line.lower().startswith(b"traceparent:")]
+    request_data = b"\r\n".join(filtered)
+    # Insert before the header/body boundary
+    parts = request_data.split(b"\r\n\r\n", 1)
+    if len(parts) == 2:
+        return parts[0] + b"\r\n" + header_line + b"\r\n" + parts[1]
+    return request_data

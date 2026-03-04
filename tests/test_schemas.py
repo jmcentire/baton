@@ -7,13 +7,17 @@ from pydantic import ValidationError
 
 from baton.schemas import (
     AdapterState,
+    CircuitConfig,
     CircuitSpec,
     CircuitState,
     CollapseLevel,
+    ControlAuthConfig,
     CustodianAction,
     CustodianEvent,
+    DeployConfig,
     DeploymentTarget,
     DependencySpec,
+    EdgePolicy,
     EdgeSpec,
     HealthCheck,
     HealthVerdict,
@@ -25,9 +29,12 @@ from baton.schemas import (
     RoutingRule,
     RoutingStrategy,
     RoutingTarget,
+    SecurityConfig,
     ServiceManifest,
     ServiceSlot,
     SignalRecord,
+    TLSConfig,
+    TLSMode,
 )
 
 
@@ -91,6 +98,14 @@ class TestNodeSpec:
     def test_metadata(self):
         n = NodeSpec(name="api", port=8001, metadata={"env": "dev"})
         assert n.metadata["env"] == "dev"
+
+    def test_metadata_rejects_newline(self):
+        with pytest.raises(ValueError, match="control characters"):
+            NodeSpec(name="api", port=8001, metadata={"path": "/health\r\nEvil: header"})
+
+    def test_metadata_rejects_null_byte(self):
+        with pytest.raises(ValueError, match="control characters"):
+            NodeSpec(name="api", port=8001, metadata={"path": "/health\x00evil"})
 
 
 # -- EdgeSpec --
@@ -616,3 +631,204 @@ class TestRoutingConfig:
         )
         with pytest.raises(ValidationError):
             cfg.locked = True
+
+
+# -- EdgePolicy --
+
+
+class TestEdgePolicy:
+    def test_defaults(self):
+        p = EdgePolicy()
+        assert p.timeout_ms == 30000
+        assert p.retries == 0
+        assert p.retry_backoff_ms == 100
+        assert p.circuit_breaker_threshold == 0
+
+    def test_custom(self):
+        p = EdgePolicy(timeout_ms=5000, retries=3, retry_backoff_ms=200, circuit_breaker_threshold=5)
+        assert p.timeout_ms == 5000
+        assert p.retries == 3
+        assert p.circuit_breaker_threshold == 5
+
+    def test_frozen(self):
+        p = EdgePolicy()
+        with pytest.raises(ValidationError):
+            p.timeout_ms = 1000
+
+    def test_retries_max(self):
+        with pytest.raises(ValidationError):
+            EdgePolicy(retries=11)
+
+    def test_negative_timeout(self):
+        with pytest.raises(ValidationError):
+            EdgePolicy(timeout_ms=-1)
+
+
+class TestEdgeSpecWithPolicy:
+    def test_edge_with_policy(self):
+        e = EdgeSpec(source="api", target="db", policy=EdgePolicy(timeout_ms=5000))
+        assert e.policy is not None
+        assert e.policy.timeout_ms == 5000
+
+    def test_edge_without_policy(self):
+        e = EdgeSpec(source="api", target="db")
+        assert e.policy is None
+
+
+# -- SecurityConfig --
+
+
+class TestTLSMode:
+    def test_values(self):
+        assert TLSMode.OFF == "off"
+        assert TLSMode.CIRCUIT == "circuit"
+        assert TLSMode.FULL == "full"
+
+
+class TestSecurityConfig:
+    def test_defaults(self):
+        s = SecurityConfig()
+        assert s.tls.mode == TLSMode.OFF
+        assert s.tls.cert == ""
+        assert s.control.auth is False
+        assert s.control.token_env == ""
+
+    def test_with_tls(self):
+        s = SecurityConfig(tls=TLSConfig(mode=TLSMode.CIRCUIT, cert="cert.pem", key="key.pem"))
+        assert s.tls.mode == TLSMode.CIRCUIT
+        assert s.tls.cert == "cert.pem"
+
+    def test_with_control_auth(self):
+        s = SecurityConfig(control=ControlAuthConfig(auth=True, token_env="BATON_TOKEN"))
+        assert s.control.auth is True
+        assert s.control.token_env == "BATON_TOKEN"
+
+    def test_frozen(self):
+        s = SecurityConfig()
+        with pytest.raises(ValidationError):
+            s.tls = TLSConfig()
+
+
+# -- DeployConfig --
+
+
+class TestDeployConfig:
+    def test_defaults(self):
+        d = DeployConfig()
+        assert d.provider == "local"
+        assert d.project == ""
+        assert d.region == ""
+        assert d.build is False
+        assert d.image == ""
+
+    def test_gcp(self):
+        d = DeployConfig(provider="gcp", project="my-proj", region="us-central1", build=True)
+        assert d.provider == "gcp"
+        assert d.project == "my-proj"
+
+    def test_frozen(self):
+        d = DeployConfig()
+        with pytest.raises(ValidationError):
+            d.provider = "aws"
+
+
+# -- CircuitConfig --
+
+
+class TestCircuitConfig:
+    def test_empty(self):
+        c = CircuitConfig(name="test")
+        assert c.name == "test"
+        assert c.nodes == []
+        assert c.edges == []
+        assert c.routing == {}
+        assert c.deploy.provider == "local"
+        assert c.security.tls.mode == TLSMode.OFF
+
+    def test_with_nodes_and_edges(self):
+        c = CircuitConfig(
+            name="test",
+            nodes=[
+                NodeSpec(name="api", port=8001),
+                NodeSpec(name="db", port=5432, proxy_mode="tcp", role="egress"),
+            ],
+            edges=[EdgeSpec(source="api", target="db")],
+        )
+        assert len(c.nodes) == 2
+        assert len(c.edges) == 1
+
+    def test_to_circuit_spec(self):
+        c = CircuitConfig(
+            name="test",
+            nodes=[
+                NodeSpec(name="api", port=8001),
+                NodeSpec(name="db", port=5432),
+            ],
+            edges=[EdgeSpec(source="api", target="db")],
+            routing={"api": RoutingConfig(
+                strategy=RoutingStrategy.WEIGHTED,
+                targets=[
+                    RoutingTarget(name="a", port=28001, weight=80),
+                    RoutingTarget(name="b", port=28002, weight=20),
+                ],
+            )},
+        )
+        spec = c.to_circuit_spec()
+        assert isinstance(spec, CircuitSpec)
+        assert spec.name == "test"
+        assert len(spec.nodes) == 2
+        assert len(spec.edges) == 1
+
+    def test_duplicate_node_names(self):
+        with pytest.raises(ValidationError, match="Duplicate node names"):
+            CircuitConfig(
+                name="bad",
+                nodes=[
+                    NodeSpec(name="api", port=8001),
+                    NodeSpec(name="api", port=8002),
+                ],
+            )
+
+    def test_duplicate_ports(self):
+        with pytest.raises(ValidationError, match="Duplicate ports"):
+            CircuitConfig(
+                name="bad",
+                nodes=[
+                    NodeSpec(name="api", port=8001),
+                    NodeSpec(name="svc", port=8001),
+                ],
+            )
+
+    def test_egress_not_source(self):
+        with pytest.raises(ValidationError, match="cannot be an edge source"):
+            CircuitConfig(
+                name="bad",
+                nodes=[
+                    NodeSpec(name="api", port=8001),
+                    NodeSpec(name="stripe", port=8002, role="egress"),
+                ],
+                edges=[EdgeSpec(source="stripe", target="api")],
+            )
+
+    def test_edges_ref_existing_nodes(self):
+        with pytest.raises(ValidationError, match="not in nodes"):
+            CircuitConfig(
+                name="bad",
+                nodes=[NodeSpec(name="api", port=8001)],
+                edges=[EdgeSpec(source="api", target="missing")],
+            )
+
+    def test_frozen(self):
+        c = CircuitConfig(name="test")
+        with pytest.raises(ValidationError):
+            c.name = "other"
+
+    def test_backwards_compat_plain_circuit(self):
+        """CircuitConfig can be constructed with just nodes/edges like CircuitSpec."""
+        c = CircuitConfig(
+            name="compat",
+            nodes=[NodeSpec(name="api", port=8001)],
+        )
+        spec = c.to_circuit_spec()
+        assert spec.name == "compat"
+        assert len(spec.nodes) == 1

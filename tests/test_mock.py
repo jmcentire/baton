@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from baton.mock import MockServer, generate_instance, load_routes, parse_openapi
+from baton.tracing import NullExporter, parse_traceparent
 
 
 class TestGenerateInstance:
@@ -349,5 +350,86 @@ class TestMockServer:
             assert b"200" in response
             body = json.loads(response.split(b"\r\n\r\n", 1)[1])
             assert body["status"] == "ok"
+        finally:
+            await server.stop()
+
+
+class TestMockServerTracing:
+    async def test_mock_emits_spans(self):
+        """Mock server with span exporter creates spans."""
+        exporter = NullExporter()
+        server = MockServer(span_exporter=exporter, node_name="mock-api")
+        server.add_routes(16010, {"/health": {"GET": {"status": "ok"}}})
+        await server.start()
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 16010)
+            writer.write(b"GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            chunks = []
+            while True:
+                chunk = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+            writer.close()
+            assert b"200" in b"".join(chunks)
+
+            spans = server.drain_spans()
+            assert len(spans) == 1
+            assert spans[0].node_name == "mock-api"
+            assert spans[0].attributes["http.method"] == "GET"
+            assert spans[0].attributes["http.path"] == "/health"
+            assert spans[0].attributes["mock"] == "true"
+        finally:
+            await server.stop()
+
+    async def test_mock_propagates_traceparent(self):
+        """Mock server extracts traceparent from request."""
+        exporter = NullExporter()
+        server = MockServer(span_exporter=exporter, node_name="mock-svc")
+        server.add_routes(16011, {"/api": {"POST": {"ok": True}}})
+        await server.start()
+        try:
+            trace_id = "0af7651916cd43dd8448eb211c80319c"
+            parent_span = "b7ad6b7169203331"
+            tp = f"00-{trace_id}-{parent_span}-01"
+
+            reader, writer = await asyncio.open_connection("127.0.0.1", 16011)
+            writer.write(f"POST /api HTTP/1.1\r\nHost: localhost\r\ntraceparent: {tp}\r\n\r\n".encode())
+            await writer.drain()
+            chunks = []
+            while True:
+                chunk = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+            writer.close()
+
+            spans = server.drain_spans()
+            assert len(spans) == 1
+            assert spans[0].trace_id == trace_id
+            assert spans[0].parent_span_id == parent_span
+        finally:
+            await server.stop()
+
+    async def test_mock_no_spans_without_exporter(self):
+        """Mock server without exporter creates no spans."""
+        server = MockServer()
+        server.add_routes(16012, {"/health": {"GET": {"ok": True}}})
+        await server.start()
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 16012)
+            writer.write(b"GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            chunks = []
+            while True:
+                chunk = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+            writer.close()
+
+            spans = server.drain_spans()
+            assert len(spans) == 0
         finally:
             await server.stop()

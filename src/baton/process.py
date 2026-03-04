@@ -8,6 +8,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
+import shlex
 import signal
 from dataclasses import dataclass, field
 
@@ -22,6 +24,30 @@ class ProcessInfo:
     pid: int
     process: asyncio.subprocess.Process
     node_name: str = ""
+
+
+_ENV_VAR_RE = re.compile(r"\$([A-Z_][A-Z0-9_]*)")
+_SHELL_META_RE = re.compile(r"[;&|`$()\{}<>!]")
+
+
+def _safe_expand_command(command: str, env: dict[str, str]) -> list[str]:
+    """Expand $VAR references from env dict, reject shell metacharacters, tokenize.
+
+    Raises ValueError if the expanded command contains disallowed shell metacharacters.
+    """
+    def _replacer(m: re.Match) -> str:
+        return env.get(m.group(1), m.group(0))
+
+    expanded = _ENV_VAR_RE.sub(_replacer, command)
+
+    # After expansion, reject remaining shell metacharacters
+    remaining = _SHELL_META_RE.search(expanded)
+    if remaining:
+        raise ValueError(
+            f"Command contains disallowed shell metacharacter: '{remaining.group()}'"
+        )
+
+    return shlex.split(expanded)
 
 
 class ProcessManager:
@@ -54,8 +80,9 @@ class ProcessManager:
         if env:
             proc_env.update(env)
 
-        proc = await asyncio.create_subprocess_shell(
-            command,
+        args = _safe_expand_command(command, proc_env)
+        proc = await asyncio.create_subprocess_exec(
+            *args,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=proc_env,
