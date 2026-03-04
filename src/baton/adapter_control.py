@@ -106,6 +106,14 @@ class AdapterControlServer:
             "requests_failed": m.requests_failed,
             "bytes_forwarded": m.bytes_forwarded,
             "last_latency_ms": m.last_latency_ms,
+            "status_2xx": m.status_2xx,
+            "status_3xx": m.status_3xx,
+            "status_4xx": m.status_4xx,
+            "status_5xx": m.status_5xx,
+            "active_connections": m.active_connections,
+            "latency_p50": m.p50(),
+            "latency_p95": m.p95(),
+            "latency_p99": m.p99(),
         })
 
     def _handle_status(self) -> str:

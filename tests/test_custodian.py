@@ -55,7 +55,7 @@ class TestCustodian:
         backend = await asyncio.start_server(
             lambda r, w: w.close(), "127.0.0.1", 14001
         )
-        node = NodeSpec(name="api", port=14002)
+        node = NodeSpec(name="api", port=14002, proxy_mode="tcp")
         adapter = Adapter(node)
         adapter.set_backend(BackendTarget(host="127.0.0.1", port=14001))
 
@@ -73,7 +73,7 @@ class TestCustodian:
             await backend.wait_closed()
 
     async def test_detects_unhealthy(self):
-        node = NodeSpec(name="api", port=14003)
+        node = NodeSpec(name="api", port=14003, proxy_mode="tcp")
         adapter = Adapter(node)
         adapter.set_backend(BackendTarget(host="127.0.0.1", port=14099))  # nothing listening
 
@@ -88,7 +88,7 @@ class TestCustodian:
         assert len(events) == 0
 
     async def test_triggers_repair_after_threshold(self):
-        node = NodeSpec(name="api", port=14004)
+        node = NodeSpec(name="api", port=14004, proxy_mode="tcp")
         adapter = Adapter(node)
         adapter.set_backend(BackendTarget(host="127.0.0.1", port=14099))
 
@@ -115,7 +115,7 @@ class TestCustodian:
         lifecycle.restart_service.assert_called_once_with("api")
 
     async def test_no_lifecycle_records_event(self):
-        node = NodeSpec(name="api", port=14005)
+        node = NodeSpec(name="api", port=14005, proxy_mode="tcp")
         adapter = Adapter(node)
         adapter.set_backend(BackendTarget(host="127.0.0.1", port=14099))
 
@@ -140,7 +140,7 @@ class TestCustodian:
         backend = await asyncio.start_server(
             lambda r, w: w.close(), "127.0.0.1", 14006
         )
-        node = NodeSpec(name="api", port=14007)
+        node = NodeSpec(name="api", port=14007, proxy_mode="tcp")
         adapter = Adapter(node)
         adapter.set_backend(BackendTarget(host="127.0.0.1", port=14006))
 
@@ -164,7 +164,7 @@ class TestCustodian:
             await backend.wait_closed()
 
     async def test_run_and_stop(self):
-        node = NodeSpec(name="api", port=14008)
+        node = NodeSpec(name="api", port=14008, proxy_mode="tcp")
         adapter = Adapter(node)
         state = CircuitState(
             adapters={"api": AdapterState(node_name="api")}

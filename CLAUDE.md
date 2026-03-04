@@ -31,15 +31,18 @@ src/baton/
   manifest.py         # Service manifest loading (baton-service.yaml)
   registry.py         # Circuit derivation from service manifests
   compat.py           # Static compatibility analysis
-  adapter.py          # Async reverse proxy with A/B routing
+  adapter.py          # Async reverse proxy with A/B routing, HTTP health checks, latency percentiles
   adapter_control.py  # Adapter management API (/health, /metrics, /status, /routing)
   routing.py          # Pre-baked routing patterns (ab_split, canary, header_route, weighted_split)
   mock.py             # Mock server generation
   custodian.py        # Health monitoring + repair
   process.py          # Subprocess management
-  state.py            # .baton/ persistence
+  state.py            # .baton/ persistence + JSONL utilities
   lifecycle.py        # Circuit lifecycle orchestration (slot, swap, slot_ab, route_ab, lock/unlock)
-  collapse.py         # Collapse algorithm
+  collapse.py         # Collapse algorithm (egress nodes always mocked)
+  dashboard.py        # Aggregated metrics snapshot across all nodes
+  telemetry.py        # Persistent JSONL metrics collection + Prometheus export
+  signals.py          # Cross-node signal aggregation + per-path statistics
   providers/          # Cloud deployment plugins
     local.py          # Local process deployment
     gcp.py            # GCP Cloud Run deployment
@@ -77,6 +80,13 @@ baton route set <node> --strategy ...  # custom routing config
 baton route lock <node>                # lock routing (prevents slot/swap)
 baton route unlock <node>              # unlock routing
 baton route clear <node>               # remove routing config
+
+# Observability
+baton dashboard [--json]              # aggregated metrics table for all nodes
+baton metrics [--node N] [--last N]   # persistent metrics from JSONL
+baton metrics --prometheus            # Prometheus text exposition format
+baton signals [--node N] [--path P]   # recent request signals
+baton signals --stats                 # per-path statistics (count, avg latency, error rate)
 
 # Deployment
 baton deploy [--provider local|gcp]    # deploy circuit to provider

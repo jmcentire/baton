@@ -141,6 +141,17 @@ class CircuitSpec(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def egress_not_edge_source(self) -> CircuitSpec:
+        egress_names = {n.name for n in self.nodes if n.role == NodeRole.EGRESS}
+        for e in self.edges:
+            if e.source in egress_names:
+                raise ValueError(
+                    f"Egress node '{e.source}' cannot be an edge source "
+                    f"(egress nodes are external dependencies, not producers)"
+                )
+        return self
+
+    @model_validator(mode="after")
     def edges_reference_existing_nodes(self) -> CircuitSpec:
         names = {n.name for n in self.nodes}
         for e in self.edges:
@@ -163,6 +174,16 @@ class CircuitSpec(BaseModel):
     def dependents(self, name: str) -> list[str]:
         """Nodes that connect TO this node."""
         return [e.source for e in self.edges if e.target == name]
+
+    @property
+    def ingress_nodes(self) -> list[NodeSpec]:
+        """Nodes with ingress role."""
+        return [n for n in self.nodes if n.role == NodeRole.INGRESS]
+
+    @property
+    def egress_nodes(self) -> list[NodeSpec]:
+        """Nodes with egress role."""
+        return [n for n in self.nodes if n.role == NodeRole.EGRESS]
 
 
 # -- Service Manifest (frozen) --

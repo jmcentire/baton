@@ -44,3 +44,30 @@ def clear_state(project_dir: str | Path) -> None:
     path = Path(project_dir) / BATON_DIR / STATE_FILE
     if path.exists():
         path.unlink()
+
+
+def append_jsonl(project_dir: str | Path, filename: str, data: dict) -> None:
+    """Append one JSON line to .baton/<filename>."""
+    d = ensure_baton_dir(project_dir)
+    path = d / filename
+    with open(path, "a") as f:
+        f.write(json.dumps(data) + "\n")
+
+
+def read_jsonl(
+    project_dir: str | Path, filename: str, last_n: int | None = None
+) -> list[dict]:
+    """Read JSONL file, optionally last N lines."""
+    path = Path(project_dir) / BATON_DIR / filename
+    if not path.exists():
+        return []
+    with open(path) as f:
+        lines = f.readlines()
+    if last_n is not None:
+        lines = lines[-last_n:]
+    result = []
+    for line in lines:
+        line = line.strip()
+        if line:
+            result.append(json.loads(line))
+    return result

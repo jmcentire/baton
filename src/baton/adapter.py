@@ -17,6 +17,7 @@ import random
 from baton.schemas import (
     HealthCheck,
     HealthVerdict,
+    NodeRole,
     NodeSpec,
     ProxyMode,
     RoutingConfig,
@@ -48,6 +49,46 @@ class AdapterMetrics:
     bytes_forwarded: int = 0
     last_request_at: float = 0.0
     last_latency_ms: float = 0.0
+    status_2xx: int = 0
+    status_3xx: int = 0
+    status_4xx: int = 0
+    status_5xx: int = 0
+    active_connections: int = 0
+    _latency_buffer: list = field(default_factory=list)
+
+    _LATENCY_BUFFER_MAX = 1000
+
+    def record_latency(self, latency_ms: float) -> None:
+        self._latency_buffer.append(latency_ms)
+        if len(self._latency_buffer) > self._LATENCY_BUFFER_MAX:
+            self._latency_buffer = self._latency_buffer[-self._LATENCY_BUFFER_MAX:]
+
+    def record_status(self, status_code: int) -> None:
+        if 200 <= status_code < 300:
+            self.status_2xx += 1
+        elif 300 <= status_code < 400:
+            self.status_3xx += 1
+        elif 400 <= status_code < 500:
+            self.status_4xx += 1
+        elif 500 <= status_code < 600:
+            self.status_5xx += 1
+
+    def p50(self) -> float:
+        return self._percentile(50)
+
+    def p95(self) -> float:
+        return self._percentile(95)
+
+    def p99(self) -> float:
+        return self._percentile(99)
+
+    def _percentile(self, pct: int) -> float:
+        if not self._latency_buffer:
+            return 0.0
+        s = sorted(self._latency_buffer)
+        idx = int(len(s) * pct / 100)
+        idx = min(idx, len(s) - 1)
+        return s[idx]
 
 
 def _now_iso() -> str:
@@ -66,12 +107,13 @@ class Adapter:
         await adapter.stop()
     """
 
-    def __init__(self, node: NodeSpec, record_signals: bool = False):
+    def __init__(self, node: NodeSpec, record_signals: bool = True):
         self._node = node
         self._backend = BackendTarget()
         self._routing: RoutingConfig | None = None
         self._server: asyncio.Server | None = None
-        self._record_signals = record_signals
+        # Ingress nodes always record signals regardless of arg
+        self._record_signals = record_signals or node.role == NodeRole.INGRESS
         self._signals: list[SignalRecord] = []
         self._metrics = AdapterMetrics()
         self._draining = False
@@ -89,6 +131,12 @@ class Adapter:
     @property
     def signals(self) -> list[SignalRecord]:
         return list(self._signals)
+
+    def drain_signals(self) -> list[SignalRecord]:
+        """Return and clear the signal buffer."""
+        drained = self._signals[:]
+        self._signals.clear()
+        return drained
 
     @property
     def backend(self) -> BackendTarget:
@@ -157,7 +205,7 @@ class Adapter:
             self._server = None
 
     async def health_check(self) -> HealthCheck:
-        """Check if the backend service is reachable via TCP connect."""
+        """Check backend reachability. Uses HTTP for HTTP-mode, TCP otherwise."""
         if not self._backend.is_configured:
             return HealthCheck(
                 node_name=self._node.name,
@@ -165,6 +213,12 @@ class Adapter:
                 detail="No backend configured",
                 timestamp=_now_iso(),
             )
+        if self._node.proxy_mode == ProxyMode.HTTP:
+            return await self._http_health_check()
+        return await self._tcp_health_check()
+
+    async def _tcp_health_check(self) -> HealthCheck:
+        """Check if the backend is reachable via TCP connect."""
         start = time.monotonic()
         try:
             reader, writer = await asyncio.wait_for(
@@ -178,6 +232,58 @@ class Adapter:
                 node_name=self._node.name,
                 verdict=HealthVerdict.HEALTHY,
                 latency_ms=latency,
+                timestamp=_now_iso(),
+            )
+        except Exception as e:
+            latency = (time.monotonic() - start) * 1000
+            return HealthCheck(
+                node_name=self._node.name,
+                verdict=HealthVerdict.UNHEALTHY,
+                latency_ms=latency,
+                detail=str(e),
+                timestamp=_now_iso(),
+            )
+
+    async def _http_health_check(self) -> HealthCheck:
+        """Check backend health via HTTP GET /health."""
+        health_path = (self._node.metadata or {}).get("health_path", "/health")
+        start = time.monotonic()
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(self._backend.host, self._backend.port),
+                timeout=5.0,
+            )
+            request = (
+                f"GET {health_path} HTTP/1.1\r\n"
+                f"Host: {self._backend.host}:{self._backend.port}\r\n"
+                f"Connection: close\r\n"
+                f"\r\n"
+            ).encode("ascii")
+            writer.write(request)
+            await writer.drain()
+
+            response = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            writer.close()
+            await writer.wait_closed()
+
+            latency = (time.monotonic() - start) * 1000
+            status_code = self._parse_status_code(response)
+
+            if 200 <= status_code < 300:
+                verdict = HealthVerdict.HEALTHY
+            elif 500 <= status_code < 600:
+                verdict = HealthVerdict.UNHEALTHY
+            elif status_code > 0:
+                verdict = HealthVerdict.DEGRADED
+            else:
+                # Could not parse status — fall back to TCP result (connected = healthy)
+                verdict = HealthVerdict.HEALTHY
+
+            return HealthCheck(
+                node_name=self._node.name,
+                verdict=verdict,
+                latency_ms=latency,
+                detail=f"HTTP {status_code}" if status_code else None,
                 timestamp=_now_iso(),
             )
         except Exception as e:
@@ -339,6 +445,10 @@ class Adapter:
             self._metrics.last_latency_ms = latency
             self._metrics.last_request_at = time.time()
             self._metrics.bytes_forwarded += len(request_data) + len(response_data or b"")
+            self._metrics.record_latency(latency)
+            status_code = self._parse_status_code(response_data) if response_data else 0
+            if status_code:
+                self._metrics.record_status(status_code)
 
             if self._record_signals:
                 method, path = self._parse_request_line(request_data)

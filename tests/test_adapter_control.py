@@ -61,10 +61,23 @@ class TestControlServer:
             await ctrl.stop()
 
     async def test_health_with_backend(self):
-        # Start a simple TCP server as backend
-        backend = await asyncio.start_server(
-            lambda r, w: w.close(), "127.0.0.1", 19003
-        )
+        # Start an HTTP server that responds 200 to /health
+        async def handle_health(reader, writer):
+            try:
+                await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=5.0)
+                writer.write(
+                    b"HTTP/1.1 200 OK\r\n"
+                    b"Content-Length: 2\r\n"
+                    b"Connection: close\r\n\r\n"
+                    b"OK"
+                )
+                await writer.drain()
+            except Exception:
+                pass
+            finally:
+                writer.close()
+
+        backend = await asyncio.start_server(handle_health, "127.0.0.1", 19003)
         node = NodeSpec(name="ctrl-health2", port=19004, management_port=29004)
         adapter = Adapter(node)
         adapter.set_backend(BackendTarget(host="127.0.0.1", port=19003))
@@ -90,6 +103,14 @@ class TestControlServer:
             assert status == 200
             assert body["requests_total"] == 0
             assert body["requests_failed"] == 0
+            assert body["status_2xx"] == 0
+            assert body["status_3xx"] == 0
+            assert body["status_4xx"] == 0
+            assert body["status_5xx"] == 0
+            assert body["active_connections"] == 0
+            assert body["latency_p50"] == 0.0
+            assert body["latency_p95"] == 0.0
+            assert body["latency_p99"] == 0.0
         finally:
             await ctrl.stop()
 

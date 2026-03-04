@@ -10,7 +10,7 @@ import pytest
 from baton.cli import main as cli_main
 from baton.config import load_circuit
 from baton.lifecycle import LifecycleManager
-from baton.schemas import CollapseLevel, NodeStatus, RoutingConfig, RoutingStrategy, RoutingTarget
+from baton.schemas import CollapseLevel, EdgeSpec, NodeStatus, RoutingConfig, RoutingStrategy, RoutingTarget
 
 
 def _init_project(d: Path) -> None:
@@ -207,5 +207,54 @@ class TestCollapseLevel:
             await mgr.slot("api", "python3 -m http.server $BATON_SERVICE_PORT")
             await mgr.slot("service", "python3 -m http.server $BATON_SERVICE_PORT")
             assert mgr.state.collapse_level == CollapseLevel.FULL_LIVE
+        finally:
+            await mgr.down()
+
+
+class TestEgressCollapse:
+    def test_egress_always_mocked_in_collapse(self):
+        from baton.collapse import compute_mock_backends
+        from baton.schemas import CircuitSpec, NodeSpec
+
+        circuit = CircuitSpec(
+            name="test",
+            nodes=[
+                NodeSpec(name="api", port=16010),
+                NodeSpec(name="stripe", port=16011, role="egress"),
+            ],
+            edges=[EdgeSpec(source="api", target="stripe")],
+        )
+        # Even if stripe is in live_nodes, it should still be mocked
+        backends = compute_mock_backends(circuit, live_nodes={"api", "stripe"})
+        assert "stripe" in backends  # egress always mocked
+        assert "api" not in backends  # api is live
+
+    async def test_egress_slot_rejected(self, project_dir: Path):
+        d = project_dir / "p"
+        cli_main(["init", str(d)])
+        cli_main(["node", "add", "api", "--port", "16012", "--dir", str(d)])
+        cli_main(["node", "add", "stripe", "--port", "16013", "--role", "egress", "--dir", str(d)])
+        cli_main(["edge", "add", "api", "stripe", "--dir", str(d)])
+
+        mgr = LifecycleManager(d)
+        try:
+            await mgr.up(mock=True)
+            with pytest.raises(ValueError, match="Cannot slot.*egress"):
+                await mgr.slot("stripe", "python3 -m http.server $BATON_SERVICE_PORT")
+        finally:
+            await mgr.down()
+
+
+class TestIngressRecording:
+    async def test_ingress_adapter_records_signals(self, project_dir: Path):
+        d = project_dir / "p"
+        cli_main(["init", str(d)])
+        cli_main(["node", "add", "gateway", "--port", "16014", "--role", "ingress", "--dir", str(d)])
+
+        mgr = LifecycleManager(d)
+        try:
+            await mgr.up(mock=True)
+            adapter = mgr.adapters["gateway"]
+            assert adapter._record_signals is True
         finally:
             await mgr.down()

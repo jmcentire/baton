@@ -11,7 +11,7 @@ from pathlib import Path
 
 from baton.adapter import BackendTarget
 from baton.mock import MockServer, load_routes
-from baton.schemas import CircuitSpec
+from baton.schemas import CircuitSpec, NodeRole
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +34,11 @@ def build_mock_server(
     """
     mock = MockServer()
 
+    # Egress nodes are always mocked regardless of live_nodes
+    effective_live = live_nodes - {n.name for n in circuit.egress_nodes}
+
     for node in circuit.nodes:
-        if node.name in live_nodes:
+        if node.name in effective_live:
             continue
 
         service_port = node.port + 20000
@@ -70,9 +73,12 @@ def compute_mock_backends(
     Returns a mapping of node_name -> BackendTarget pointing to the
     mock server's port for that node.
     """
+    # Egress nodes are always mocked regardless of live_nodes
+    effective_live = live_nodes - {n.name for n in circuit.egress_nodes}
+
     backends: dict[str, BackendTarget] = {}
     for node in circuit.nodes:
-        if node.name in live_nodes:
+        if node.name in effective_live:
             continue
 
         service_port = node.port + 20000

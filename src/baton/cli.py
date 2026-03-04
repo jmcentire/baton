@@ -34,6 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     p_node_add.add_argument("name", help="Node name")
     p_node_add.add_argument("--port", type=int, default=0, help="Port number")
     p_node_add.add_argument("--mode", default="http", choices=["http", "tcp"], help="Proxy mode")
+    p_node_add.add_argument("--role", default="service", choices=["service", "ingress", "egress"], help="Node role")
     p_node_add.add_argument("--dir", default=".", help="Project directory")
 
     p_node_rm = node_sub.add_parser("rm", help="Remove a node")
@@ -183,6 +184,26 @@ def main(argv: list[str] | None = None) -> int:
     p_deploy_status.add_argument("--namespace", default="", help="Namespace prefix")
     p_deploy_status.add_argument("--dir", default=".", help="Project directory")
 
+    # baton dashboard
+    p_dashboard = sub.add_parser("dashboard", help="Show aggregated circuit metrics")
+    p_dashboard.add_argument("--json", action="store_true", help="Output as JSON")
+    p_dashboard.add_argument("--dir", default=".", help="Project directory")
+
+    # baton signals
+    p_signals = sub.add_parser("signals", help="Show request signals")
+    p_signals.add_argument("--node", default="", help="Filter by node name")
+    p_signals.add_argument("--path", default="", help="Filter by path pattern")
+    p_signals.add_argument("--last", type=int, default=20, help="Show last N signals")
+    p_signals.add_argument("--stats", action="store_true", help="Show per-path statistics")
+    p_signals.add_argument("--dir", default=".", help="Project directory")
+
+    # baton metrics
+    p_metrics = sub.add_parser("metrics", help="Show persistent metrics")
+    p_metrics.add_argument("--node", default="", help="Filter by node name")
+    p_metrics.add_argument("--last", type=int, default=1, help="Show last N snapshots")
+    p_metrics.add_argument("--prometheus", action="store_true", help="Prometheus text format")
+    p_metrics.add_argument("--dir", default=".", help="Project directory")
+
     # baton check
     p_check = sub.add_parser("check", help="Run compatibility check")
     p_check.add_argument("--service", default="", help="Check specific service (default: all)")
@@ -209,6 +230,10 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_service(args)
         elif args.command == "check":
             return _cmd_check(args)
+        elif args.command == "metrics":
+            return _cmd_metrics(args)
+        elif args.command == "signals":
+            return _cmd_signals(args)
         elif args.command == "route":
             if args.route_command in ("show",):
                 return _cmd_route_show(args)
@@ -217,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print("Usage: baton route {show|ab|canary|set|lock|unlock|clear}", file=sys.stderr)
                 return 1
-        elif args.command in ("up", "down", "slot", "swap", "collapse", "watch", "deploy", "teardown", "deploy-status"):
+        elif args.command in ("up", "down", "slot", "swap", "collapse", "watch", "deploy", "teardown", "deploy-status", "dashboard"):
             return asyncio.run(_cmd_async(args))
         else:
             parser.print_help()
@@ -254,6 +279,8 @@ async def _cmd_async(args: argparse.Namespace) -> int:
         return await _cmd_teardown(args)
     elif args.command == "deploy-status":
         return await _cmd_deploy_status(args)
+    elif args.command == "dashboard":
+        return await _cmd_dashboard(args)
     return 1
 
 
@@ -286,6 +313,13 @@ async def _cmd_up(args: argparse.Namespace) -> int:
     print(f"Circuit '{state.circuit_name}' is up ({len(state.adapters)} nodes)")
     for name, a in state.adapters.items():
         print(f"  {name}: {a.status}")
+
+    # Show entry points for ingress nodes
+    circuit_info = load_circuit(args.dir)
+    if circuit_info.ingress_nodes:
+        print("\nEntry points:")
+        for n in circuit_info.ingress_nodes:
+            print(f"  {n.name}: {n.host}:{n.port}")
 
     # Keep running until interrupted
     print("\nPress Ctrl+C to stop")
@@ -349,6 +383,13 @@ async def _cmd_collapse(args: argparse.Namespace) -> int:
     mgr = LifecycleManager(args.dir)
     state = await mgr.up(mock=True)
     circuit = load_circuit(args.dir)
+
+    # Egress nodes cannot be live — strip silently
+    egress_names = {n.name for n in circuit.egress_nodes}
+    stripped = live & egress_names
+    if stripped:
+        print(f"Note: egress nodes always mocked: {', '.join(stripped)}")
+    live -= egress_names
 
     # Validate live node names
     node_names = {n.name for n in circuit.nodes}
@@ -667,6 +708,111 @@ async def _cmd_deploy_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_signals(args: argparse.Namespace) -> int:
+    import json as json_mod
+    from baton.signals import SignalAggregator
+
+    node = args.node or None
+    records = SignalAggregator.load_history(
+        args.dir, node=node, last_n=args.last
+    )
+    if not records:
+        print("No signal data found.", file=sys.stderr)
+        return 1
+
+    if args.path:
+        records = [r for r in records if args.path in r.get("path", "")]
+
+    if getattr(args, "stats", False):
+        # Compute per-path statistics from loaded records
+        from collections import defaultdict
+        path_data: dict[str, dict] = {}
+        for r in records:
+            p = r.get("path", "")
+            if p not in path_data:
+                path_data[p] = {"count": 0, "errors": 0, "latencies": []}
+            path_data[p]["count"] += 1
+            path_data[p]["latencies"].append(r.get("latency_ms", 0))
+            if r.get("status_code", 0) >= 400:
+                path_data[p]["errors"] += 1
+
+        print(f"{'Path':<30} {'Count':>6} {'Avg(ms)':>8} {'Err%':>6}")
+        print(f"{'─'*30} {'─'*6} {'─'*8} {'─'*6}")
+        for p, d in sorted(path_data.items()):
+            avg = sum(d["latencies"]) / len(d["latencies"]) if d["latencies"] else 0
+            err = d["errors"] / d["count"] * 100 if d["count"] else 0
+            print(f"{p:<30} {d['count']:>6} {avg:>7.1f} {err:>5.1f}%")
+    else:
+        for r in records:
+            ts = r.get("timestamp", "")[:19]
+            method = r.get("method", "")
+            path = r.get("path", "")
+            status = r.get("status_code", 0)
+            latency = r.get("latency_ms", 0)
+            node_name = r.get("node_name", "")
+            print(f"{ts}  {node_name:<12} {method:<6} {path:<20} {status:>3}  {latency:.0f}ms")
+    return 0
+
+
+def _cmd_metrics(args: argparse.Namespace) -> int:
+    import json as json_mod
+    from baton.telemetry import TelemetryCollector
+
+    node = args.node or None
+    records = TelemetryCollector.load_history(
+        args.dir, node=node, last_n=args.last
+    )
+    if not records:
+        print("No metrics data found. Run 'baton up' with telemetry first.", file=sys.stderr)
+        return 1
+
+    if getattr(args, "prometheus", False):
+        from baton.dashboard import DashboardSnapshot, NodeSnapshot
+        # Reconstruct snapshot from latest record
+        latest = records[-1]
+        nodes_data = latest.get("nodes", {})
+        if node and "node" in latest:
+            nodes_data = {node: latest["node"]}
+        snapshot = DashboardSnapshot(
+            timestamp=latest.get("timestamp", ""),
+            nodes={
+                name: NodeSnapshot(name=name, **{
+                    k: v for k, v in data.items() if k != "name"
+                })
+                for name, data in nodes_data.items()
+            },
+        )
+        print(TelemetryCollector.format_prometheus(snapshot), end="")
+    else:
+        print(json_mod.dumps(records, indent=2))
+    return 0
+
+
+async def _cmd_dashboard(args: argparse.Namespace) -> int:
+    import json as json_mod
+    from baton.dashboard import collect, format_table
+    from baton.lifecycle import LifecycleManager
+
+    circuit = load_circuit(args.dir)
+    state = load_state(args.dir)
+    if not state:
+        print("No circuit state found. Run 'baton up' first.", file=sys.stderr)
+        return 1
+
+    mgr = LifecycleManager(args.dir)
+    await mgr.up(mock=True)
+    try:
+        snapshot = await collect(mgr.adapters, state, circuit)
+        if getattr(args, "json", False):
+            import dataclasses
+            print(json_mod.dumps(dataclasses.asdict(snapshot), indent=2))
+        else:
+            print(format_table(snapshot))
+    finally:
+        await mgr.down()
+    return 0
+
+
 def _cmd_init(args: argparse.Namespace) -> int:
     project_dir = Path(args.dir)
     project_dir.mkdir(parents=True, exist_ok=True)
@@ -684,7 +830,7 @@ def _cmd_init(args: argparse.Namespace) -> int:
 def _cmd_node(args: argparse.Namespace) -> int:
     if args.node_command == "add":
         circuit = load_circuit(args.dir)
-        circuit = add_node(circuit, args.name, port=args.port, proxy_mode=args.mode)
+        circuit = add_node(circuit, args.name, port=args.port, proxy_mode=args.mode, role=args.role)
         save_circuit(circuit, args.dir)
         node = circuit.node_by_name(args.name)
         print(f"Added node '{args.name}' on port {node.port}")
@@ -830,15 +976,16 @@ def _cmd_status(args: argparse.Namespace) -> int:
 
     if circuit.nodes:
         print()
-        header = f"  {'Name':<20} {'Port':<8} {'Mode':<6}"
+        header = f"  {'Name':<20} {'Role':<10} {'Port':<8} {'Mode':<6}"
         if state:
             header += f" {'Status':<12} {'Health'}"
         else:
             header += f" {'Contract'}"
         print(header)
-        print(f"  {'─'*20} {'─'*8} {'─'*6} {'─'*30}")
+        print(f"  {'─'*20} {'─'*10} {'─'*8} {'─'*6} {'─'*30}")
         for n in circuit.nodes:
-            line = f"  {n.name:<20} {n.port:<8} {n.proxy_mode:<6}"
+            role = f"[{n.role}]" if n.role != "service" else ""
+            line = f"  {n.name:<20} {role:<10} {n.port:<8} {n.proxy_mode:<6}"
             if state and n.name in state.adapters:
                 a = state.adapters[n.name]
                 line += f" {a.status:<12} {a.last_health_verdict}"

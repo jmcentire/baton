@@ -83,6 +83,10 @@ class LifecycleManager:
                 status=NodeStatus.LISTENING,
             )
 
+        # Warn if no ingress nodes defined
+        if not self._circuit.ingress_nodes:
+            logger.warning("No ingress nodes defined. Consider adding --role ingress to entry-point nodes.")
+
         save_state(self._state, self.project_dir)
         logger.info(f"Circuit '{self._circuit.name}' is up with {len(self._adapters)} nodes")
         return self._state

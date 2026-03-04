@@ -159,6 +159,31 @@ class TestStatus:
         assert "api -> db" in out
 
 
+class TestStatusRoles:
+    def test_status_shows_role_labels(self, project_dir: Path, capsys):
+        d = project_dir / "p"
+        main(["init", str(d)])
+        main(["node", "add", "gateway", "--port", "8001", "--role", "ingress", "--dir", str(d)])
+        main(["node", "add", "api", "--port", "8002", "--dir", str(d)])
+        main(["node", "add", "stripe", "--port", "8003", "--role", "egress", "--dir", str(d)])
+        main(["edge", "add", "gateway", "api", "--dir", str(d)])
+        main(["edge", "add", "api", "stripe", "--dir", str(d)])
+        rc = main(["status", "--dir", str(d)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "[ingress]" in out
+        assert "[egress]" in out
+
+    def test_egress_cannot_be_edge_source(self, project_dir: Path):
+        d = project_dir / "p"
+        main(["init", str(d)])
+        main(["node", "add", "api", "--port", "8001", "--dir", str(d)])
+        main(["node", "add", "stripe", "--port", "8002", "--role", "egress", "--dir", str(d)])
+        # Adding an edge from egress to api should fail
+        rc = main(["edge", "add", "stripe", "api", "--dir", str(d)])
+        assert rc == 1
+
+
 class TestServiceRegister:
     def test_register(self, project_dir: Path, capsys):
         d = project_dir / "p"

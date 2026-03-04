@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from baton.adapter import Adapter, BackendTarget
+from baton.adapter import Adapter, AdapterMetrics, BackendTarget
 from baton.schemas import (
     HealthVerdict,
     NodeSpec,
@@ -78,6 +78,28 @@ class TestBackendTarget:
     def test_configured(self):
         t = BackendTarget(host="127.0.0.1", port=8080)
         assert t.is_configured
+
+
+class TestIngressSignalRecording:
+    def test_ingress_forces_signal_recording(self):
+        node = NodeSpec(name="gateway", port=18950, role="ingress")
+        adapter = Adapter(node)
+        assert adapter._record_signals is True
+
+    def test_service_default_recording(self):
+        node = NodeSpec(name="api", port=18951)
+        adapter = Adapter(node)
+        assert adapter._record_signals is True
+
+    def test_service_explicit_no_recording(self):
+        node = NodeSpec(name="api", port=18953)
+        adapter = Adapter(node, record_signals=False)
+        assert adapter._record_signals is False
+
+    def test_explicit_recording_override(self):
+        node = NodeSpec(name="api", port=18952)
+        adapter = Adapter(node, record_signals=True)
+        assert adapter._record_signals is True
 
 
 class TestAdapterHTTP:
@@ -426,6 +448,180 @@ class TestRouting:
         assert headers["host"] == "localhost"
         assert headers["x-cohort"] == "beta"
         assert headers["accept"] == "*/*"
+
+
+class TestAdapterMetrics:
+    def test_record_status_2xx(self):
+        m = AdapterMetrics()
+        m.record_status(200)
+        m.record_status(201)
+        assert m.status_2xx == 2
+        assert m.status_3xx == 0
+
+    def test_record_status_all_ranges(self):
+        m = AdapterMetrics()
+        m.record_status(200)
+        m.record_status(301)
+        m.record_status(404)
+        m.record_status(500)
+        assert m.status_2xx == 1
+        assert m.status_3xx == 1
+        assert m.status_4xx == 1
+        assert m.status_5xx == 1
+
+    def test_latency_percentiles(self):
+        m = AdapterMetrics()
+        for i in range(1, 101):
+            m.record_latency(float(i))
+        # p50 of [1..100]: index 50 -> value 51
+        assert m.p50() == 51.0
+        assert m.p95() == 96.0
+        assert m.p99() == 100.0
+
+    def test_latency_empty(self):
+        m = AdapterMetrics()
+        assert m.p50() == 0.0
+        assert m.p95() == 0.0
+        assert m.p99() == 0.0
+
+    def test_latency_buffer_cap(self):
+        m = AdapterMetrics()
+        for i in range(1500):
+            m.record_latency(float(i))
+        assert len(m._latency_buffer) == 1000
+
+
+class TestHTTPHealthCheck:
+    async def test_http_healthy(self):
+        """HTTP health check returns HEALTHY for 200 response."""
+        async def handle(reader, writer):
+            try:
+                await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=5.0)
+                writer.write(
+                    b"HTTP/1.1 200 OK\r\n"
+                    b"Content-Length: 2\r\n"
+                    b"Connection: close\r\n\r\n"
+                    b"OK"
+                )
+                await writer.drain()
+            except Exception:
+                pass
+            finally:
+                writer.close()
+
+        backend = await asyncio.start_server(handle, "127.0.0.1", 18960)
+        node = NodeSpec(name="test-http-health", port=18961)
+        adapter = Adapter(node)
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18960))
+        try:
+            health = await adapter.health_check()
+            assert health.verdict == HealthVerdict.HEALTHY
+            assert health.latency_ms > 0
+        finally:
+            backend.close()
+            await backend.wait_closed()
+
+    async def test_http_unhealthy_500(self):
+        """HTTP health check returns UNHEALTHY for 500 response."""
+        async def handle(reader, writer):
+            try:
+                await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=5.0)
+                writer.write(
+                    b"HTTP/1.1 500 Internal Server Error\r\n"
+                    b"Content-Length: 5\r\n"
+                    b"Connection: close\r\n\r\n"
+                    b"error"
+                )
+                await writer.drain()
+            except Exception:
+                pass
+            finally:
+                writer.close()
+
+        backend = await asyncio.start_server(handle, "127.0.0.1", 18962)
+        node = NodeSpec(name="test-http-500", port=18963)
+        adapter = Adapter(node)
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18962))
+        try:
+            health = await adapter.health_check()
+            assert health.verdict == HealthVerdict.UNHEALTHY
+        finally:
+            backend.close()
+            await backend.wait_closed()
+
+    async def test_http_degraded_404(self):
+        """HTTP health check returns DEGRADED for 404 response."""
+        async def handle(reader, writer):
+            try:
+                await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=5.0)
+                writer.write(
+                    b"HTTP/1.1 404 Not Found\r\n"
+                    b"Content-Length: 9\r\n"
+                    b"Connection: close\r\n\r\n"
+                    b"not found"
+                )
+                await writer.drain()
+            except Exception:
+                pass
+            finally:
+                writer.close()
+
+        backend = await asyncio.start_server(handle, "127.0.0.1", 18964)
+        node = NodeSpec(name="test-http-404", port=18965)
+        adapter = Adapter(node)
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18964))
+        try:
+            health = await adapter.health_check()
+            assert health.verdict == HealthVerdict.DEGRADED
+        finally:
+            backend.close()
+            await backend.wait_closed()
+
+    async def test_tcp_mode_uses_tcp_check(self):
+        """TCP-mode adapters still use TCP health check."""
+        backend = await asyncio.start_server(
+            lambda r, w: w.close(), "127.0.0.1", 18966
+        )
+        node = NodeSpec(name="test-tcp-health", port=18967, proxy_mode="tcp")
+        adapter = Adapter(node)
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18966))
+        try:
+            health = await adapter.health_check()
+            assert health.verdict == HealthVerdict.HEALTHY
+        finally:
+            backend.close()
+            await backend.wait_closed()
+
+    async def test_http_unreachable(self):
+        """HTTP health check returns UNHEALTHY when backend is down."""
+        node = NodeSpec(name="test-http-down", port=18968)
+        adapter = Adapter(node)
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18999))
+        health = await adapter.health_check()
+        assert health.verdict == HealthVerdict.UNHEALTHY
+
+
+class TestStatusCodeTracking:
+    async def test_proxied_request_records_status(self):
+        """Proxied HTTP requests record status codes in metrics."""
+        backend = await _start_echo_http_server(18970)
+        node = NodeSpec(name="test-status-track", port=18971)
+        adapter = Adapter(node)
+        await adapter.start()
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18970))
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18971)
+            writer.write(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            writer.close()
+            await asyncio.sleep(0.1)
+            assert adapter.metrics.status_2xx == 1
+            assert adapter.metrics.p50() > 0
+        finally:
+            await adapter.stop()
+            backend.close()
+            await backend.wait_closed()
 
 
 class TestDrain:

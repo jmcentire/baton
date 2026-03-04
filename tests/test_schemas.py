@@ -190,6 +190,51 @@ class TestCircuitSpec:
         with pytest.raises(ValidationError):
             sample_circuit.name = "other"
 
+    def test_ingress_nodes(self):
+        c = CircuitSpec(
+            name="test",
+            nodes=[
+                NodeSpec(name="gateway", port=8001, role="ingress"),
+                NodeSpec(name="api", port=8002),
+                NodeSpec(name="db", port=8003, role="egress"),
+            ],
+        )
+        assert len(c.ingress_nodes) == 1
+        assert c.ingress_nodes[0].name == "gateway"
+
+    def test_egress_nodes(self):
+        c = CircuitSpec(
+            name="test",
+            nodes=[
+                NodeSpec(name="api", port=8001),
+                NodeSpec(name="stripe", port=8002, role="egress"),
+                NodeSpec(name="s3", port=8003, role="egress"),
+            ],
+        )
+        assert len(c.egress_nodes) == 2
+
+    def test_egress_cannot_be_edge_source(self):
+        with pytest.raises(ValidationError, match="cannot be an edge source"):
+            CircuitSpec(
+                name="bad",
+                nodes=[
+                    NodeSpec(name="api", port=8001),
+                    NodeSpec(name="stripe", port=8002, role="egress"),
+                ],
+                edges=[EdgeSpec(source="stripe", target="api")],
+            )
+
+    def test_egress_as_edge_target_ok(self):
+        c = CircuitSpec(
+            name="ok",
+            nodes=[
+                NodeSpec(name="api", port=8001),
+                NodeSpec(name="stripe", port=8002, role="egress"),
+            ],
+            edges=[EdgeSpec(source="api", target="stripe")],
+        )
+        assert len(c.edges) == 1
+
 
 # -- ServiceSlot --
 
