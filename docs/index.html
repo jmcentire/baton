@@ -245,6 +245,7 @@
       <a href="https://github.com/jmcentire/baton">GitHub</a>
       <a href="https://pypi.org/project/baton-orchestrator/">PyPI</a>
       <a href="https://github.com/jmcentire/baton#commands">Docs</a>
+      <a href="ui/index.html">Dashboard</a>
     </div>
   </div>
 </nav>
@@ -299,6 +300,11 @@
       <span class="icon">!!!</span>
       <h3>Self-Healing</h3>
       <p>Custodian monitors health every 5 seconds. Auto-restarts failed services, replaces with mocks, escalates when repairs fail.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">~&gt;</span>
+      <h3>Observability</h3>
+      <p>Live dashboard with per-node metrics, request signals, and per-path statistics. Prometheus export. JSONL persistence for offline analysis.</p>
     </div>
   </div>
 </section>
@@ -397,6 +403,18 @@
       <div class="concept">
         <h4>Manifest</h4>
         <p>Service self-description. API spec, mocks, dependencies.</p>
+      </div>
+      <div class="concept">
+        <h4>Ingress</h4>
+        <p>Entry point from outside the circuit. First node traffic hits.</p>
+      </div>
+      <div class="concept">
+        <h4>Egress</h4>
+        <p>External dependency. Always mocked. Third-party APIs, databases.</p>
+      </div>
+      <div class="concept">
+        <h4>Dashboard</h4>
+        <p>Live UI. Node cards, bar charts, signal log, topology. Polls every 2s.</p>
       </div>
     </div>
   </div>

@@ -187,6 +187,8 @@ def main(argv: list[str] | None = None) -> int:
     # baton dashboard
     p_dashboard = sub.add_parser("dashboard", help="Show aggregated circuit metrics")
     p_dashboard.add_argument("--json", action="store_true", help="Output as JSON")
+    p_dashboard.add_argument("--serve", action="store_true", help="Start interactive dashboard server")
+    p_dashboard.add_argument("--port", type=int, default=9900, help="Dashboard server port (default: 9900)")
     p_dashboard.add_argument("--dir", default=".", help="Project directory")
 
     # baton signals
@@ -794,6 +796,51 @@ async def _cmd_dashboard(args: argparse.Namespace) -> int:
     from baton.lifecycle import LifecycleManager
 
     circuit = load_circuit(args.dir)
+
+    if getattr(args, "serve", False):
+        from baton.dashboard_server import DashboardServer
+        from baton.signals import SignalAggregator
+
+        mgr = LifecycleManager(args.dir)
+        state = await mgr.up(mock=True)
+
+        sig_agg = SignalAggregator(mgr.adapters, args.dir, flush_interval=2.0)
+        sig_task = asyncio.create_task(sig_agg.run())
+
+        # Resolve static dir: docs/ui/ relative to package or project
+        static_dir = Path(__file__).resolve().parent.parent.parent / "docs" / "ui"
+        if not static_dir.exists():
+            static_dir = None
+
+        server = DashboardServer(
+            adapters=mgr.adapters,
+            state=state,
+            circuit=circuit,
+            signal_aggregator=sig_agg,
+            static_dir=static_dir,
+            host="127.0.0.1",
+            port=args.port,
+        )
+        await server.start()
+        print(f"Dashboard server running on http://127.0.0.1:{args.port}")
+        print("Press Ctrl+C to stop")
+
+        try:
+            stop_event = asyncio.Event()
+            loop = asyncio.get_event_loop()
+            loop.add_signal_handler(signal.SIGINT, stop_event.set)
+            loop.add_signal_handler(signal.SIGTERM, stop_event.set)
+            await stop_event.wait()
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            pass
+        finally:
+            sig_agg.stop()
+            await sig_task
+            await server.stop()
+            await mgr.down()
+            print("Dashboard stopped")
+        return 0
+
     state = load_state(args.dir)
     if not state:
         print("No circuit state found. Run 'baton up' first.", file=sys.stderr)

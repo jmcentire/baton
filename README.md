@@ -24,28 +24,33 @@ Start fully mocked. Slot in real services one at a time. Run A/B tests. Collapse
 ```bash
 pip install baton-orchestrator
 
-# Create a circuit
+# Create a circuit with roles
 baton init myproject
 cd myproject
-baton node add api --port 8001
-baton node add service --port 8002
-baton edge add api service
+baton node add gateway --port 8001 --role ingress
+baton node add api --port 8002
+baton node add stripe --port 8003 --role egress
+baton edge add gateway api
+baton edge add api stripe
 
 # Boot with mocks
 baton up --mock
 
 # Slot in a real service
-baton slot api "python -m http.server 8001"
+baton slot api "python -m http.server 8002"
 
 # Check health
 baton status
 
 # A/B test a new version
-baton route ab api "python -m http.server 8003" --split 80/20
+baton route ab api "python -m http.server 8004" --split 80/20
 baton route show api
 
 # Lock routing to prevent accidental changes
 baton route lock api
+
+# Launch live dashboard
+baton dashboard --serve
 
 # Tear down
 baton down
@@ -136,6 +141,17 @@ baton route unlock <node>                 # unlock routing
 baton route clear <node>                  # remove routing, back to single backend
 ```
 
+### Observability
+
+```bash
+baton dashboard [--json]                  # aggregated metrics table
+baton dashboard --serve [--port 9900]     # launch live dashboard UI
+baton metrics [--node N] [--last N]       # persistent metrics from JSONL
+baton metrics --prometheus                # Prometheus text exposition format
+baton signals [--node N] [--path P]       # recent request signals
+baton signals --stats                     # per-path statistics
+```
+
 ### Deployment
 
 ```bash
@@ -160,6 +176,14 @@ dependencies:
 ```
 
 Run `baton service derive --save` to automatically generate `baton.yaml` from manifests.
+
+## Observability
+
+Every adapter records per-request signals (method, path, status, latency) and aggregated metrics (request counts, error rates, percentile latencies). Baton provides three ways to consume this data:
+
+- **Dashboard** -- `baton dashboard --serve` launches a live browser UI with node cards, bar charts, signal logs, and topology views. Polls every 2 seconds.
+- **Signals** -- `baton signals --stats` shows per-path aggregations. Signals are persisted to `.baton/signals.jsonl` for offline analysis.
+- **Metrics** -- `baton metrics --prometheus` exports all node metrics in Prometheus text exposition format. Snapshots are persisted to `.baton/metrics.jsonl`.
 
 ## Mock Collapse
 

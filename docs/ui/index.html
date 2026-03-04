@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Baton Dashboard</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --text: #e0e0e8;
+    --muted: #8888a0;
+    --accent: #6c8cff;
+    --accent2: #a78bfa;
+    --green: #4ade80;
+    --orange: #fb923c;
+    --red: #f87171;
+    --code-bg: #0d0d14;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 24px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header .status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .header .status .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Node cards grid */
+  .node-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .node-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .node-card .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .node-card .node-name {
+    font-size: 16px;
+    font-weight: 600;
+    font-family: var(--mono);
+  }
+  .node-card .badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-ingress { background: rgba(108,140,255,0.2); color: var(--accent); }
+  .badge-egress { background: rgba(251,146,60,0.2); color: var(--orange); }
+  .badge-service { background: rgba(136,136,160,0.15); color: var(--muted); }
+  .health-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .health-healthy { background: var(--green); }
+  .health-degraded { background: var(--orange); }
+  .health-unhealthy { background: var(--red); }
+  .health-unknown { background: var(--muted); }
+  .node-card .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .stat {
+    font-size: 12px;
+  }
+  .stat .label {
+    color: var(--muted);
+    display: block;
+  }
+  .stat .value {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* Sections */
+  .section {
+    margin-bottom: 24px;
+  }
+  .section h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+
+  /* Bar chart */
+  .chart-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  canvas {
+    width: 100%;
+    height: 200px;
+  }
+
+  /* Signal log table */
+  .signal-table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .signal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    font-family: var(--mono);
+  }
+  .signal-table th {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .signal-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(30,30,46,0.5);
+  }
+  .signal-table tr:last-child td { border-bottom: none; }
+  .signal-table .status-2xx { color: var(--green); }
+  .signal-table .status-4xx { color: var(--orange); }
+  .signal-table .status-5xx { color: var(--red); }
+
+  /* Topology */
+  .topology-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--muted);
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 768px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+
+  .empty { color: var(--muted); font-style: italic; font-size: 13px; padding: 16px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Baton Dashboard</h1>
+  <div class="status">
+    <div class="dot"></div>
+    <span id="refresh-status">Auto-refresh: 2s</span>
+    <span id="timestamp"></span>
+  </div>
+</div>
+
+<div id="node-grid" class="node-grid"></div>
+
+<div class="two-col">
+  <div class="section">
+    <h2>Requests by Node</h2>
+    <div class="chart-container">
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+  <div class="section">
+    <h2>Topology</h2>
+    <pre id="topology" class="topology-block">Loading...</pre>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Signal Log</h2>
+  <div class="signal-table-wrap">
+    <table class="signal-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Node</th>
+          <th>Method</th>
+          <th>Path</th>
+          <th>Status</th>
+          <th>Latency</th>
+        </tr>
+      </thead>
+      <tbody id="signal-body">
+        <tr><td colspan="6" class="empty">No signals yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const API_BASE = '';
+const POLL_MS = 2000;
+
+// -- Fetch helpers --
+async function fetchJSON(path) {
+  try {
+    const res = await fetch(API_BASE + path);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+// -- Node cards --
+function renderNodes(snapshot) {
+  const grid = document.getElementById('node-grid');
+  if (!snapshot || !snapshot.nodes) {
+    grid.innerHTML = '<div class="empty">No data</div>';
+    return;
+  }
+  document.getElementById('timestamp').textContent = snapshot.timestamp ? snapshot.timestamp.slice(0, 19) + 'Z' : '';
+
+  const entries = Object.values(snapshot.nodes);
+  grid.innerHTML = entries.map(n => {
+    const roleBadge = `badge-${n.role || 'service'}`;
+    const healthClass = `health-${n.health || 'unknown'}`;
+    const errPct = n.requests_total > 0 ? (n.error_rate * 100).toFixed(1) + '%' : '--';
+    const p50 = n.latency_p50 > 0 ? n.latency_p50.toFixed(0) + 'ms' : '--';
+    const p95 = n.latency_p95 > 0 ? n.latency_p95.toFixed(0) + 'ms' : '--';
+    const routing = n.routing_strategy || 'single';
+    const lock = n.routing_locked ? ' (locked)' : '';
+
+    return `<div class="node-card">
+      <div class="card-header">
+        <span class="node-name">${n.name}</span>
+        <div class="badges">
+          <span class="badge ${roleBadge}">${n.role || 'service'}</span>
+          <div class="health-dot ${healthClass}" title="${n.health || 'unknown'}"></div>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="label">Requests</span><span class="value">${n.requests_total}</span></div>
+        <div class="stat"><span class="label">Error Rate</span><span class="value">${errPct}</span></div>
+        <div class="stat"><span class="label">p50</span><span class="value">${p50}</span></div>
+        <div class="stat"><span class="label">p95</span><span class="value">${p95}</span></div>
+        <div class="stat"><span class="label">Routing</span><span class="value">${routing}${lock}</span></div>
+        <div class="stat"><span class="label">Connections</span><span class="value">${n.active_connections}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// -- Bar chart --
+function renderChart(snapshot) {
+  const canvas = document.getElementById('chart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = canvas.clientWidth * dpr;
+  canvas.height = canvas.clientHeight * dpr;
+  ctx.scale(dpr, dpr);
+
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  ctx.clearRect(0, 0, w, h);
+
+  if (!snapshot || !snapshot.nodes) return;
+
+  const entries = Object.values(snapshot.nodes);
+  if (entries.length === 0) return;
+
+  const maxReqs = Math.max(...entries.map(n => n.requests_total), 1);
+  const barWidth = Math.min(60, (w - 40) / entries.length - 10);
+  const chartH = h - 40;
+  const startX = (w - (entries.length * (barWidth + 10) - 10)) / 2;
+
+  const colors = { healthy: '#4ade80', degraded: '#fb923c', unhealthy: '#f87171', unknown: '#8888a0' };
+
+  entries.forEach((n, i) => {
+    const x = startX + i * (barWidth + 10);
+    const barH = (n.requests_total / maxReqs) * chartH;
+    const y = chartH - barH;
+    const color = colors[n.health] || colors.unknown;
+
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y + 10, barWidth, barH);
+
+    // Label
+    ctx.fillStyle = '#8888a0';
+    ctx.font = '11px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(n.name, x + barWidth / 2, h - 4);
+
+    // Count on top
+    ctx.fillStyle = '#e0e0e8';
+    ctx.font = '12px monospace';
+    ctx.fillText(String(n.requests_total), x + barWidth / 2, y + 4);
+  });
+}
+
+// -- Topology --
+function renderTopology(topo) {
+  const el = document.getElementById('topology');
+  if (!topo || !topo.nodes) { el.textContent = 'No topology data'; return; }
+
+  let lines = [];
+  lines.push('Nodes:');
+  topo.nodes.forEach(n => {
+    const role = n.role !== 'service' ? ` [${n.role}]` : '';
+    lines.push(`  ${n.name}${role} :${n.port}`);
+  });
+  if (topo.edges && topo.edges.length > 0) {
+    lines.push('');
+    lines.push('Edges:');
+    topo.edges.forEach(e => {
+      const label = e.label ? ` (${e.label})` : '';
+      lines.push(`  ${e.source} -> ${e.target}${label}`);
+    });
+  }
+  el.textContent = lines.join('\n');
+}
+
+// -- Signal log --
+function renderSignals(signals) {
+  const tbody = document.getElementById('signal-body');
+  if (!signals || signals.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No signals yet</td></tr>';
+    return;
+  }
+
+  // Show most recent first
+  const rows = signals.slice().reverse().map(s => {
+    const ts = (s.timestamp || '').slice(11, 19);
+    const statusClass = s.status_code < 300 ? 'status-2xx' : s.status_code < 500 ? 'status-4xx' : 'status-5xx';
+    return `<tr>
+      <td>${ts}</td>
+      <td>${s.node_name || ''}</td>
+      <td>${s.method || ''}</td>
+      <td>${s.path || ''}</td>
+      <td class="${statusClass}">${s.status_code || ''}</td>
+      <td>${s.latency_ms ? s.latency_ms.toFixed(1) + 'ms' : '--'}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows.join('');
+}
+
+// -- Poll loop --
+async function poll() {
+  const [snapshot, signals, topo] = await Promise.all([
+    fetchJSON('/api/snapshot'),
+    fetchJSON('/api/signals?last_n=50'),
+    fetchJSON('/api/topology'),
+  ]);
+
+  renderNodes(snapshot);
+  renderChart(snapshot);
+  renderSignals(signals);
+  renderTopology(topo);
+}
+
+// Initial load + interval
+poll();
+setInterval(poll, POLL_MS);
+</script>
+
+</body>
+</html>
