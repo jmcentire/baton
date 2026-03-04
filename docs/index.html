@@ -344,27 +344,7 @@
 <section class="diagram-section">
   <div class="container">
     <h2>How it works</h2>
-    <div class="diagram">
-  baton.yaml                    Runtime
-  ----------                    -------
-
-  nodes:                        <span style="color:var(--accent)">Adapter :8001</span>     <span style="color:var(--accent)">Adapter :8002</span>
-    - api:8001          -->     +-------------+     +-------------+
-    - service:8002              | <span style="color:var(--green)">reverse proxy</span> |---->| <span style="color:var(--green)">reverse proxy</span> |
-  edges:                        |  /health    |     |  /health    |
-    - api -> service            |  /metrics   |     |  /metrics   |
-                                |  /routing   |     |  /routing   |
-                                +------+------+     +------+------+
-                                       |                   |
-                                  <span style="color:var(--orange)">slot()</span>              <span style="color:var(--orange)">slot()</span>
-                                       |                   |
-                                  +---------+         +---------+
-                                  | <span style="color:var(--accent2)">Service</span> |         | <span style="color:var(--accent2)">Service</span> |
-                                  | or Mock |         | or Mock |
-                                  +---------+         +---------+
-
-  Collapse levels:  <span style="color:var(--muted)">full_mock</span>  ------>  <span style="color:var(--orange)">partial</span>  ------>  <span style="color:var(--green)">full_live</span>
-    </div>
+    <img src="architecture.png" alt="Baton architecture: baton.yaml defines nodes and edges, runtime creates reverse proxy adapters with slot() for swapping services or mocks, collapse levels from full_mock through partial to full_live" style="width:100%; max-width:700px; border-radius:10px; border:1px solid var(--border);">
   </div>
 </section>
 
