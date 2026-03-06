@@ -8,10 +8,13 @@ from baton.circuit import (
     add_edge,
     add_node,
     has_cycle,
+    longest_path,
     remove_edge,
     remove_node,
     set_contract,
     topological_sort,
+    topology_warnings,
+    HOP_SATURATION_THRESHOLD,
 )
 from baton.schemas import CircuitSpec, EdgeSpec, NodeSpec
 
@@ -192,3 +195,94 @@ class TestTopologicalSort:
     def test_single_node(self):
         c = CircuitSpec(name="test", nodes=[NodeSpec(name="a", port=8001)])
         assert topological_sort(c) == ["a"]
+
+
+class TestLongestPath:
+    """Paper 24: Hop scaling -- degradation saturates by hop 5."""
+
+    def test_linear_chain(self, sample_circuit):
+        # api -> service -> db = 2 hops
+        assert longest_path(sample_circuit) == 2
+
+    def test_empty(self):
+        c = CircuitSpec(name="test")
+        assert longest_path(c) == 0
+
+    def test_single_node(self):
+        c = CircuitSpec(name="test", nodes=[NodeSpec(name="a", port=8001)])
+        assert longest_path(c) == 0
+
+    def test_diamond(self):
+        c = CircuitSpec(
+            name="test",
+            nodes=[
+                NodeSpec(name="a", port=8001),
+                NodeSpec(name="b", port=8002),
+                NodeSpec(name="c", port=8003),
+                NodeSpec(name="d", port=8004),
+            ],
+            edges=[
+                EdgeSpec(source="a", target="b"),
+                EdgeSpec(source="a", target="c"),
+                EdgeSpec(source="b", target="d"),
+                EdgeSpec(source="c", target="d"),
+            ],
+        )
+        assert longest_path(c) == 2
+
+    def test_deep_chain(self):
+        """6-hop chain exceeds saturation threshold."""
+        nodes = [NodeSpec(name=f"n{i}", port=8001 + i) for i in range(7)]
+        edges = [EdgeSpec(source=f"n{i}", target=f"n{i+1}") for i in range(6)]
+        c = CircuitSpec(name="test", nodes=nodes, edges=edges)
+        assert longest_path(c) == 6
+        assert longest_path(c) > HOP_SATURATION_THRESHOLD
+
+    def test_cyclic_returns_negative(self):
+        c = CircuitSpec(
+            name="test",
+            nodes=[NodeSpec(name="a", port=8001), NodeSpec(name="b", port=8002)],
+            edges=[EdgeSpec(source="a", target="b"), EdgeSpec(source="b", target="a")],
+        )
+        assert longest_path(c) == -1
+
+
+class TestTopologyWarnings:
+    """Paper 24 + Paper 43: Topology analysis."""
+
+    def test_no_warnings_shallow(self, sample_circuit):
+        warnings = topology_warnings(sample_circuit)
+        assert len(warnings) == 0
+
+    def test_warns_deep_chain(self):
+        nodes = [NodeSpec(name=f"n{i}", port=8001 + i) for i in range(8)]
+        edges = [EdgeSpec(source=f"n{i}", target=f"n{i+1}") for i in range(7)]
+        c = CircuitSpec(name="test", nodes=nodes, edges=edges)
+        warnings = topology_warnings(c)
+        assert any("hop" in w.lower() or "Paper 24" in w for w in warnings)
+
+    def test_warns_multi_concern_node(self):
+        c = CircuitSpec(
+            name="test",
+            nodes=[
+                NodeSpec(
+                    name="monolith", port=8001,
+                    metadata={"concerns": "auth, payments, email, logging"},
+                ),
+            ],
+        )
+        warnings = topology_warnings(c)
+        assert any("concern" in w.lower() or "Paper 43" in w for w in warnings)
+
+    def test_no_warning_specialist_node(self):
+        c = CircuitSpec(
+            name="test",
+            nodes=[
+                NodeSpec(
+                    name="auth", port=8001,
+                    metadata={"concerns": "authentication"},
+                ),
+            ],
+        )
+        warnings = topology_warnings(c)
+        assert len(warnings) == 0

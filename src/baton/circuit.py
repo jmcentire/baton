@@ -159,6 +159,71 @@ def topological_sort(circuit: CircuitSpec) -> list[str]:
     return result
 
 
+# ── Topology Analysis (Research-backed) ─────────────────────────────
+
+
+def longest_path(circuit: CircuitSpec) -> int:
+    """Return the length of the longest path (max hops) in the circuit.
+
+    Paper 24 (Hop Scaling): Multi-hop chain degradation saturates by hop 5.
+    Topologies deeper than 5 don't compound error but don't benefit either.
+    """
+    if has_cycle(circuit):
+        return -1  # undefined for cyclic graphs
+
+    adj: dict[str, list[str]] = {n.name: [] for n in circuit.nodes}
+    for e in circuit.edges:
+        adj[e.source].append(e.target)
+
+    memo: dict[str, int] = {}
+
+    def _dfs(node: str) -> int:
+        if node in memo:
+            return memo[node]
+        best = 0
+        for neighbor in adj[node]:
+            best = max(best, 1 + _dfs(neighbor))
+        memo[node] = best
+        return best
+
+    return max((_dfs(n) for n in adj), default=0)
+
+
+# Paper 24: Degradation saturates at hop 5
+HOP_SATURATION_THRESHOLD = 5
+
+
+def topology_warnings(circuit: CircuitSpec) -> list[str]:
+    """Return research-backed topology warnings.
+
+    Checks:
+    - Hop depth > 5 (Paper 24: degradation saturates, deeper chains waste resources)
+    - Nodes with many concerns via metadata (Paper 43: specialist nodes reduce coupling)
+    """
+    warnings: list[str] = []
+
+    depth = longest_path(circuit)
+    if depth > HOP_SATURATION_THRESHOLD:
+        warnings.append(
+            f"Longest path is {depth} hops (saturation at {HOP_SATURATION_THRESHOLD}). "
+            f"Paper 24: degradation plateaus by hop 5; deeper chains add latency without accuracy gain."
+        )
+
+    # Paper 43: Specialist nodes reduce entanglement.
+    # Flag nodes that declare multiple concerns in metadata.
+    for node in circuit.nodes:
+        concerns = node.metadata.get("concerns", "")
+        if concerns:
+            concern_list = [c.strip() for c in concerns.split(",") if c.strip()]
+            if len(concern_list) > 2:
+                warnings.append(
+                    f"Node '{node.name}' has {len(concern_list)} concerns ({concerns}). "
+                    f"Paper 43: specialist nodes with fewer concerns reduce feature entanglement."
+                )
+
+    return warnings
+
+
 def _next_port(circuit: CircuitSpec) -> int:
     """Find the next available port."""
     used = {n.port for n in circuit.nodes}

@@ -18,6 +18,56 @@ logger = logging.getLogger(__name__)
 DEFAULT_PROMOTE_STEPS = [10, 25, 50, 100]
 
 
+def centroid_select(candidates: dict[str, tuple[float, float, float]]) -> str | None:
+    """Select the candidate closest to the ensemble centroid.
+
+    Paper 19 (Ensemble Gravity): Centroid-based selection closes 48.9% of the
+    coordination gap -- 5.4x better than state injection. For canary evaluation,
+    this selects the variant whose metrics are closest to the ensemble average.
+
+    Args:
+        candidates: dict of name -> (error_rate, p99_latency_ms, throughput)
+
+    Returns:
+        Name of the candidate closest to centroid, or None if empty.
+    """
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return next(iter(candidates))
+
+    # Compute centroid
+    n = len(candidates)
+    centroid = [0.0, 0.0, 0.0]
+    for err, lat, thr in candidates.values():
+        centroid[0] += err / n
+        centroid[1] += lat / n
+        centroid[2] += thr / n
+
+    # Find closest to centroid (Euclidean distance, normalized)
+    # Normalize each dimension by range to prevent latency dominating
+    ranges = [0.0, 0.0, 0.0]
+    vals = list(candidates.values())
+    for dim in range(3):
+        dim_vals = [v[dim] for v in vals]
+        ranges[dim] = max(dim_vals) - min(dim_vals) if len(dim_vals) > 1 else 1.0
+        if ranges[dim] == 0:
+            ranges[dim] = 1.0
+
+    best_name = None
+    best_dist = float("inf")
+    for name, (err, lat, thr) in candidates.items():
+        dist = sum(
+            ((v - c) / r) ** 2
+            for v, c, r in zip([err, lat, thr], centroid, ranges)
+        )
+        if dist < best_dist:
+            best_dist = dist
+            best_name = name
+
+    return best_name
+
+
 class CanaryLifecycle(Protocol):
     """Protocol for lifecycle actions the canary controller can invoke."""
 

@@ -231,6 +231,118 @@ class TestLoadHistory:
         assert records == []
 
 
+class TestDeduplication:
+    """Paper 20: Within-session repetition degrades performance monotonically."""
+
+    async def test_dedup_suppresses_identical(self, project_dir: Path):
+        d = project_dir / "p"
+        d.mkdir(parents=True)
+        (d / ".baton").mkdir()
+
+        node = NodeSpec(name="api", port=15070)
+        adapter = Adapter(node, record_signals=True)
+
+        ts = "2026-03-05T12:00:00+00:00"
+        ts2 = "2026-03-05T12:00:00.500000+00:00"  # 0.5s later
+        adapter._signals.extend([
+            SignalRecord(
+                node_name="api", direction="inbound", method="GET",
+                path="/health", status_code=200, timestamp=ts,
+            ),
+            SignalRecord(
+                node_name="api", direction="inbound", method="GET",
+                path="/health", status_code=200, timestamp=ts2,
+            ),
+        ])
+
+        aggregator = SignalAggregator({"api": adapter}, d, dedup_window_s=1.0)
+        aggregator._collect()
+
+        assert aggregator.buffer_size == 1
+        assert aggregator.dedup_count == 1
+
+    async def test_no_dedup_different_paths(self, project_dir: Path):
+        d = project_dir / "p"
+        d.mkdir(parents=True)
+        (d / ".baton").mkdir()
+
+        node = NodeSpec(name="api", port=15071)
+        adapter = Adapter(node, record_signals=True)
+
+        ts = "2026-03-05T12:00:00+00:00"
+        ts2 = "2026-03-05T12:00:00.500000+00:00"
+        adapter._signals.extend([
+            SignalRecord(
+                node_name="api", direction="inbound", method="GET",
+                path="/health", status_code=200, timestamp=ts,
+            ),
+            SignalRecord(
+                node_name="api", direction="inbound", method="GET",
+                path="/users", status_code=200, timestamp=ts2,
+            ),
+        ])
+
+        aggregator = SignalAggregator({"api": adapter}, d, dedup_window_s=1.0)
+        aggregator._collect()
+
+        assert aggregator.buffer_size == 2
+        assert aggregator.dedup_count == 0
+
+    async def test_no_dedup_outside_window(self, project_dir: Path):
+        d = project_dir / "p"
+        d.mkdir(parents=True)
+        (d / ".baton").mkdir()
+
+        node = NodeSpec(name="api", port=15072)
+        adapter = Adapter(node, record_signals=True)
+
+        ts = "2026-03-05T12:00:00+00:00"
+        ts2 = "2026-03-05T12:00:02+00:00"  # 2s later, outside 1s window
+        adapter._signals.extend([
+            SignalRecord(
+                node_name="api", direction="inbound", method="GET",
+                path="/health", status_code=200, timestamp=ts,
+            ),
+            SignalRecord(
+                node_name="api", direction="inbound", method="GET",
+                path="/health", status_code=200, timestamp=ts2,
+            ),
+        ])
+
+        aggregator = SignalAggregator({"api": adapter}, d, dedup_window_s=1.0)
+        aggregator._collect()
+
+        assert aggregator.buffer_size == 2
+        assert aggregator.dedup_count == 0
+
+    async def test_dedup_disabled(self, project_dir: Path):
+        d = project_dir / "p"
+        d.mkdir(parents=True)
+        (d / ".baton").mkdir()
+
+        node = NodeSpec(name="api", port=15073)
+        adapter = Adapter(node, record_signals=True)
+
+        ts = "2026-03-05T12:00:00+00:00"
+        ts2 = "2026-03-05T12:00:00.500000+00:00"
+        adapter._signals.extend([
+            SignalRecord(
+                node_name="api", direction="inbound", method="GET",
+                path="/health", status_code=200, timestamp=ts,
+            ),
+            SignalRecord(
+                node_name="api", direction="inbound", method="GET",
+                path="/health", status_code=200, timestamp=ts2,
+            ),
+        ])
+
+        aggregator = SignalAggregator({"api": adapter}, d, dedup_window_s=0)
+        aggregator._collect()
+
+        assert aggregator.buffer_size == 2
+        assert aggregator.dedup_count == 0
+
+
 class TestBufferCap:
     async def test_buffer_respects_max(self, project_dir: Path):
         d = project_dir / "p"

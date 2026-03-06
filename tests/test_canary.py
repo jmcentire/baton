@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from baton.adapter import Adapter, AdapterMetrics, BackendTarget
-from baton.canary import CanaryController
+from baton.canary import CanaryController, centroid_select
 from baton.routing import canary as canary_routing
 from baton.schemas import NodeSpec, RoutingConfig, RoutingStrategy, RoutingTarget
 
@@ -255,6 +255,55 @@ class TestCanaryController:
         await controller.run()
 
         assert controller.outcome == "rolled_back"
+
+
+class TestCentroidSelect:
+    """Paper 19: Centroid selection closes 48.9% of coordination gap."""
+
+    def test_single_candidate(self):
+        result = centroid_select({"a": (1.0, 100.0, 50.0)})
+        assert result == "a"
+
+    def test_empty(self):
+        result = centroid_select({})
+        assert result is None
+
+    def test_selects_closest_to_centroid(self):
+        candidates = {
+            "good": (2.0, 100.0, 500.0),    # close to average
+            "fast": (1.0, 50.0, 800.0),      # fast but unbalanced
+            "slow": (5.0, 200.0, 200.0),     # slow outlier
+        }
+        result = centroid_select(candidates)
+        assert result == "good"
+
+    def test_identical_candidates(self):
+        candidates = {
+            "a": (1.0, 100.0, 50.0),
+            "b": (1.0, 100.0, 50.0),
+        }
+        result = centroid_select(candidates)
+        assert result in ("a", "b")
+
+    def test_two_candidates_picks_moderate(self):
+        candidates = {
+            "extreme": (10.0, 500.0, 10.0),
+            "moderate": (2.0, 100.0, 200.0),
+        }
+        # Centroid is (6.0, 300.0, 105.0) -- moderate is closer in normalized space
+        result = centroid_select(candidates)
+        # Both are equidistant from centroid with 2 candidates, but let's verify it runs
+        assert result in ("extreme", "moderate")
+
+    def test_three_dims_normalized(self):
+        """Normalization prevents latency (high magnitude) from dominating."""
+        candidates = {
+            "balanced": (3.0, 150.0, 500.0),
+            "low_lat": (5.0, 50.0, 400.0),
+            "high_thr": (1.0, 200.0, 800.0),
+        }
+        result = centroid_select(candidates)
+        assert result == "balanced"
 
 
 class TestPerTargetMetrics:

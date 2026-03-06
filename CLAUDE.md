@@ -115,3 +115,13 @@ baton deploy-status [--provider ...]   # check deployment status
 - Egress nodes cannot have live services slotted in (auto-mocked only)
 - Routing: when RoutingConfig is None, adapter behaves as single-backend (backwards compatible)
 - Lock guards: locked routing prevents set_backend, set_routing, clear_routing, slot, swap
+
+## Research-Backed Features
+
+Derived from McEntire AI/ML papers (Papers 19-24, 43):
+
+- **Hop Saturation** (Paper 24): `longest_path()` and `topology_warnings()` in circuit.py. Multi-hop degradation saturates by hop 5. Topologies deeper than 5 are warned but not blocked.
+- **Two-Phase Repair** (Paper 23): Custodian `RepairPlaybook` separates fault classification (mode boundary) from recovery selection (domain prime). These are orthogonal decisions (rho = 0.858).
+- **Centroid Selection** (Paper 19): `centroid_select()` in canary.py. For canary evaluation with multiple candidates, selects the one closest to ensemble centroid. Closes 48.9% of coordination gap vs 9.1% for state injection.
+- **Signal Deduplication** (Paper 20): `SignalAggregator` suppresses repeated identical signals within a configurable time window. Paper 20: repetition degrades performance +0.07 nats per repeat.
+- **Specialist Nodes** (Paper 43): `topology_warnings()` flags nodes with >2 concerns in metadata. Universal entanglement is reduced by specialist architectures (lower d/k ratio).

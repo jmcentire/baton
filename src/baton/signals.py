@@ -36,7 +36,12 @@ class PathStat:
 
 
 class SignalAggregator:
-    """Collects signals from all adapters, persists to JSONL."""
+    """Collects signals from all adapters, persists to JSONL.
+
+    Paper 20 (Ritual Shape): Repeated signals degrade performance monotonically
+    (+0.07 nats per repeat). Deduplication suppresses consecutive identical
+    signals from the same node+path within a time window.
+    """
 
     def __init__(
         self,
@@ -44,6 +49,7 @@ class SignalAggregator:
         project_dir: str | Path,
         buffer_size: int = 10000,
         flush_interval: float = 10.0,
+        dedup_window_s: float = 1.0,
     ):
         self._adapters = adapters
         self._project_dir = Path(project_dir)
@@ -51,6 +57,9 @@ class SignalAggregator:
             maxlen=buffer_size
         )
         self._flush_interval = flush_interval
+        self._dedup_window_s = dedup_window_s
+        self._last_seen: dict[str, str] = {}  # (node:path:status) -> timestamp
+        self._dedup_count: int = 0
         self._running = False
 
     @property
@@ -79,11 +88,45 @@ class SignalAggregator:
         """Signal the run loop to stop."""
         self._running = False
 
+    @property
+    def dedup_count(self) -> int:
+        """Number of signals suppressed by deduplication."""
+        return self._dedup_count
+
+    def _is_duplicate(self, sig: SignalRecord) -> bool:
+        """Check if signal is a duplicate within the dedup window.
+
+        Paper 20: Within-session repetition degrades performance monotonically.
+        Suppress consecutive identical signals (same node+path+status) within
+        dedup_window_s seconds.
+        """
+        if self._dedup_window_s <= 0:
+            return False
+        key = f"{sig.node_name}:{sig.path}:{sig.status_code}"
+        prev_ts = self._last_seen.get(key)
+        self._last_seen[key] = sig.timestamp
+        if not prev_ts or not sig.timestamp:
+            return False
+        try:
+            from datetime import datetime, timezone
+            prev = datetime.fromisoformat(prev_ts)
+            curr = datetime.fromisoformat(sig.timestamp)
+            delta = (curr - prev).total_seconds()
+            return 0 <= delta < self._dedup_window_s
+        except (ValueError, TypeError):
+            return False
+
     def _collect(self) -> None:
-        """Drain signals from all adapters into buffer and JSONL."""
+        """Drain signals from all adapters into buffer and JSONL.
+
+        Applies deduplication (Paper 20: no repetition).
+        """
         for adapter in self._adapters.values():
             signals = adapter.drain_signals()
             for sig in signals:
+                if self._is_duplicate(sig):
+                    self._dedup_count += 1
+                    continue
                 self._buffer.append(sig)
                 append_jsonl(
                     self._project_dir,

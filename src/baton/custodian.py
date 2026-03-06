@@ -96,28 +96,65 @@ class AnomalyDetector:
 
 
 class RepairPlaybook:
-    """Determines repair action based on fault type and history."""
+    """Determines repair action based on fault type and history.
+
+    Research (Paper 23): Mode boundary (detection) and domain prime (recovery)
+    are orthogonal decisions (rho = 0.858). This playbook implements the
+    two-phase pattern: classify the fault mode first, then select the
+    recovery action independently.
+
+    Research (Paper 22): Explicit/complex routing rules ("director" pattern)
+    perform worse than simple decisions. The playbook deliberately keeps
+    decision logic minimal.
+    """
+
+    def classify(
+        self, adapter_state: AdapterState, anomalies: list[str] | None = None,
+    ) -> str:
+        """Phase 1: Classify the fault mode (Paper 23: mode boundary).
+
+        Returns a mode string: "healthy", "degraded", "unhealthy", "mock_failed".
+        This is independent of what recovery action to take.
+        """
+        if anomalies and adapter_state.last_health_verdict != HealthVerdict.UNHEALTHY:
+            return "degraded"
+        if adapter_state.service.is_mock:
+            return "mock_failed"
+        if adapter_state.consecutive_failures >= FAILURE_THRESHOLD * 2:
+            return "unhealthy"
+        return "unhealthy"
+
+    def select_action(self, mode: str) -> CustodianAction:
+        """Phase 2: Select recovery action given fault mode (Paper 23: domain prime).
+
+        Deliberately simple (Paper 22: complex rules hurt).
+        """
+        if mode == "degraded":
+            return CustodianAction.REROUTE
+        if mode == "mock_failed":
+            return CustodianAction.ESCALATE
+        if mode == "unhealthy":
+            return CustodianAction.RESTART_SERVICE
+        return CustodianAction.RESTART_SERVICE
 
     def decide(
         self, adapter_state: AdapterState, anomalies: list[str] | None = None,
     ) -> CustodianAction:
-        """Decide what repair action to take.
+        """Combined decide (backward-compatible).
 
-        - SLO anomalies on a healthy node: prefer REROUTE
-        - < FAILURE_THRESHOLD consecutive failures: restart service
-        - >= FAILURE_THRESHOLD and has a command: replace with mock
-        - No command (was already mock): escalate
+        Internally uses two-phase classify -> select_action.
         """
-        if anomalies and adapter_state.last_health_verdict != HealthVerdict.UNHEALTHY:
-            return CustodianAction.REROUTE
+        mode = self.classify(adapter_state, anomalies)
 
-        if adapter_state.service.is_mock:
-            return CustodianAction.ESCALATE
-
-        if adapter_state.consecutive_failures < FAILURE_THRESHOLD * 2:
-            return CustodianAction.RESTART_SERVICE
-        else:
+        # Override: many failures on live service -> replace
+        if (
+            mode == "unhealthy"
+            and not adapter_state.service.is_mock
+            and adapter_state.consecutive_failures >= FAILURE_THRESHOLD * 2
+        ):
             return CustodianAction.REPLACE_SERVICE
+
+        return self.select_action(mode)
 
 
 class Custodian:

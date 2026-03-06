@@ -269,3 +269,61 @@ class TestRepairPlaybookWithAnomalies:
         )
         result = playbook.decide(state, anomalies=["SLO violation"])
         assert result == CustodianAction.RESTART_SERVICE
+
+
+class TestTwoPhaseRepair:
+    """Paper 23: Mode boundary (classify) and domain prime (select_action) are orthogonal."""
+
+    def test_classify_degraded(self):
+        playbook = RepairPlaybook()
+        state = AdapterState(
+            node_name="api",
+            service=ServiceSlot(command="./run.sh", is_mock=False),
+            last_health_verdict=HealthVerdict.HEALTHY,
+        )
+        mode = playbook.classify(state, anomalies=["SLO violation"])
+        assert mode == "degraded"
+
+    def test_classify_mock_failed(self):
+        playbook = RepairPlaybook()
+        state = AdapterState(
+            node_name="api",
+            service=ServiceSlot(is_mock=True),
+            consecutive_failures=5,
+        )
+        mode = playbook.classify(state)
+        assert mode == "mock_failed"
+
+    def test_classify_unhealthy(self):
+        playbook = RepairPlaybook()
+        state = AdapterState(
+            node_name="api",
+            service=ServiceSlot(command="./run.sh", is_mock=False),
+            consecutive_failures=3,
+        )
+        mode = playbook.classify(state)
+        assert mode == "unhealthy"
+
+    def test_select_action_degraded(self):
+        playbook = RepairPlaybook()
+        assert playbook.select_action("degraded") == CustodianAction.REROUTE
+
+    def test_select_action_mock_failed(self):
+        playbook = RepairPlaybook()
+        assert playbook.select_action("mock_failed") == CustodianAction.ESCALATE
+
+    def test_select_action_unhealthy(self):
+        playbook = RepairPlaybook()
+        assert playbook.select_action("unhealthy") == CustodianAction.RESTART_SERVICE
+
+    def test_two_phase_matches_decide(self):
+        """classify + select_action should produce same result as decide for simple cases."""
+        playbook = RepairPlaybook()
+        state = AdapterState(
+            node_name="api",
+            service=ServiceSlot(command="./run.sh", is_mock=False),
+            last_health_verdict=HealthVerdict.HEALTHY,
+        )
+        mode = playbook.classify(state, anomalies=["SLO breach"])
+        action = playbook.select_action(mode)
+        assert action == playbook.decide(state, anomalies=["SLO breach"])
