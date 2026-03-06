@@ -414,8 +414,12 @@ pip install baton-orchestrator[certs]     # Certificate parsing and monitoring
 git clone https://github.com/jmcentire/baton.git
 cd baton
 pip install -e ".[dev]"
-pytest                    # 674 tests, 80% coverage
+pytest                    # 804 tests (701 hand-written + 103 smoke)
 ```
+
+### Smoke Tests
+
+Baton includes 103 pact-generated smoke tests in `tests/smoke/` covering all 36 source modules. These verify that every module imports correctly and every public module-level function is callable. Generated via [`pact adopt`](https://github.com/jmcentire/pact) governance -- do not edit by hand.
 
 ## License
 

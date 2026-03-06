@@ -111,7 +111,8 @@ baton deploy-status [--provider ...]   # check deployment status
 - Frozen models for topology definitions, mutable for runtime state
 - Protocol-based DI for extensible components (DeploymentProvider)
 - All async operations use asyncio (no external server frameworks)
-- Tests: one test file per source module, pytest-asyncio
+- Tests: 804 total (701 hand-written + 103 pact-generated smoke tests), one test file per source module, pytest-asyncio
+- Smoke tests: `tests/smoke/` -- 35 files covering all 36 source modules, auto-generated via `pact adopt`. Verify imports and public function callability.
 - Egress nodes cannot have live services slotted in (auto-mocked only)
 - Routing: when RoutingConfig is None, adapter behaves as single-backend (backwards compatible)
 - Lock guards: locked routing prevents set_backend, set_routing, clear_routing, slot, swap
