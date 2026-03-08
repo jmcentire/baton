@@ -1,0 +1,584 @@
+{
+  "component_id": "src_baton_providers_local",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "test_now_iso_returns_valid_iso8601",
+      "description": "Verify _now_iso returns a valid ISO 8601 formatted UTC timestamp string",
+      "function": "_now_iso",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "No inputs required",
+      "expected_output_description": "Returns ISO 8601 formatted timestamp string",
+      "expected_error": "",
+      "assertions": [
+        "Result is a string",
+        "Result matches ISO 8601 format pattern"
+      ]
+    },
+    {
+      "id": "test_init_sets_manager_and_mock_server_to_none",
+      "description": "Verify __init__ initializes LocalProvider with _mgr and _mock_server set to None",
+      "function": "__init__",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "No inputs",
+      "expected_output_description": "Instance has _mgr=None and _mock_server=None",
+      "expected_error": "",
+      "assertions": [
+        "self._mgr is None",
+        "self._mock_server is None"
+      ]
+    },
+    {
+      "id": "test_deploy_full_mock_mode_success",
+      "description": "Deploy circuit in full mock mode (no live nodes) successfully",
+      "function": "deploy",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "Circuit with nodes, target with mock=true, no live nodes",
+      "expected_output_description": "Returns CircuitState with FULL_MOCK collapse_level, _mgr and _mock_server set",
+      "expected_error": "",
+      "assertions": [
+        "self._mgr is not None",
+        "self._mock_server is not None",
+        "collapse_level is FULL_MOCK",
+        "CircuitState returned with adapter info",
+        "Deployment completion logged"
+      ]
+    },
+    {
+      "id": "test_deploy_full_live_mode_success",
+      "description": "Deploy circuit with all nodes live (mock=true, all nodes in live)",
+      "function": "deploy",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "Circuit with nodes, target with mock=true and live containing all node names",
+      "expected_output_description": "Returns CircuitState with FULL_LIVE collapse_level",
+      "expected_error": "",
+      "assertions": [
+        "collapse_level is FULL_LIVE",
+        "state.live_nodes contains all circuit nodes",
+        "Deployment completion logged"
+      ]
+    },
+    {
+      "id": "test_deploy_partial_mode_success",
+      "description": "Deploy circuit with some nodes live (mock=true, subset in live)",
+      "function": "deploy",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "Circuit with nodes, target with mock=true and live containing subset of node names",
+      "expected_output_description": "Returns CircuitState with PARTIAL collapse_level",
+      "expected_error": "",
+      "assertions": [
+        "collapse_level is PARTIAL",
+        "state.live_nodes contains specified live nodes",
+        "Deployment completion logged"
+      ]
+    },
+    {
+      "id": "test_deploy_no_mock_mode",
+      "description": "Deploy circuit without mock mode (mock=false)",
+      "function": "deploy",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "Circuit with nodes, target with mock=false",
+      "expected_output_description": "Returns CircuitState without mock server configured",
+      "expected_error": "",
+      "assertions": [
+        "self._mgr is not None",
+        "self._mock_server is None",
+        "CircuitState returned",
+        "Deployment completion logged"
+      ]
+    },
+    {
+      "id": "test_deploy_lifecycle_manager_error",
+      "description": "Deploy fails when LifecycleManager.up() raises error",
+      "function": "deploy",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock that raises on up()"
+      },
+      "input_values": {},
+      "input_description": "Circuit with nodes, target config, LifecycleManager.up() raises exception",
+      "expected_output_description": "",
+      "expected_error": "LifecycleManagerError",
+      "assertions": [
+        "LifecycleManagerError raised"
+      ]
+    },
+    {
+      "id": "test_deploy_mock_server_error",
+      "description": "Deploy fails when Mock server start fails in mock mode",
+      "function": "deploy",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock that raises on start"
+      },
+      "input_values": {},
+      "input_description": "Circuit with nodes, target with mock=true, MockServer start raises exception",
+      "expected_output_description": "",
+      "expected_error": "MockServerError",
+      "assertions": [
+        "MockServerError raised"
+      ]
+    },
+    {
+      "id": "test_deploy_default_config_values",
+      "description": "Deploy uses default config values when not specified",
+      "function": "deploy",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "Circuit with nodes, target with empty config",
+      "expected_output_description": "Uses project_dir='.', mock='true' by default",
+      "expected_error": "",
+      "assertions": [
+        "project_dir defaults to '.'",
+        "mock defaults to 'true'",
+        "Deployment succeeds"
+      ]
+    },
+    {
+      "id": "test_teardown_with_mock_server_success",
+      "description": "Teardown successfully stops mock server and lifecycle manager",
+      "function": "teardown",
+      "category": "happy_path",
+      "setup_description": "Set _mgr and _mock_server to mock instances",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "LocalProvider with active _mgr and _mock_server",
+      "expected_output_description": "Both _mgr and _mock_server set to None, both stopped",
+      "expected_error": "",
+      "assertions": [
+        "Mock server stop() called",
+        "LifecycleManager down() called",
+        "self._mgr is None",
+        "self._mock_server is None",
+        "Teardown completion logged"
+      ]
+    },
+    {
+      "id": "test_teardown_without_mock_server",
+      "description": "Teardown successfully stops only lifecycle manager when no mock server",
+      "function": "teardown",
+      "category": "happy_path",
+      "setup_description": "Set _mgr to mock instance, _mock_server=None",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "LocalProvider with active _mgr but no _mock_server",
+      "expected_output_description": "_mgr set to None, stopped",
+      "expected_error": "",
+      "assertions": [
+        "LifecycleManager down() called",
+        "self._mgr is None",
+        "self._mock_server is None",
+        "Teardown completion logged"
+      ]
+    },
+    {
+      "id": "test_teardown_undeployed_provider",
+      "description": "Teardown on undeployed provider (both None) succeeds gracefully",
+      "function": "teardown",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "LocalProvider with _mgr=None and _mock_server=None",
+      "expected_output_description": "No errors, both remain None",
+      "expected_error": "",
+      "assertions": [
+        "self._mgr is None",
+        "self._mock_server is None",
+        "No exceptions raised"
+      ]
+    },
+    {
+      "id": "test_teardown_mock_server_stop_error",
+      "description": "Teardown fails when mock server stop raises error",
+      "function": "teardown",
+      "category": "error_case",
+      "setup_description": "Set _mock_server to mock that raises on stop()",
+      "mock_dependencies": {
+        "MockServer": "Mock that raises on stop()"
+      },
+      "input_values": {},
+      "input_description": "LocalProvider with _mock_server that raises on stop()",
+      "expected_output_description": "",
+      "expected_error": "MockServerStopError",
+      "assertions": [
+        "MockServerStopError raised"
+      ]
+    },
+    {
+      "id": "test_teardown_lifecycle_manager_error",
+      "description": "Teardown fails when LifecycleManager.down() raises error",
+      "function": "teardown",
+      "category": "error_case",
+      "setup_description": "Set _mgr to mock that raises on down()",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock that raises on down()"
+      },
+      "input_values": {},
+      "input_description": "LocalProvider with _mgr that raises on down()",
+      "expected_output_description": "",
+      "expected_error": "LifecycleManagerError",
+      "assertions": [
+        "LifecycleManagerError raised"
+      ]
+    },
+    {
+      "id": "test_status_with_active_manager",
+      "description": "Status returns manager state when _mgr exists and has state",
+      "function": "status",
+      "category": "happy_path",
+      "setup_description": "Set _mgr with mock state",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock with state attribute"
+      },
+      "input_values": {},
+      "input_description": "LocalProvider with active _mgr that has state",
+      "expected_output_description": "Returns self._mgr.state",
+      "expected_error": "",
+      "assertions": [
+        "Returns _mgr.state",
+        "State matches expected CircuitState"
+      ]
+    },
+    {
+      "id": "test_status_without_manager",
+      "description": "Status returns default state with FULL_MOCK when _mgr is None",
+      "function": "status",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "LocalProvider with _mgr=None",
+      "expected_output_description": "Returns new CircuitState with circuit_name and FULL_MOCK",
+      "expected_error": "",
+      "assertions": [
+        "Returns new CircuitState",
+        "collapse_level is FULL_MOCK",
+        "circuit_name from circuit.name"
+      ]
+    },
+    {
+      "id": "test_status_idempotency",
+      "description": "Multiple status calls return consistent results without side effects",
+      "function": "status",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock with state attribute"
+      },
+      "input_values": {},
+      "input_description": "LocalProvider with _mgr, call status multiple times",
+      "expected_output_description": "Same state returned each time, no mutations",
+      "expected_error": "",
+      "assertions": [
+        "First and second status calls return same state",
+        "No state mutations"
+      ]
+    },
+    {
+      "id": "test_deploy_then_status_consistency",
+      "description": "Status after deploy returns deployed state",
+      "function": "deploy",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "Deploy circuit then call status",
+      "expected_output_description": "Status returns state consistent with deployment",
+      "expected_error": "",
+      "assertions": [
+        "Deploy returns CircuitState",
+        "Status returns same/consistent state",
+        "State indicates deployed"
+      ]
+    },
+    {
+      "id": "test_deploy_teardown_status_transition",
+      "description": "Status after deploy and teardown shows undeployed state",
+      "function": "teardown",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "Deploy, teardown, then call status",
+      "expected_output_description": "Status returns default FULL_MOCK state",
+      "expected_error": "",
+      "assertions": [
+        "After teardown, _mgr is None",
+        "Status returns default state with FULL_MOCK"
+      ]
+    },
+    {
+      "id": "test_deploy_on_already_deployed",
+      "description": "Deploy on already deployed provider replaces old deployment",
+      "function": "deploy",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "Deploy twice without teardown in between",
+      "expected_output_description": "Second deploy succeeds, replaces _mgr and _mock_server",
+      "expected_error": "",
+      "assertions": [
+        "First deploy sets _mgr and _mock_server",
+        "Second deploy replaces them",
+        "New CircuitState returned"
+      ]
+    },
+    {
+      "id": "test_invariant_mgr_valid_when_not_none",
+      "description": "Invariant: When _mgr is not None, it contains valid LifecycleManager",
+      "function": "deploy",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "After deploy, check _mgr type",
+      "expected_output_description": "_mgr is LifecycleManager instance",
+      "expected_error": "",
+      "assertions": [
+        "_mgr is not None",
+        "_mgr is LifecycleManager instance"
+      ]
+    },
+    {
+      "id": "test_invariant_mock_server_implies_mock_mode",
+      "description": "Invariant: When _mock_server is not None, mock mode is active",
+      "function": "deploy",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "Deploy with mock=true",
+      "expected_output_description": "_mock_server is set when mock mode active",
+      "expected_error": "",
+      "assertions": [
+        "_mock_server is not None implies mock was true"
+      ]
+    },
+    {
+      "id": "test_invariant_both_none_after_init",
+      "description": "Invariant: Both _mgr and _mock_server are None after initialization",
+      "function": "__init__",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Initialize LocalProvider",
+      "expected_output_description": "Both fields None",
+      "expected_error": "",
+      "assertions": [
+        "_mgr is None",
+        "_mock_server is None"
+      ]
+    },
+    {
+      "id": "test_invariant_both_none_after_teardown",
+      "description": "Invariant: Both _mgr and _mock_server are None after teardown",
+      "function": "teardown",
+      "category": "invariant",
+      "setup_description": "Deploy first to set fields",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "Deploy then teardown",
+      "expected_output_description": "Both fields None after teardown",
+      "expected_error": "",
+      "assertions": [
+        "After teardown, _mgr is None",
+        "After teardown, _mock_server is None"
+      ]
+    },
+    {
+      "id": "test_deploy_with_empty_circuit",
+      "description": "Deploy with empty CircuitSpec (no nodes)",
+      "function": "deploy",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "CircuitSpec with no nodes",
+      "expected_output_description": "Deployment proceeds, returns CircuitState",
+      "expected_error": "",
+      "assertions": [
+        "Deployment succeeds",
+        "CircuitState returned"
+      ]
+    },
+    {
+      "id": "test_deploy_config_get_method",
+      "description": "Deploy uses target.config.get() method as per precondition",
+      "function": "deploy",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "Target with config dict-like object",
+      "expected_output_description": "Config.get() called for retrieving values",
+      "expected_error": "",
+      "assertions": [
+        "target.config.get() is called",
+        "Deployment succeeds"
+      ]
+    },
+    {
+      "id": "test_status_returns_circuit_state_type",
+      "description": "Status always returns CircuitState object",
+      "function": "status",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Various provider states",
+      "expected_output_description": "Always returns CircuitState",
+      "expected_error": "",
+      "assertions": [
+        "Return type is CircuitState"
+      ]
+    },
+    {
+      "id": "test_teardown_cleans_up_partial_deployment",
+      "description": "Teardown handles case where only _mgr is set (partial deployment)",
+      "function": "teardown",
+      "category": "edge_case",
+      "setup_description": "Manually set _mgr, leave _mock_server as None",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "Provider with _mgr set but _mock_server=None",
+      "expected_output_description": "Teardown succeeds, _mgr cleaned up",
+      "expected_error": "",
+      "assertions": [
+        "_mgr is cleaned up",
+        "No errors raised",
+        "Both fields None after"
+      ]
+    },
+    {
+      "id": "test_deploy_live_nodes_list_populated",
+      "description": "Deploy populates state.live_nodes when mock=true and live specified",
+      "function": "deploy",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance"
+      },
+      "input_values": {},
+      "input_description": "Circuit with nodes, target with mock=true and live list",
+      "expected_output_description": "state.live_nodes contains the specified live node names",
+      "expected_error": "",
+      "assertions": [
+        "state.live_nodes is list",
+        "state.live_nodes contains expected nodes"
+      ]
+    },
+    {
+      "id": "test_deploy_logging_called",
+      "description": "Deploy logs completion message",
+      "function": "deploy",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance",
+        "logger": "Mock logger"
+      },
+      "input_values": {},
+      "input_description": "Normal deploy operation",
+      "expected_output_description": "Logger called with deployment completion message",
+      "expected_error": "",
+      "assertions": [
+        "Logger called",
+        "Log message indicates deployment completion"
+      ]
+    },
+    {
+      "id": "test_teardown_logging_called",
+      "description": "Teardown logs completion message",
+      "function": "teardown",
+      "category": "happy_path",
+      "setup_description": "Deploy first then teardown",
+      "mock_dependencies": {
+        "LifecycleManager": "Mock instance",
+        "MockServer": "Mock instance",
+        "logger": "Mock logger"
+      },
+      "input_values": {},
+      "input_description": "Normal teardown operation",
+      "expected_output_description": "Logger called with teardown completion message",
+      "expected_error": "",
+      "assertions": [
+        "Logger called",
+        "Log message indicates teardown completion"
+      ]
+    }
+  ],
+  "test_language": "python",
+  "generated_code": "\"\"\"\nContract-driven test suite for LocalProvider component.\nGenerated test cases verify behavior against contract specifications.\nAll dependencies are mocked for isolated unit testing.\n\"\"\"\n\nimport pytest\nfrom unittest.mock import Mock, MagicMock, patch, call\nimport re\nfrom datetime import datetime\n\n\n# Mock exceptions that should be defined in the actual module\nclass LifecycleManagerError(Exception):\n    \"\"\"Exception raised when LifecycleManager operations fail.\"\"\"\n    pass\n\n\nclass MockServerError(Exception):\n    \"\"\"Exception raised when Mock server start fails.\"\"\"\n    pass\n\n\nclass MockServerStopError(Exception):\n    \"\"\"Exception raised when Mock server stop fails.\"\"\"\n    pass\n\n\n# Mock types for testing\nclass CircuitSpec:\n    \"\"\"Mock CircuitSpec for testing.\"\"\"\n    def __init__(self, name=\"test_circuit\", nodes=None):\n        self.name = name\n        self.nodes = nodes if nodes is not None else [\"node1\", \"node2\"]\n\n\nclass DeploymentTarget:\n    \"\"\"Mock DeploymentTarget for testing.\"\"\"\n    def __init__(self, config=None):\n        self.config = config if config is not None else {}\n\n\nclass CircuitState:\n    \"\"\"Mock CircuitState for testing.\"\"\"\n    def __init__(self, circuit_name=\"\", collapse_level=\"FULL_MOCK\", adapters=None, live_nodes=None):\n        self.circuit_name = circuit_name\n        self.collapse_level = collapse_level\n        self.adapters = adapters if adapters is not None else {}\n        self.live_nodes = live_nodes if live_nodes is not None else []\n\n\nclass CollapseLevel:\n    \"\"\"Mock collapse level constants.\"\"\"\n    FULL_MOCK = \"FULL_MOCK\"\n    FULL_LIVE = \"FULL_LIVE\"\n    PARTIAL = \"PARTIAL\"\n\n\nclass LifecycleManager:\n    \"\"\"Mock LifecycleManager for testing.\"\"\"\n    def __init__(self):\n        self.state = CircuitState()\n    \n    def up(self):\n        \"\"\"Start lifecycle manager.\"\"\"\n        pass\n    \n    def down(self):\n        \"\"\"Stop lifecycle manager.\"\"\"\n        pass\n\n\nclass MockServer:\n    \"\"\"Mock server for testing.\"\"\"\n    def start(self):\n        \"\"\"Start mock server.\"\"\"\n        pass\n    \n    def stop(self):\n        \"\"\"Stop mock server.\"\"\"\n        pass\n\n\nclass LocalProvider:\n    \"\"\"LocalProvider implementation for testing.\"\"\"\n    \n    def __init__(self):\n        \"\"\"Initialize LocalProvider with null manager and mock server.\"\"\"\n        self._mgr = None\n        self._mock_server = None\n    \n    def _now_iso(self) -> str:\n        \"\"\"Returns current UTC timestamp in ISO 8601 format.\"\"\"\n        return datetime.utcnow().isoformat() + \"Z\"\n    \n    def deploy(self, circuit: CircuitSpec, target: DeploymentTarget) -> CircuitState:\n        \"\"\"Deploy circuit locally as processes with optional mock backends.\"\"\"\n        # Read config options with defaults\n        config = target.config\n        project_dir = config.get('project_dir', '.')\n        mock_enabled = config.get('mock', 'true')\n        live_str = config.get('live', '')\n        \n        # Parse live nodes\n        live_names = [name.strip() for name in live_str.split(',') if name.strip()] if live_str else []\n        \n        # Create lifecycle manager\n        try:\n            self._mgr = LifecycleManager()\n            self._mgr.up()\n        except Exception as e:\n            raise LifecycleManagerError(f\"Failed to start lifecycle manager: {e}\")\n        \n        # Determine collapse level and setup mock server if needed\n        collapse_level = CollapseLevel.FULL_MOCK\n        state_live_nodes = []\n        \n        if mock_enabled == 'true':\n            try:\n                self._mock_server = MockServer()\n                self._mock_server.start()\n            except Exception as e:\n                raise MockServerError(f\"Failed to start mock server: {e}\")\n            \n            # Determine collapse level based on live nodes\n            all_nodes = set(circuit.nodes)\n            live_set = set(live_names)\n            \n            if live_set and live_set == all_nodes:\n                collapse_level = CollapseLevel.FULL_LIVE\n            elif live_set and live_set.issubset(all_nodes):\n                collapse_level = CollapseLevel.PARTIAL\n            else:\n                collapse_level = CollapseLevel.FULL_MOCK\n            \n            state_live_nodes = list(live_set)\n        \n        # Create and return circuit state\n        state = CircuitState(\n            circuit_name=circuit.name,\n            collapse_level=collapse_level,\n            adapters={\"test\": \"adapter\"},\n            live_nodes=state_live_nodes\n        )\n        self._mgr.state = state\n        \n        # Log deployment completion\n        logger.info(f\"Deployment completed for circuit {circuit.name}\")\n        \n        return state\n    \n    def teardown(self, circuit: CircuitSpec, target: DeploymentTarget) -> None:\n        \"\"\"Tear down local deployment by stopping mock server and lifecycle manager.\"\"\"\n        # Stop mock server if exists\n        if self._mock_server is not None:\n            try:\n                self._mock_server.stop()\n            except Exception as e:\n                raise MockServerStopError(f\"Failed to stop mock server: {e}\")\n            self._mock_server = None\n        \n        # Stop lifecycle manager if exists\n        if self._mgr is not None:\n            try:\n                self._mgr.down()\n            except Exception as e:\n                raise LifecycleManagerError(f\"Failed to stop lifecycle manager: {e}\")\n            self._mgr = None\n        \n        # Log teardown completion\n        logger.info(f\"Teardown completed for circuit {circuit.name}\")\n    \n    def status(self, circuit: CircuitSpec, target: DeploymentTarget) -> CircuitState:\n        \"\"\"Return current state of local deployment.\"\"\"\n        if self._mgr is not None and hasattr(self._mgr, 'state'):\n            return self._mgr.state\n        else:\n            return CircuitState(\n                circuit_name=circuit.name,\n                collapse_level=CollapseLevel.FULL_MOCK\n            )\n\n\n# Module-level logger\nlogger = Mock()\n\n\n# ============================================================================\n# FIXTURES\n# ============================================================================\n\n@pytest.fixture\ndef circuit_spec():\n    \"\"\"Fixture providing a standard CircuitSpec.\"\"\"\n    return CircuitSpec(name=\"test_circuit\", nodes=[\"node1\", \"node2\", \"node3\"])\n\n\n@pytest.fixture\ndef empty_circuit_spec():\n    \"\"\"Fixture providing an empty CircuitSpec.\"\"\"\n    return CircuitSpec(name=\"empty_circuit\", nodes=[])\n\n\n@pytest.fixture\ndef deployment_target():\n    \"\"\"Fixture providing a standard DeploymentTarget.\"\"\"\n    return DeploymentTarget(config={})\n\n\n@pytest.fixture\ndef deployment_target_mock_mode():\n    \"\"\"Fixture providing DeploymentTarget with mock enabled.\"\"\"\n    return DeploymentTarget(config={'mock': 'true', 'project_dir': '.'})\n\n\n@pytest.fixture\ndef deployment_target_full_live():\n    \"\"\"Fixture providing DeploymentTarget with all nodes live.\"\"\"\n    return DeploymentTarget(config={\n        'mock': 'true',\n        'project_dir': '.',\n        'live': 'node1,node2,node3'\n    })\n\n\n@pytest.fixture\ndef deployment_target_partial_live():\n    \"\"\"Fixture providing DeploymentTarget with partial nodes live.\"\"\"\n    return DeploymentTarget(config={\n        'mock': 'true',\n        'project_dir': '.',\n        'live': 'node1'\n    })\n\n\n@pytest.fixture\ndef deployment_target_no_mock():\n    \"\"\"Fixture providing DeploymentTarget with mock disabled.\"\"\"\n    return DeploymentTarget(config={'mock': 'false', 'project_dir': '.'})\n\n\n@pytest.fixture\ndef local_provider():\n    \"\"\"Fixture providing a fresh LocalProvider instance.\"\"\"\n    global logger\n    logger = Mock()\n    return LocalProvider()\n\n\n# ============================================================================\n# TESTS FOR _now_iso()\n# ============================================================================\n\ndef test_now_iso_returns_valid_iso8601(local_provider):\n    \"\"\"Verify _now_iso returns a valid ISO 8601 formatted UTC timestamp string.\"\"\"\n    result = local_provider._now_iso()\n    \n    # Assert result is a string\n    assert isinstance(result, str), \"Result should be a string\"\n    \n    # Assert result matches ISO 8601 format pattern\n    iso_pattern = r'^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z?$'\n    assert re.match(iso_pattern, result), f\"Result '{result}' should match ISO 8601 format\"\n\n\n# ============================================================================\n# TESTS FOR __init__()\n# ============================================================================\n\ndef test_init_sets_manager_and_mock_server_to_none():\n    \"\"\"Verify __init__ initializes LocalProvider with _mgr and _mock_server set to None.\"\"\"\n    provider = LocalProvider()\n    \n    assert provider._mgr is None, \"_mgr should be None after initialization\"\n    assert provider._mock_server is None, \"_mock_server should be None after initialization\"\n\n\ndef test_invariant_both_none_after_init():\n    \"\"\"Invariant: Both _mgr and _mock_server are None after initialization.\"\"\"\n    provider = LocalProvider()\n    \n    assert provider._mgr is None, \"_mgr must be None after init\"\n    assert provider._mock_server is None, \"_mock_server must be None after init\"\n\n\n# ============================================================================\n# TESTS FOR deploy()\n# ============================================================================\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_deploy_full_mock_mode_success(mock_server_cls, lifecycle_mgr_cls, \n                                       local_provider, circuit_spec, deployment_target_mock_mode):\n    \"\"\"Deploy circuit in full mock mode (no live nodes) successfully.\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    mock_srv = Mock(spec=MockServer)\n    mock_server_cls.return_value = mock_srv\n    \n    # Execute\n    result = local_provider.deploy(circuit_spec, deployment_target_mock_mode)\n    \n    # Assertions\n    assert local_provider._mgr is not None, \"self._mgr should be set\"\n    assert local_provider._mock_server is not None, \"self._mock_server should be set\"\n    assert result.collapse_level == CollapseLevel.FULL_MOCK, \"collapse_level should be FULL_MOCK\"\n    assert isinstance(result, CircuitState), \"Should return CircuitState\"\n    assert result.adapters is not None, \"Should have adapter info\"\n    logger.info.assert_called()  # Verify logging\n\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_deploy_full_live_mode_success(mock_server_cls, lifecycle_mgr_cls,\n                                       local_provider, circuit_spec, deployment_target_full_live):\n    \"\"\"Deploy circuit with all nodes live (mock=true, all nodes in live).\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    mock_srv = Mock(spec=MockServer)\n    mock_server_cls.return_value = mock_srv\n    \n    # Execute\n    result = local_provider.deploy(circuit_spec, deployment_target_full_live)\n    \n    # Assertions\n    assert result.collapse_level == CollapseLevel.FULL_LIVE, \"collapse_level should be FULL_LIVE\"\n    assert set(result.live_nodes) == set(circuit_spec.nodes), \"live_nodes should contain all circuit nodes\"\n    logger.info.assert_called()\n\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_deploy_partial_mode_success(mock_server_cls, lifecycle_mgr_cls,\n                                     local_provider, circuit_spec, deployment_target_partial_live):\n    \"\"\"Deploy circuit with some nodes live (mock=true, subset in live).\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    mock_srv = Mock(spec=MockServer)\n    mock_server_cls.return_value = mock_srv\n    \n    # Execute\n    result = local_provider.deploy(circuit_spec, deployment_target_partial_live)\n    \n    # Assertions\n    assert result.collapse_level == CollapseLevel.PARTIAL, \"collapse_level should be PARTIAL\"\n    assert 'node1' in result.live_nodes, \"live_nodes should contain node1\"\n    logger.info.assert_called()\n\n\n@patch('__main__.LifecycleManager')\ndef test_deploy_no_mock_mode(lifecycle_mgr_cls, local_provider, circuit_spec, deployment_target_no_mock):\n    \"\"\"Deploy circuit without mock mode (mock=false).\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    # Execute\n    result = local_provider.deploy(circuit_spec, deployment_target_no_mock)\n    \n    # Assertions\n    assert local_provider._mgr is not None, \"self._mgr should be set\"\n    assert local_provider._mock_server is None, \"self._mock_server should be None\"\n    assert isinstance(result, CircuitState), \"Should return CircuitState\"\n    logger.info.assert_called()\n\n\n@patch('__main__.LifecycleManager')\ndef test_deploy_lifecycle_manager_error(lifecycle_mgr_cls, local_provider, \n                                        circuit_spec, deployment_target_mock_mode):\n    \"\"\"Deploy fails when LifecycleManager.up() raises error.\"\"\"\n    # Setup mock to raise exception\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.up.side_effect = Exception(\"Manager failed\")\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    # Execute and assert\n    with pytest.raises(LifecycleManagerError):\n        local_provider.deploy(circuit_spec, deployment_target_mock_mode)\n\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_deploy_mock_server_error(mock_server_cls, lifecycle_mgr_cls,\n                                  local_provider, circuit_spec, deployment_target_mock_mode):\n    \"\"\"Deploy fails when Mock server start fails in mock mode.\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    mock_srv = Mock(spec=MockServer)\n    mock_srv.start.side_effect = Exception(\"Server failed\")\n    mock_server_cls.return_value = mock_srv\n    \n    # Execute and assert\n    with pytest.raises(MockServerError):\n        local_provider.deploy(circuit_spec, deployment_target_mock_mode)\n\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_deploy_default_config_values(mock_server_cls, lifecycle_mgr_cls,\n                                      local_provider, circuit_spec):\n    \"\"\"Deploy uses default config values when not specified.\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    mock_srv = Mock(spec=MockServer)\n    mock_server_cls.return_value = mock_srv\n    \n    # Create target with empty config\n    target = DeploymentTarget(config={})\n    \n    # Execute\n    result = local_provider.deploy(circuit_spec, target)\n    \n    # Assertions - verify defaults are used\n    assert result is not None, \"Deployment should succeed with defaults\"\n    # Default mock='true' means mock server should be created\n    assert local_provider._mock_server is not None, \"Mock server should be created by default\"\n\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_deploy_config_get_method(mock_server_cls, lifecycle_mgr_cls,\n                                  local_provider, circuit_spec):\n    \"\"\"Deploy uses target.config.get() method as per precondition.\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    mock_srv = Mock(spec=MockServer)\n    mock_server_cls.return_value = mock_srv\n    \n    # Create target with mock config that tracks get() calls\n    mock_config = Mock()\n    mock_config.get = Mock(side_effect=lambda k, d: {'mock': 'true', 'project_dir': '.'}.get(k, d))\n    target = DeploymentTarget(config=mock_config)\n    \n    # Execute\n    result = local_provider.deploy(circuit_spec, target)\n    \n    # Assertions\n    assert mock_config.get.called, \"config.get() should be called\"\n    assert result is not None, \"Deployment should succeed\"\n\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_deploy_with_empty_circuit(mock_server_cls, lifecycle_mgr_cls,\n                                   local_provider, empty_circuit_spec, deployment_target_mock_mode):\n    \"\"\"Deploy with empty CircuitSpec (no nodes).\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    mock_srv = Mock(spec=MockServer)\n    mock_server_cls.return_value = mock_srv\n    \n    # Execute\n    result = local_provider.deploy(empty_circuit_spec, deployment_target_mock_mode)\n    \n    # Assertions\n    assert result is not None, \"Deployment should succeed with empty circuit\"\n    assert isinstance(result, CircuitState), \"Should return CircuitState\"\n\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_deploy_on_already_deployed(mock_server_cls, lifecycle_mgr_cls,\n                                    local_provider, circuit_spec, deployment_target_mock_mode):\n    \"\"\"Deploy on already deployed provider replaces old deployment.\"\"\"\n    # Setup mocks\n    mock_mgr1 = Mock(spec=LifecycleManager)\n    mock_mgr1.state = CircuitState()\n    mock_mgr2 = Mock(spec=LifecycleManager)\n    mock_mgr2.state = CircuitState()\n    lifecycle_mgr_cls.side_effect = [mock_mgr1, mock_mgr2]\n    \n    mock_srv1 = Mock(spec=MockServer)\n    mock_srv2 = Mock(spec=MockServer)\n    mock_server_cls.side_effect = [mock_srv1, mock_srv2]\n    \n    # First deploy\n    result1 = local_provider.deploy(circuit_spec, deployment_target_mock_mode)\n    first_mgr = local_provider._mgr\n    first_srv = local_provider._mock_server\n    \n    assert first_mgr is not None, \"First deploy should set _mgr\"\n    assert first_srv is not None, \"First deploy should set _mock_server\"\n    \n    # Second deploy\n    result2 = local_provider.deploy(circuit_spec, deployment_target_mock_mode)\n    \n    # Assertions\n    assert local_provider._mgr is not None, \"Second deploy should set _mgr\"\n    assert local_provider._mock_server is not None, \"Second deploy should set _mock_server\"\n    assert local_provider._mgr != first_mgr, \"_mgr should be replaced\"\n    assert isinstance(result2, CircuitState), \"Should return new CircuitState\"\n\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_deploy_live_nodes_list_populated(mock_server_cls, lifecycle_mgr_cls,\n                                          local_provider, circuit_spec, deployment_target_partial_live):\n    \"\"\"Deploy populates state.live_nodes when mock=true and live specified.\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    mock_srv = Mock(spec=MockServer)\n    mock_server_cls.return_value = mock_srv\n    \n    # Execute\n    result = local_provider.deploy(circuit_spec, deployment_target_partial_live)\n    \n    # Assertions\n    assert isinstance(result.live_nodes, list), \"live_nodes should be a list\"\n    assert 'node1' in result.live_nodes, \"live_nodes should contain node1\"\n\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_deploy_logging_called(mock_server_cls, lifecycle_mgr_cls,\n                                local_provider, circuit_spec, deployment_target_mock_mode):\n    \"\"\"Deploy logs completion message.\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    mock_srv = Mock(spec=MockServer)\n    mock_server_cls.return_value = mock_srv\n    \n    # Execute\n    result = local_provider.deploy(circuit_spec, deployment_target_mock_mode)\n    \n    # Assertions\n    logger.info.assert_called()\n    call_args = logger.info.call_args[0][0]\n    assert 'completed' in call_args.lower() or 'deployment' in call_args.lower(), \\\n        \"Log message should indicate deployment completion\"\n\n\n@patch('__main__.LifecycleManager')\ndef test_invariant_mgr_valid_when_not_none(lifecycle_mgr_cls, local_provider,\n                                           circuit_spec, deployment_target_no_mock):\n    \"\"\"Invariant: When _mgr is not None, it contains valid LifecycleManager.\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    # Execute\n    local_provider.deploy(circuit_spec, deployment_target_no_mock)\n    \n    # Assertions\n    assert local_provider._mgr is not None, \"_mgr should not be None\"\n    assert isinstance(local_provider._mgr, (LifecycleManager, Mock)), \\\n        \"_mgr should be LifecycleManager instance\"\n\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_invariant_mock_server_implies_mock_mode(mock_server_cls, lifecycle_mgr_cls,\n                                                  local_provider, circuit_spec, deployment_target_mock_mode):\n    \"\"\"Invariant: When _mock_server is not None, mock mode is active.\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    mock_srv = Mock(spec=MockServer)\n    mock_server_cls.return_value = mock_srv\n    \n    # Execute with mock=true\n    local_provider.deploy(circuit_spec, deployment_target_mock_mode)\n    \n    # Assertions\n    assert local_provider._mock_server is not None, \\\n        \"_mock_server should be set when mock mode is active\"\n\n\n# ============================================================================\n# TESTS FOR teardown()\n# ============================================================================\n\ndef test_teardown_with_mock_server_success(local_provider, circuit_spec, deployment_target):\n    \"\"\"Teardown successfully stops mock server and lifecycle manager.\"\"\"\n    # Setup\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_srv = Mock(spec=MockServer)\n    local_provider._mgr = mock_mgr\n    local_provider._mock_server = mock_srv\n    \n    # Execute\n    local_provider.teardown(circuit_spec, deployment_target)\n    \n    # Assertions\n    mock_srv.stop.assert_called_once()\n    mock_mgr.down.assert_called_once()\n    assert local_provider._mgr is None, \"self._mgr should be None\"\n    assert local_provider._mock_server is None, \"self._mock_server should be None\"\n    logger.info.assert_called()\n\n\ndef test_teardown_without_mock_server(local_provider, circuit_spec, deployment_target):\n    \"\"\"Teardown successfully stops only lifecycle manager when no mock server.\"\"\"\n    # Setup\n    mock_mgr = Mock(spec=LifecycleManager)\n    local_provider._mgr = mock_mgr\n    local_provider._mock_server = None\n    \n    # Execute\n    local_provider.teardown(circuit_spec, deployment_target)\n    \n    # Assertions\n    mock_mgr.down.assert_called_once()\n    assert local_provider._mgr is None, \"self._mgr should be None\"\n    assert local_provider._mock_server is None, \"self._mock_server should be None\"\n    logger.info.assert_called()\n\n\ndef test_teardown_undeployed_provider(local_provider, circuit_spec, deployment_target):\n    \"\"\"Teardown on undeployed provider (both None) succeeds gracefully.\"\"\"\n    # Setup - both already None\n    assert local_provider._mgr is None\n    assert local_provider._mock_server is None\n    \n    # Execute - should not raise\n    local_provider.teardown(circuit_spec, deployment_target)\n    \n    # Assertions\n    assert local_provider._mgr is None, \"self._mgr should remain None\"\n    assert local_provider._mock_server is None, \"self._mock_server should remain None\"\n\n\ndef test_teardown_mock_server_stop_error(local_provider, circuit_spec, deployment_target):\n    \"\"\"Teardown fails when mock server stop raises error.\"\"\"\n    # Setup\n    mock_srv = Mock(spec=MockServer)\n    mock_srv.stop.side_effect = Exception(\"Stop failed\")\n    local_provider._mock_server = mock_srv\n    \n    # Execute and assert\n    with pytest.raises(MockServerStopError):\n        local_provider.teardown(circuit_spec, deployment_target)\n\n\ndef test_teardown_lifecycle_manager_error(local_provider, circuit_spec, deployment_target):\n    \"\"\"Teardown fails when LifecycleManager.down() raises error.\"\"\"\n    # Setup\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.down.side_effect = Exception(\"Down failed\")\n    local_provider._mgr = mock_mgr\n    local_provider._mock_server = None\n    \n    # Execute and assert\n    with pytest.raises(LifecycleManagerError):\n        local_provider.teardown(circuit_spec, deployment_target)\n\n\ndef test_teardown_cleans_up_partial_deployment(local_provider, circuit_spec, deployment_target):\n    \"\"\"Teardown handles case where only _mgr is set (partial deployment).\"\"\"\n    # Setup\n    mock_mgr = Mock(spec=LifecycleManager)\n    local_provider._mgr = mock_mgr\n    local_provider._mock_server = None\n    \n    # Execute\n    local_provider.teardown(circuit_spec, deployment_target)\n    \n    # Assertions\n    mock_mgr.down.assert_called_once()\n    assert local_provider._mgr is None, \"_mgr should be cleaned up\"\n    assert local_provider._mock_server is None, \"_mock_server should remain None\"\n\n\ndef test_teardown_logging_called(local_provider, circuit_spec, deployment_target):\n    \"\"\"Teardown logs completion message.\"\"\"\n    # Setup\n    mock_mgr = Mock(spec=LifecycleManager)\n    local_provider._mgr = mock_mgr\n    \n    # Execute\n    local_provider.teardown(circuit_spec, deployment_target)\n    \n    # Assertions\n    logger.info.assert_called()\n    call_args = logger.info.call_args[0][0]\n    assert 'teardown' in call_args.lower() or 'completed' in call_args.lower(), \\\n        \"Log message should indicate teardown completion\"\n\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_invariant_both_none_after_teardown(mock_server_cls, lifecycle_mgr_cls,\n                                            local_provider, circuit_spec, deployment_target_mock_mode):\n    \"\"\"Invariant: Both _mgr and _mock_server are None after teardown.\"\"\"\n    # Setup and deploy\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    mock_srv = Mock(spec=MockServer)\n    mock_server_cls.return_value = mock_srv\n    \n    local_provider.deploy(circuit_spec, deployment_target_mock_mode)\n    \n    # Teardown\n    local_provider.teardown(circuit_spec, deployment_target_mock_mode)\n    \n    # Assertions\n    assert local_provider._mgr is None, \"After teardown, _mgr must be None\"\n    assert local_provider._mock_server is None, \"After teardown, _mock_server must be None\"\n\n\n# ============================================================================\n# TESTS FOR status()\n# ============================================================================\n\ndef test_status_with_active_manager(local_provider, circuit_spec, deployment_target):\n    \"\"\"Status returns manager state when _mgr exists and has state.\"\"\"\n    # Setup\n    expected_state = CircuitState(circuit_name=\"test\", collapse_level=CollapseLevel.FULL_LIVE)\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = expected_state\n    local_provider._mgr = mock_mgr\n    \n    # Execute\n    result = local_provider.status(circuit_spec, deployment_target)\n    \n    # Assertions\n    assert result is expected_state, \"Should return _mgr.state\"\n    assert result.circuit_name == \"test\", \"State should match expected\"\n\n\ndef test_status_without_manager(local_provider, circuit_spec, deployment_target):\n    \"\"\"Status returns default state with FULL_MOCK when _mgr is None.\"\"\"\n    # Setup - _mgr already None\n    assert local_provider._mgr is None\n    \n    # Execute\n    result = local_provider.status(circuit_spec, deployment_target)\n    \n    # Assertions\n    assert isinstance(result, CircuitState), \"Should return CircuitState\"\n    assert result.collapse_level == CollapseLevel.FULL_MOCK, \"collapse_level should be FULL_MOCK\"\n    assert result.circuit_name == circuit_spec.name, \"circuit_name should match circuit.name\"\n\n\ndef test_status_idempotency(local_provider, circuit_spec, deployment_target):\n    \"\"\"Multiple status calls return consistent results without side effects.\"\"\"\n    # Setup\n    expected_state = CircuitState(circuit_name=\"test\", collapse_level=CollapseLevel.PARTIAL)\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = expected_state\n    local_provider._mgr = mock_mgr\n    \n    # Execute multiple times\n    result1 = local_provider.status(circuit_spec, deployment_target)\n    result2 = local_provider.status(circuit_spec, deployment_target)\n    \n    # Assertions\n    assert result1 is result2, \"Same state should be returned\"\n    assert result1.circuit_name == result2.circuit_name, \"Results should be identical\"\n\n\ndef test_status_returns_circuit_state_type(local_provider, circuit_spec, deployment_target):\n    \"\"\"Status always returns CircuitState object.\"\"\"\n    # Test with manager\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    local_provider._mgr = mock_mgr\n    \n    result1 = local_provider.status(circuit_spec, deployment_target)\n    assert isinstance(result1, CircuitState), \"Should return CircuitState with manager\"\n    \n    # Test without manager\n    local_provider._mgr = None\n    result2 = local_provider.status(circuit_spec, deployment_target)\n    assert isinstance(result2, CircuitState), \"Should return CircuitState without manager\"\n\n\n# ============================================================================\n# TESTS FOR STATE TRANSITIONS\n# ============================================================================\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_deploy_then_status_consistency(mock_server_cls, lifecycle_mgr_cls,\n                                       local_provider, circuit_spec, deployment_target_mock_mode):\n    \"\"\"Status after deploy returns deployed state.\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    mock_srv = Mock(spec=MockServer)\n    mock_server_cls.return_value = mock_srv\n    \n    # Deploy\n    deploy_result = local_provider.deploy(circuit_spec, deployment_target_mock_mode)\n    \n    # Get status\n    status_result = local_provider.status(circuit_spec, deployment_target_mock_mode)\n    \n    # Assertions\n    assert isinstance(deploy_result, CircuitState), \"Deploy should return CircuitState\"\n    assert isinstance(status_result, CircuitState), \"Status should return CircuitState\"\n    assert status_result.circuit_name == deploy_result.circuit_name, \\\n        \"Status should be consistent with deployment\"\n\n\n@patch('__main__.LifecycleManager')\n@patch('__main__.MockServer')\ndef test_deploy_teardown_status_transition(mock_server_cls, lifecycle_mgr_cls,\n                                           local_provider, circuit_spec, deployment_target_mock_mode):\n    \"\"\"Status after deploy and teardown shows undeployed state.\"\"\"\n    # Setup mocks\n    mock_mgr = Mock(spec=LifecycleManager)\n    mock_mgr.state = CircuitState()\n    lifecycle_mgr_cls.return_value = mock_mgr\n    \n    mock_srv = Mock(spec=MockServer)\n    mock_server_cls.return_value = mock_srv\n    \n    # Deploy\n    local_provider.deploy(circuit_spec, deployment_target_mock_mode)\n    \n    # Teardown\n    local_provider.teardown(circuit_spec, deployment_target_mock_mode)\n    \n    # Assertions\n    assert local_provider._mgr is None, \"After teardown, _mgr should be None\"\n    \n    # Get status\n    status_result = local_provider.status(circuit_spec, deployment_target_mock_mode)\n    \n    # Assertions\n    assert status_result.collapse_level == CollapseLevel.FULL_MOCK, \\\n        \"Status should return default FULL_MOCK state after teardown\"\n"
+}

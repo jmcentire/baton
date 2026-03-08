@@ -1,0 +1,504 @@
+{
+  "component_id": "src_baton_collapse",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "test_build_mock_server_happy_path_basic",
+      "description": "Build mock server with basic circuit containing non-live nodes",
+      "function": "build_mock_server",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with 3 nodes, 1 egress node, live_nodes contains only one node",
+      "expected_output_description": "Returns MockServer instance with mocked nodes configured with service ports",
+      "expected_error": "",
+      "assertions": [
+        "MockServer instance is returned",
+        "add_route is called for each mocked node",
+        "Service port calculation is correct (port + 20000 or port + 5000)"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_happy_path_empty_live_nodes",
+      "description": "Build mock server when all nodes need to be mocked (empty live_nodes)",
+      "function": "build_mock_server",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with multiple nodes, empty live_nodes set",
+      "expected_output_description": "All nodes are mocked including egress nodes",
+      "expected_error": "",
+      "assertions": [
+        "MockServer is returned",
+        "All nodes are mocked",
+        "Egress nodes are mocked"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_happy_path_with_contracts",
+      "description": "Build mock server with nodes having valid contract files",
+      "function": "build_mock_server",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with nodes having valid contract attribute pointing to existing files",
+      "expected_output_description": "Routes are loaded from contract specs for nodes with valid contracts",
+      "expected_error": "",
+      "assertions": [
+        "MockServer is returned",
+        "load_routes is called for nodes with contracts",
+        "Default routes are added for nodes without contracts"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_edge_case_port_exceeds_limit",
+      "description": "Build mock server when node.port + 20000 exceeds 65535",
+      "function": "build_mock_server",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with node having port 50000 (50000 + 20000 > 65535)",
+      "expected_output_description": "Service port is calculated as port + 5000 instead",
+      "expected_error": "",
+      "assertions": [
+        "Service port is node.port + 5000 when node.port + 20000 > 65535",
+        "MockServer is configured with correct service port"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_edge_case_egress_always_mocked",
+      "description": "Egress nodes are always mocked even if in live_nodes set",
+      "function": "build_mock_server",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with egress node included in live_nodes set",
+      "expected_output_description": "Egress node is still mocked regardless of live_nodes",
+      "expected_error": "",
+      "assertions": [
+        "Egress nodes are mocked even when in live_nodes",
+        "MockServer includes egress nodes"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_edge_case_all_live_except_egress",
+      "description": "All nodes are live except egress nodes must still be mocked",
+      "function": "build_mock_server",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit where all non-egress nodes are in live_nodes",
+      "expected_output_description": "Only egress nodes are mocked",
+      "expected_error": "",
+      "assertions": [
+        "Only egress nodes are mocked",
+        "Non-egress live nodes are not mocked"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_edge_case_path_object",
+      "description": "Build mock server with project_dir as Path object",
+      "function": "build_mock_server",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "project_dir provided as pathlib.Path instead of string",
+      "expected_output_description": "Function handles Path object correctly",
+      "expected_error": "",
+      "assertions": [
+        "Path object is accepted",
+        "MockServer is returned successfully"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_error_missing_nodes_attribute",
+      "description": "Error when circuit lacks nodes attribute",
+      "function": "build_mock_server",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit object without nodes attribute",
+      "expected_output_description": "Raises AttributeError",
+      "expected_error": "attribute_error",
+      "assertions": [
+        "AttributeError is raised",
+        "Error message indicates missing nodes attribute"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_error_missing_egress_nodes",
+      "description": "Error when circuit lacks egress_nodes attribute",
+      "function": "build_mock_server",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit object without egress_nodes attribute",
+      "expected_output_description": "Raises AttributeError",
+      "expected_error": "attribute_error",
+      "assertions": [
+        "AttributeError is raised",
+        "Error indicates missing egress_nodes"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_error_node_missing_name",
+      "description": "Error when node lacks name attribute",
+      "function": "build_mock_server",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with node missing name attribute",
+      "expected_output_description": "Raises AttributeError",
+      "expected_error": "attribute_error",
+      "assertions": [
+        "AttributeError is raised",
+        "Error indicates missing name attribute"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_error_node_missing_port",
+      "description": "Error when node lacks port attribute",
+      "function": "build_mock_server",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with node missing port attribute",
+      "expected_output_description": "Raises AttributeError",
+      "expected_error": "attribute_error",
+      "assertions": [
+        "AttributeError is raised",
+        "Error indicates missing port attribute"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_error_node_missing_contract",
+      "description": "Error when node lacks contract attribute",
+      "function": "build_mock_server",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with node missing contract attribute",
+      "expected_output_description": "Raises AttributeError",
+      "expected_error": "attribute_error",
+      "assertions": [
+        "AttributeError is raised",
+        "Error indicates missing contract attribute"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_error_contract_file_not_found",
+      "description": "Error when contract file path does not exist",
+      "function": "build_mock_server",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Node with contract pointing to non-existent file",
+      "expected_output_description": "Raises FileNotFoundError when load_routes is called",
+      "expected_error": "file_not_found",
+      "assertions": [
+        "FileNotFoundError is raised",
+        "Error indicates contract file not found"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_error_live_nodes_not_set",
+      "description": "Error when live_nodes is not a set",
+      "function": "build_mock_server",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "live_nodes provided as list instead of set",
+      "expected_output_description": "Raises TypeError",
+      "expected_error": "type_error",
+      "assertions": [
+        "TypeError is raised",
+        "Error indicates live_nodes must be a set"
+      ]
+    },
+    {
+      "id": "test_build_mock_server_error_egress_nodes_not_iterable",
+      "description": "Error when circuit.egress_nodes is not iterable",
+      "function": "build_mock_server",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with egress_nodes as non-iterable type",
+      "expected_output_description": "Raises TypeError",
+      "expected_error": "type_error",
+      "assertions": [
+        "TypeError is raised",
+        "Error indicates egress_nodes not iterable"
+      ]
+    },
+    {
+      "id": "test_compute_mock_backends_happy_path_basic",
+      "description": "Compute backend targets for non-live nodes",
+      "function": "compute_mock_backends",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with multiple nodes, some live and some non-live",
+      "expected_output_description": "Returns dict mapping non-live node names to BackendTarget instances",
+      "expected_error": "",
+      "assertions": [
+        "Dictionary is returned",
+        "Only non-live nodes are in result",
+        "BackendTarget has host='127.0.0.1'",
+        "BackendTarget port matches service_port calculation"
+      ]
+    },
+    {
+      "id": "test_compute_mock_backends_happy_path_empty_live_nodes",
+      "description": "Compute backends when all nodes are non-live",
+      "function": "compute_mock_backends",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with nodes, empty live_nodes set",
+      "expected_output_description": "All nodes are mapped to BackendTargets",
+      "expected_error": "",
+      "assertions": [
+        "All nodes are in result dictionary",
+        "Each has BackendTarget with correct port"
+      ]
+    },
+    {
+      "id": "test_compute_mock_backends_happy_path_all_live_except_egress",
+      "description": "Compute backends when all non-egress nodes are live",
+      "function": "compute_mock_backends",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit where all non-egress nodes are in live_nodes",
+      "expected_output_description": "Only egress nodes are in result",
+      "expected_error": "",
+      "assertions": [
+        "Only egress nodes in result",
+        "Live non-egress nodes excluded"
+      ]
+    },
+    {
+      "id": "test_compute_mock_backends_edge_case_port_exceeds_limit",
+      "description": "Compute backends when node.port + 20000 exceeds 65535",
+      "function": "compute_mock_backends",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with node having port 50000",
+      "expected_output_description": "BackendTarget port is node.port + 5000",
+      "expected_error": "",
+      "assertions": [
+        "Service port is node.port + 5000 when node.port + 20000 > 65535",
+        "BackendTarget has correct port"
+      ]
+    },
+    {
+      "id": "test_compute_mock_backends_edge_case_egress_always_included",
+      "description": "Egress nodes always included even if in live_nodes",
+      "function": "compute_mock_backends",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with egress node in live_nodes set",
+      "expected_output_description": "Egress node is still in result",
+      "expected_error": "",
+      "assertions": [
+        "Egress nodes included regardless of live_nodes",
+        "BackendTarget created for egress node"
+      ]
+    },
+    {
+      "id": "test_compute_mock_backends_edge_case_empty_result",
+      "description": "Empty result when all non-egress nodes are live and no egress nodes",
+      "function": "compute_mock_backends",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with no egress nodes and all nodes in live_nodes",
+      "expected_output_description": "Empty dictionary returned",
+      "expected_error": "",
+      "assertions": [
+        "Result is empty dict",
+        "No BackendTargets created"
+      ]
+    },
+    {
+      "id": "test_compute_mock_backends_error_missing_nodes_attribute",
+      "description": "Error when circuit lacks nodes attribute",
+      "function": "compute_mock_backends",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit object without nodes attribute",
+      "expected_output_description": "Raises AttributeError",
+      "expected_error": "attribute_error",
+      "assertions": [
+        "AttributeError is raised",
+        "Error indicates missing nodes"
+      ]
+    },
+    {
+      "id": "test_compute_mock_backends_error_missing_egress_nodes",
+      "description": "Error when circuit lacks egress_nodes attribute",
+      "function": "compute_mock_backends",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit object without egress_nodes attribute",
+      "expected_output_description": "Raises AttributeError",
+      "expected_error": "attribute_error",
+      "assertions": [
+        "AttributeError is raised",
+        "Error indicates missing egress_nodes"
+      ]
+    },
+    {
+      "id": "test_compute_mock_backends_error_node_missing_name",
+      "description": "Error when node lacks name attribute",
+      "function": "compute_mock_backends",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with node missing name attribute",
+      "expected_output_description": "Raises AttributeError",
+      "expected_error": "attribute_error",
+      "assertions": [
+        "AttributeError is raised"
+      ]
+    },
+    {
+      "id": "test_compute_mock_backends_error_node_missing_port",
+      "description": "Error when node lacks port attribute",
+      "function": "compute_mock_backends",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with node missing port attribute",
+      "expected_output_description": "Raises AttributeError",
+      "expected_error": "attribute_error",
+      "assertions": [
+        "AttributeError is raised"
+      ]
+    },
+    {
+      "id": "test_compute_mock_backends_error_live_nodes_not_set",
+      "description": "Error when live_nodes is not a set",
+      "function": "compute_mock_backends",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "live_nodes provided as list",
+      "expected_output_description": "Raises TypeError",
+      "expected_error": "type_error",
+      "assertions": [
+        "TypeError is raised"
+      ]
+    },
+    {
+      "id": "test_compute_mock_backends_error_egress_nodes_not_iterable",
+      "description": "Error when circuit.egress_nodes is not iterable",
+      "function": "compute_mock_backends",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with non-iterable egress_nodes",
+      "expected_output_description": "Raises TypeError",
+      "expected_error": "type_error",
+      "assertions": [
+        "TypeError is raised"
+      ]
+    },
+    {
+      "id": "test_invariant_service_port_calculation_consistency",
+      "description": "Service port calculation is consistent between both functions",
+      "function": "build_mock_server",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Same circuit and live_nodes for both functions",
+      "expected_output_description": "Service ports match between build_mock_server and compute_mock_backends",
+      "expected_error": "",
+      "assertions": [
+        "Service port calculation is identical in both functions",
+        "Port values match for same nodes"
+      ]
+    },
+    {
+      "id": "test_invariant_egress_always_mocked",
+      "description": "Egress nodes are always treated as non-live in both functions",
+      "function": "build_mock_server",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with egress nodes in live_nodes set",
+      "expected_output_description": "Both functions treat egress nodes as non-live",
+      "expected_error": "",
+      "assertions": [
+        "Egress nodes are mocked in build_mock_server",
+        "Egress nodes are included in compute_mock_backends result"
+      ]
+    },
+    {
+      "id": "test_invariant_effective_live_nodes_logic",
+      "description": "Both functions use identical logic for determining effective live nodes",
+      "function": "build_mock_server",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Various combinations of live_nodes and egress_nodes",
+      "expected_output_description": "Mocked nodes match backend targets across functions",
+      "expected_error": "",
+      "assertions": [
+        "Nodes mocked in build_mock_server match keys in compute_mock_backends",
+        "Logic for excluding egress nodes from live is consistent"
+      ]
+    },
+    {
+      "id": "test_invariant_localhost_host",
+      "description": "Mock server host is always 127.0.0.1",
+      "function": "compute_mock_backends",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Any valid circuit configuration",
+      "expected_output_description": "All BackendTargets have host='127.0.0.1'",
+      "expected_error": "",
+      "assertions": [
+        "Every BackendTarget host is '127.0.0.1'"
+      ]
+    }
+  ],
+  "test_language": "python",
+  "generated_code": "\"\"\"\nContract tests for src_baton_collapse module.\n\nThis test suite verifies the build_mock_server and compute_mock_backends functions\nagainst their contract specifications using pytest and unittest.mock.\n\"\"\"\n\nimport pytest\nfrom unittest.mock import Mock, MagicMock, patch, call\nfrom pathlib import Path\nfrom typing import Any\n\n# Import the module under test\nfrom src.baton.collapse import build_mock_server, compute_mock_backends\n\n\n# Helper functions to create mock objects\ndef create_mock_node(name: str, port: int, contract: Any = None, role: Any = None):\n    \"\"\"Create a mock node with required attributes.\"\"\"\n    node = Mock()\n    node.name = name\n    node.port = port\n    node.contract = contract\n    if role is not None:\n        node.role = role\n    return node\n\n\ndef create_mock_circuit(nodes: list, egress_nodes: list):\n    \"\"\"Create a mock CircuitSpec with nodes and egress_nodes.\"\"\"\n    circuit = Mock()\n    circuit.nodes = nodes\n    circuit.egress_nodes = egress_nodes\n    return circuit\n\n\ndef create_mock_backend_target(host: str, port: int):\n    \"\"\"Create a mock BackendTarget.\"\"\"\n    backend = Mock()\n    backend.host = host\n    backend.port = port\n    return backend\n\n\n# Happy Path Tests for build_mock_server\n\ndef test_build_mock_server_happy_path_basic():\n    \"\"\"Build mock server with basic circuit containing non-live nodes.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000, contract=None)\n    node2 = create_mock_node(\"node2\", 8001, contract=None)\n    node3 = create_mock_node(\"node3\", 8002, contract=None)\n    egress = create_mock_node(\"egress1\", 8003, contract=None)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, node2, node3, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = {\"node1\"}\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer') as MockServerClass, \\\n         patch('src.src_baton_collapse.logger'):\n        \n        mock_server_instance = MagicMock()\n        MockServerClass.return_value = mock_server_instance\n        \n        # Execute\n        result = build_mock_server(circuit, live_nodes, project_dir)\n        \n        # Assert\n        assert result is mock_server_instance, \"MockServer instance should be returned\"\n        assert mock_server_instance.add_route.call_count >= 2, \"Routes should be added for mocked nodes\"\n        MockServerClass.assert_called_once()\n\n\ndef test_build_mock_server_happy_path_empty_live_nodes():\n    \"\"\"Build mock server when all nodes need to be mocked (empty live_nodes).\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000, contract=None)\n    node2 = create_mock_node(\"node2\", 8001, contract=None)\n    egress = create_mock_node(\"egress1\", 8002, contract=None)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, node2, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = set()\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer') as MockServerClass, \\\n         patch('src.src_baton_collapse.logger'):\n        \n        mock_server_instance = MagicMock()\n        MockServerClass.return_value = mock_server_instance\n        \n        # Execute\n        result = build_mock_server(circuit, live_nodes, project_dir)\n        \n        # Assert\n        assert result is mock_server_instance, \"MockServer should be returned\"\n        assert mock_server_instance.add_route.call_count >= 3, \"All nodes should be mocked\"\n\n\ndef test_build_mock_server_happy_path_with_contracts():\n    \"\"\"Build mock server with nodes having valid contract files.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000, contract=\"/path/to/contract1.yaml\")\n    node2 = create_mock_node(\"node2\", 8001, contract=None)\n    egress = create_mock_node(\"egress1\", 8002, contract=\"/path/to/contract2.yaml\")\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, node2, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = set()\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer') as MockServerClass, \\\n         patch('src.src_baton_collapse.logger'), \\\n         patch('src.src_baton_collapse.load_routes') as mock_load_routes, \\\n         patch('pathlib.Path.exists', return_value=True):\n        \n        mock_server_instance = MagicMock()\n        MockServerClass.return_value = mock_server_instance\n        \n        # Execute\n        result = build_mock_server(circuit, live_nodes, project_dir)\n        \n        # Assert\n        assert result is mock_server_instance, \"MockServer should be returned\"\n        # Routes should be loaded for nodes with contracts\n        assert mock_load_routes.call_count >= 1 or mock_server_instance.add_route.call_count >= 1\n\n\n# Edge Case Tests for build_mock_server\n\ndef test_build_mock_server_edge_case_port_exceeds_limit():\n    \"\"\"Build mock server when node.port + 20000 exceeds 65535.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 50000, contract=None)  # 50000 + 20000 > 65535\n    egress = create_mock_node(\"egress1\", 60000, contract=None)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = set()\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer') as MockServerClass, \\\n         patch('src.src_baton_collapse.logger'):\n        \n        mock_server_instance = MagicMock()\n        MockServerClass.return_value = mock_server_instance\n        \n        # Execute\n        result = build_mock_server(circuit, live_nodes, project_dir)\n        \n        # Assert\n        assert result is mock_server_instance, \"MockServer should be returned\"\n        # Service port should be calculated as port + 5000 for ports that would exceed 65535\n        # Verify through add_route calls\n        call_args_list = mock_server_instance.add_route.call_args_list\n        assert len(call_args_list) >= 2, \"Routes should be added for both nodes\"\n\n\ndef test_build_mock_server_edge_case_egress_always_mocked():\n    \"\"\"Egress nodes are always mocked even if in live_nodes set.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000, contract=None)\n    egress = create_mock_node(\"egress1\", 8001, contract=None)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = {\"node1\", \"egress1\"}  # Egress node in live_nodes\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer') as MockServerClass, \\\n         patch('src.src_baton_collapse.logger'):\n        \n        mock_server_instance = MagicMock()\n        MockServerClass.return_value = mock_server_instance\n        \n        # Execute\n        result = build_mock_server(circuit, live_nodes, project_dir)\n        \n        # Assert\n        assert result is mock_server_instance, \"MockServer should be returned\"\n        # Egress should be mocked even though it's in live_nodes\n        assert mock_server_instance.add_route.call_count >= 1, \"Egress node should be mocked\"\n\n\ndef test_build_mock_server_edge_case_all_live_except_egress():\n    \"\"\"All nodes are live except egress nodes must still be mocked.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000, contract=None)\n    node2 = create_mock_node(\"node2\", 8001, contract=None)\n    egress = create_mock_node(\"egress1\", 8002, contract=None)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, node2, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = {\"node1\", \"node2\"}  # All non-egress nodes are live\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer') as MockServerClass, \\\n         patch('src.src_baton_collapse.logger'):\n        \n        mock_server_instance = MagicMock()\n        MockServerClass.return_value = mock_server_instance\n        \n        # Execute\n        result = build_mock_server(circuit, live_nodes, project_dir)\n        \n        # Assert\n        assert result is mock_server_instance, \"MockServer should be returned\"\n        # Only egress should be mocked\n        assert mock_server_instance.add_route.call_count >= 1, \"Egress node should be mocked\"\n\n\ndef test_build_mock_server_edge_case_path_object():\n    \"\"\"Build mock server with project_dir as Path object.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000, contract=None)\n    egress = create_mock_node(\"egress1\", 8001, contract=None)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = set()\n    project_dir = Path(\"/test/project\")  # Path object instead of string\n    \n    with patch('src.src_baton_collapse.MockServer') as MockServerClass, \\\n         patch('src.src_baton_collapse.logger'):\n        \n        mock_server_instance = MagicMock()\n        MockServerClass.return_value = mock_server_instance\n        \n        # Execute\n        result = build_mock_server(circuit, live_nodes, project_dir)\n        \n        # Assert\n        assert result is mock_server_instance, \"Path object should be accepted\"\n\n\n# Error Case Tests for build_mock_server\n\ndef test_build_mock_server_error_missing_nodes_attribute():\n    \"\"\"Error when circuit lacks nodes attribute.\"\"\"\n    # Setup\n    circuit = Mock(spec=[])  # No nodes attribute\n    circuit.egress_nodes = []\n    live_nodes = set()\n    project_dir = \"/test/project\"\n    \n    # Execute & Assert\n    with pytest.raises(AttributeError):\n        build_mock_server(circuit, live_nodes, project_dir)\n\n\ndef test_build_mock_server_error_missing_egress_nodes():\n    \"\"\"Error when circuit lacks egress_nodes attribute.\"\"\"\n    # Setup\n    circuit = Mock(spec=[])\n    circuit.nodes = []\n    # No egress_nodes attribute\n    live_nodes = set()\n    project_dir = \"/test/project\"\n    \n    # Execute & Assert\n    with pytest.raises(AttributeError):\n        build_mock_server(circuit, live_nodes, project_dir)\n\n\ndef test_build_mock_server_error_node_missing_name():\n    \"\"\"Error when node lacks name attribute.\"\"\"\n    # Setup\n    node = Mock(spec=['port', 'contract'])\n    node.port = 8000\n    node.contract = None\n    # No name attribute\n    \n    circuit = create_mock_circuit(\n        nodes=[node],\n        egress_nodes=[]\n    )\n    live_nodes = set()\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer'), \\\n         patch('src.src_baton_collapse.logger'):\n        \n        # Execute & Assert\n        with pytest.raises(AttributeError):\n            build_mock_server(circuit, live_nodes, project_dir)\n\n\ndef test_build_mock_server_error_node_missing_port():\n    \"\"\"Error when node lacks port attribute.\"\"\"\n    # Setup\n    node = Mock(spec=['name', 'contract'])\n    node.name = \"node1\"\n    node.contract = None\n    # No port attribute\n    \n    circuit = create_mock_circuit(\n        nodes=[node],\n        egress_nodes=[]\n    )\n    live_nodes = set()\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer'), \\\n         patch('src.src_baton_collapse.logger'):\n        \n        # Execute & Assert\n        with pytest.raises(AttributeError):\n            build_mock_server(circuit, live_nodes, project_dir)\n\n\ndef test_build_mock_server_error_node_missing_contract():\n    \"\"\"Error when node lacks contract attribute.\"\"\"\n    # Setup\n    node = Mock(spec=['name', 'port'])\n    node.name = \"node1\"\n    node.port = 8000\n    # No contract attribute\n    \n    circuit = create_mock_circuit(\n        nodes=[node],\n        egress_nodes=[]\n    )\n    live_nodes = set()\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer'), \\\n         patch('src.src_baton_collapse.logger'):\n        \n        # Execute & Assert\n        with pytest.raises(AttributeError):\n            build_mock_server(circuit, live_nodes, project_dir)\n\n\ndef test_build_mock_server_error_contract_file_not_found():\n    \"\"\"Error when contract file path does not exist.\"\"\"\n    # Setup\n    node = create_mock_node(\"node1\", 8000, contract=\"/nonexistent/contract.yaml\")\n    \n    circuit = create_mock_circuit(\n        nodes=[node],\n        egress_nodes=[]\n    )\n    live_nodes = set()\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer') as MockServerClass, \\\n         patch('src.src_baton_collapse.logger'), \\\n         patch('src.src_baton_collapse.load_routes', side_effect=FileNotFoundError(\"Contract not found\")):\n        \n        mock_server_instance = MagicMock()\n        MockServerClass.return_value = mock_server_instance\n        \n        # Execute & Assert\n        with pytest.raises(FileNotFoundError):\n            build_mock_server(circuit, live_nodes, project_dir)\n\n\ndef test_build_mock_server_error_live_nodes_not_set():\n    \"\"\"Error when live_nodes is not a set.\"\"\"\n    # Setup\n    node = create_mock_node(\"node1\", 8000, contract=None)\n    \n    circuit = create_mock_circuit(\n        nodes=[node],\n        egress_nodes=[]\n    )\n    live_nodes = [\"node1\"]  # List instead of set\n    project_dir = \"/test/project\"\n    \n    # Execute & Assert\n    with pytest.raises(TypeError):\n        build_mock_server(circuit, live_nodes, project_dir)\n\n\ndef test_build_mock_server_error_egress_nodes_not_iterable():\n    \"\"\"Error when circuit.egress_nodes is not iterable.\"\"\"\n    # Setup\n    node = create_mock_node(\"node1\", 8000, contract=None)\n    \n    circuit = Mock()\n    circuit.nodes = [node]\n    circuit.egress_nodes = 123  # Not iterable\n    \n    live_nodes = set()\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer'), \\\n         patch('src.src_baton_collapse.logger'):\n        \n        # Execute & Assert\n        with pytest.raises(TypeError):\n            build_mock_server(circuit, live_nodes, project_dir)\n\n\n# Happy Path Tests for compute_mock_backends\n\ndef test_compute_mock_backends_happy_path_basic():\n    \"\"\"Compute backend targets for non-live nodes.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000)\n    node2 = create_mock_node(\"node2\", 8001)\n    node3 = create_mock_node(\"node3\", 8002)\n    egress = create_mock_node(\"egress1\", 8003)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, node2, node3, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = {\"node1\"}\n    \n    with patch('src.src_baton_collapse.BackendTarget') as MockBackendTarget:\n        # Mock BackendTarget to return distinguishable objects\n        def backend_side_effect(host, port):\n            return create_mock_backend_target(host, port)\n        \n        MockBackendTarget.side_effect = backend_side_effect\n        \n        # Execute\n        result = compute_mock_backends(circuit, live_nodes)\n        \n        # Assert\n        assert isinstance(result, dict), \"Dictionary should be returned\"\n        assert \"node1\" not in result, \"Live nodes should not be in result\"\n        assert \"node2\" in result, \"Non-live nodes should be in result\"\n        assert \"node3\" in result, \"Non-live nodes should be in result\"\n        assert \"egress1\" in result, \"Egress nodes should be in result\"\n        \n        # Check BackendTarget properties\n        for backend in result.values():\n            assert backend.host == \"127.0.0.1\", \"Host should be 127.0.0.1\"\n            assert isinstance(backend.port, int), \"Port should be integer\"\n\n\ndef test_compute_mock_backends_happy_path_empty_live_nodes():\n    \"\"\"Compute backends when all nodes are non-live.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000)\n    node2 = create_mock_node(\"node2\", 8001)\n    egress = create_mock_node(\"egress1\", 8002)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, node2, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = set()\n    \n    with patch('src.src_baton_collapse.BackendTarget') as MockBackendTarget:\n        def backend_side_effect(host, port):\n            return create_mock_backend_target(host, port)\n        \n        MockBackendTarget.side_effect = backend_side_effect\n        \n        # Execute\n        result = compute_mock_backends(circuit, live_nodes)\n        \n        # Assert\n        assert len(result) == 3, \"All nodes should be mapped to BackendTargets\"\n        assert \"node1\" in result\n        assert \"node2\" in result\n        assert \"egress1\" in result\n\n\ndef test_compute_mock_backends_happy_path_all_live_except_egress():\n    \"\"\"Compute backends when all non-egress nodes are live.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000)\n    node2 = create_mock_node(\"node2\", 8001)\n    egress = create_mock_node(\"egress1\", 8002)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, node2, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = {\"node1\", \"node2\"}\n    \n    with patch('src.src_baton_collapse.BackendTarget') as MockBackendTarget:\n        def backend_side_effect(host, port):\n            return create_mock_backend_target(host, port)\n        \n        MockBackendTarget.side_effect = backend_side_effect\n        \n        # Execute\n        result = compute_mock_backends(circuit, live_nodes)\n        \n        # Assert\n        assert len(result) == 1, \"Only egress node should be in result\"\n        assert \"egress1\" in result\n        assert \"node1\" not in result\n        assert \"node2\" not in result\n\n\n# Edge Case Tests for compute_mock_backends\n\ndef test_compute_mock_backends_edge_case_port_exceeds_limit():\n    \"\"\"Compute backends when node.port + 20000 exceeds 65535.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 50000)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1],\n        egress_nodes=[]\n    )\n    live_nodes = set()\n    \n    with patch('src.src_baton_collapse.BackendTarget') as MockBackendTarget:\n        def backend_side_effect(host, port):\n            backend = create_mock_backend_target(host, port)\n            return backend\n        \n        MockBackendTarget.side_effect = backend_side_effect\n        \n        # Execute\n        result = compute_mock_backends(circuit, live_nodes)\n        \n        # Assert\n        assert \"node1\" in result\n        backend = result[\"node1\"]\n        # Service port should be 50000 + 5000 = 55000 (since 50000 + 20000 > 65535)\n        assert backend.port == 55000, \"Service port should be node.port + 5000\"\n\n\ndef test_compute_mock_backends_edge_case_egress_always_included():\n    \"\"\"Egress nodes always included even if in live_nodes.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000)\n    egress = create_mock_node(\"egress1\", 8001)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = {\"node1\", \"egress1\"}\n    \n    with patch('src.src_baton_collapse.BackendTarget') as MockBackendTarget:\n        def backend_side_effect(host, port):\n            return create_mock_backend_target(host, port)\n        \n        MockBackendTarget.side_effect = backend_side_effect\n        \n        # Execute\n        result = compute_mock_backends(circuit, live_nodes)\n        \n        # Assert\n        assert \"egress1\" in result, \"Egress node should be included\"\n        assert \"node1\" not in result, \"Non-egress live node should not be included\"\n\n\ndef test_compute_mock_backends_edge_case_empty_result():\n    \"\"\"Empty result when all non-egress nodes are live and no egress nodes.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000)\n    node2 = create_mock_node(\"node2\", 8001)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, node2],\n        egress_nodes=[]\n    )\n    live_nodes = {\"node1\", \"node2\"}\n    \n    with patch('src.src_baton_collapse.BackendTarget'):\n        # Execute\n        result = compute_mock_backends(circuit, live_nodes)\n        \n        # Assert\n        assert len(result) == 0, \"Result should be empty dict\"\n\n\n# Error Case Tests for compute_mock_backends\n\ndef test_compute_mock_backends_error_missing_nodes_attribute():\n    \"\"\"Error when circuit lacks nodes attribute.\"\"\"\n    # Setup\n    circuit = Mock(spec=[])\n    circuit.egress_nodes = []\n    live_nodes = set()\n    \n    # Execute & Assert\n    with pytest.raises(AttributeError):\n        compute_mock_backends(circuit, live_nodes)\n\n\ndef test_compute_mock_backends_error_missing_egress_nodes():\n    \"\"\"Error when circuit lacks egress_nodes attribute.\"\"\"\n    # Setup\n    circuit = Mock(spec=[])\n    circuit.nodes = []\n    live_nodes = set()\n    \n    # Execute & Assert\n    with pytest.raises(AttributeError):\n        compute_mock_backends(circuit, live_nodes)\n\n\ndef test_compute_mock_backends_error_node_missing_name():\n    \"\"\"Error when node lacks name attribute.\"\"\"\n    # Setup\n    node = Mock(spec=['port'])\n    node.port = 8000\n    \n    circuit = create_mock_circuit(\n        nodes=[node],\n        egress_nodes=[]\n    )\n    live_nodes = set()\n    \n    with patch('src.src_baton_collapse.BackendTarget'):\n        # Execute & Assert\n        with pytest.raises(AttributeError):\n            compute_mock_backends(circuit, live_nodes)\n\n\ndef test_compute_mock_backends_error_node_missing_port():\n    \"\"\"Error when node lacks port attribute.\"\"\"\n    # Setup\n    node = Mock(spec=['name'])\n    node.name = \"node1\"\n    \n    circuit = create_mock_circuit(\n        nodes=[node],\n        egress_nodes=[]\n    )\n    live_nodes = set()\n    \n    with patch('src.src_baton_collapse.BackendTarget'):\n        # Execute & Assert\n        with pytest.raises(AttributeError):\n            compute_mock_backends(circuit, live_nodes)\n\n\ndef test_compute_mock_backends_error_live_nodes_not_set():\n    \"\"\"Error when live_nodes is not a set.\"\"\"\n    # Setup\n    node = create_mock_node(\"node1\", 8000)\n    \n    circuit = create_mock_circuit(\n        nodes=[node],\n        egress_nodes=[]\n    )\n    live_nodes = [\"node1\"]  # List instead of set\n    \n    # Execute & Assert\n    with pytest.raises(TypeError):\n        compute_mock_backends(circuit, live_nodes)\n\n\ndef test_compute_mock_backends_error_egress_nodes_not_iterable():\n    \"\"\"Error when circuit.egress_nodes is not iterable.\"\"\"\n    # Setup\n    node = create_mock_node(\"node1\", 8000)\n    \n    circuit = Mock()\n    circuit.nodes = [node]\n    circuit.egress_nodes = 42  # Not iterable\n    \n    live_nodes = set()\n    \n    with patch('src.src_baton_collapse.BackendTarget'):\n        # Execute & Assert\n        with pytest.raises(TypeError):\n            compute_mock_backends(circuit, live_nodes)\n\n\n# Invariant Tests\n\ndef test_invariant_service_port_calculation_consistency():\n    \"\"\"Service port calculation is consistent between both functions.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000)\n    node2 = create_mock_node(\"node2\", 50000)  # Port that exceeds limit\n    egress = create_mock_node(\"egress1\", 8001)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, node2, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = set()\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer') as MockServerClass, \\\n         patch('src.src_baton_collapse.BackendTarget') as MockBackendTarget, \\\n         patch('src.src_baton_collapse.logger'):\n        \n        mock_server_instance = MagicMock()\n        MockServerClass.return_value = mock_server_instance\n        \n        def backend_side_effect(host, port):\n            return create_mock_backend_target(host, port)\n        \n        MockBackendTarget.side_effect = backend_side_effect\n        \n        # Execute both functions\n        build_mock_server(circuit, live_nodes, project_dir)\n        backends = compute_mock_backends(circuit, live_nodes)\n        \n        # Assert service port calculations are consistent\n        # Check that add_route was called with service ports\n        add_route_calls = mock_server_instance.add_route.call_args_list\n        assert len(add_route_calls) >= 3, \"Routes should be added for all nodes\"\n        \n        # Check backend targets have correct ports\n        assert \"node1\" in backends\n        assert \"node2\" in backends\n        assert \"egress1\" in backends\n        \n        # Verify port calculations\n        assert backends[\"node1\"].port == 28000, \"node1 service port should be 8000 + 20000\"\n        assert backends[\"node2\"].port == 55000, \"node2 service port should be 50000 + 5000\"\n        assert backends[\"egress1\"].port == 28001, \"egress1 service port should be 8001 + 20000\"\n\n\ndef test_invariant_egress_always_mocked():\n    \"\"\"Egress nodes are always treated as non-live in both functions.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000)\n    egress = create_mock_node(\"egress1\", 8001)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = {\"node1\", \"egress1\"}  # Even with egress in live_nodes\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer') as MockServerClass, \\\n         patch('src.src_baton_collapse.BackendTarget') as MockBackendTarget, \\\n         patch('src.src_baton_collapse.logger'):\n        \n        mock_server_instance = MagicMock()\n        MockServerClass.return_value = mock_server_instance\n        \n        def backend_side_effect(host, port):\n            return create_mock_backend_target(host, port)\n        \n        MockBackendTarget.side_effect = backend_side_effect\n        \n        # Execute\n        build_mock_server(circuit, live_nodes, project_dir)\n        backends = compute_mock_backends(circuit, live_nodes)\n        \n        # Assert\n        assert mock_server_instance.add_route.call_count >= 1, \"Egress should be mocked\"\n        assert \"egress1\" in backends, \"Egress should be in backends\"\n\n\ndef test_invariant_effective_live_nodes_logic():\n    \"\"\"Both functions use identical logic for determining effective live nodes.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000)\n    node2 = create_mock_node(\"node2\", 8001)\n    node3 = create_mock_node(\"node3\", 8002)\n    egress1 = create_mock_node(\"egress1\", 8003)\n    egress2 = create_mock_node(\"egress2\", 8004)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, node2, node3, egress1, egress2],\n        egress_nodes=[egress1, egress2]\n    )\n    live_nodes = {\"node1\", \"egress1\"}\n    project_dir = \"/test/project\"\n    \n    with patch('src.src_baton_collapse.MockServer') as MockServerClass, \\\n         patch('src.src_baton_collapse.BackendTarget') as MockBackendTarget, \\\n         patch('src.src_baton_collapse.logger'):\n        \n        mock_server_instance = MagicMock()\n        MockServerClass.return_value = mock_server_instance\n        \n        def backend_side_effect(host, port):\n            return create_mock_backend_target(host, port)\n        \n        MockBackendTarget.side_effect = backend_side_effect\n        \n        # Execute\n        build_mock_server(circuit, live_nodes, project_dir)\n        backends = compute_mock_backends(circuit, live_nodes)\n        \n        # Assert\n        # Mocked nodes should be: node2, node3, egress1, egress2\n        expected_mocked = {\"node2\", \"node3\", \"egress1\", \"egress2\"}\n        assert set(backends.keys()) == expected_mocked, \"Mocked nodes should match across functions\"\n\n\ndef test_invariant_localhost_host():\n    \"\"\"Mock server host is always 127.0.0.1.\"\"\"\n    # Setup\n    node1 = create_mock_node(\"node1\", 8000)\n    node2 = create_mock_node(\"node2\", 8001)\n    egress = create_mock_node(\"egress1\", 8002)\n    \n    circuit = create_mock_circuit(\n        nodes=[node1, node2, egress],\n        egress_nodes=[egress]\n    )\n    live_nodes = set()\n    \n    with patch('src.src_baton_collapse.BackendTarget') as MockBackendTarget:\n        def backend_side_effect(host, port):\n            return create_mock_backend_target(host, port)\n        \n        MockBackendTarget.side_effect = backend_side_effect\n        \n        # Execute\n        backends = compute_mock_backends(circuit, live_nodes)\n        \n        # Assert\n        for node_name, backend in backends.items():\n            assert backend.host == \"127.0.0.1\", f\"Backend for {node_name} should have host 127.0.0.1\"\n"
+}

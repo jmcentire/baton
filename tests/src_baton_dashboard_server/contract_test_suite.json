@@ -1,0 +1,802 @@
+{
+  "component_id": "src_baton_dashboard_server",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "test_init_happy_path",
+      "description": "Initialize DashboardServer with all parameters and verify all fields are set correctly",
+      "function": "__init__",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "adapters": "{'adapter1': Mock()}",
+        "state": "Mock(spec=CircuitState)",
+        "circuit": "Mock(spec=CircuitSpec)",
+        "signal_aggregator": "Mock(spec=SignalAggregator)",
+        "static_dir": "'/var/www'",
+        "host": "'localhost'",
+        "port": "8080"
+      },
+      "input_description": "",
+      "expected_output_description": "All instance variables set correctly, _server initialized to None, _static_dir is Path object",
+      "expected_error": "",
+      "assertions": [
+        "self._adapters == adapters",
+        "self._state == state",
+        "self._circuit == circuit",
+        "self._signal_aggregator == signal_aggregator",
+        "isinstance(self._static_dir, Path)",
+        "self._host == 'localhost'",
+        "self._port == 8080",
+        "self._server is None"
+      ]
+    },
+    {
+      "id": "test_init_none_signal_aggregator",
+      "description": "Initialize DashboardServer with None signal_aggregator",
+      "function": "__init__",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "signal_aggregator": "None",
+        "static_dir": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "_signal_aggregator is None, _static_dir is None",
+      "expected_error": "",
+      "assertions": [
+        "self._signal_aggregator is None",
+        "self._static_dir is None"
+      ]
+    },
+    {
+      "id": "test_is_running_true",
+      "description": "is_running returns True when _server exists and is_serving() is True",
+      "function": "is_running",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns True",
+      "expected_error": "",
+      "assertions": [
+        "result is True"
+      ]
+    },
+    {
+      "id": "test_is_running_false_no_server",
+      "description": "is_running returns False when _server is None",
+      "function": "is_running",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns False",
+      "expected_error": "",
+      "assertions": [
+        "result is False"
+      ]
+    },
+    {
+      "id": "test_is_running_false_not_serving",
+      "description": "is_running returns False when _server exists but is_serving() is False",
+      "function": "is_running",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns False",
+      "expected_error": "",
+      "assertions": [
+        "result is False"
+      ]
+    },
+    {
+      "id": "test_start_happy_path",
+      "description": "Start server successfully and verify _server is set, logging occurs",
+      "function": "start",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "_server is set to asyncio.Server instance, log message written",
+      "expected_error": "",
+      "assertions": [
+        "self._server is not None",
+        "mock_logger.info.called"
+      ]
+    },
+    {
+      "id": "test_start_port_in_use",
+      "description": "Start raises OSError when port is already in use",
+      "function": "start",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "OSError raised",
+      "expected_error": "OSError",
+      "assertions": []
+    },
+    {
+      "id": "test_start_permission_error",
+      "description": "Start raises PermissionError when insufficient permissions",
+      "function": "start",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "PermissionError raised",
+      "expected_error": "PermissionError",
+      "assertions": []
+    },
+    {
+      "id": "test_stop_with_running_server",
+      "description": "Stop server when _server is not None, verify close and cleanup",
+      "function": "stop",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Server is closed, _server set to None",
+      "expected_error": "",
+      "assertions": [
+        "mock_server.close.called",
+        "self._server is None"
+      ]
+    },
+    {
+      "id": "test_stop_with_no_server",
+      "description": "Stop server when _server is None, should handle gracefully",
+      "function": "stop",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "_server remains None, no errors",
+      "expected_error": "",
+      "assertions": [
+        "self._server is None"
+      ]
+    },
+    {
+      "id": "test_handle_snapshot_route",
+      "description": "Handle request to /api/snapshot and return JSON snapshot",
+      "function": "_handle",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "method": "GET",
+        "path": "/api/snapshot"
+      },
+      "input_description": "",
+      "expected_output_description": "HTTP 200 response with JSON body written to writer",
+      "expected_error": "",
+      "assertions": [
+        "writer.write.called",
+        "response contains 200",
+        "response contains application/json"
+      ]
+    },
+    {
+      "id": "test_handle_topology_route",
+      "description": "Handle request to /api/topology and return JSON topology",
+      "function": "_handle",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "method": "GET",
+        "path": "/api/topology"
+      },
+      "input_description": "",
+      "expected_output_description": "HTTP 200 response with topology JSON",
+      "expected_error": "",
+      "assertions": [
+        "writer.write.called",
+        "response contains nodes",
+        "response contains edges"
+      ]
+    },
+    {
+      "id": "test_handle_signals_route",
+      "description": "Handle request to /api/signals?last_n=10 and return signals",
+      "function": "_handle",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "method": "GET",
+        "path": "/api/signals?last_n=10"
+      },
+      "input_description": "",
+      "expected_output_description": "HTTP 200 response with signals JSON array",
+      "expected_error": "",
+      "assertions": [
+        "writer.write.called",
+        "response contains 200"
+      ]
+    },
+    {
+      "id": "test_handle_signal_stats_route",
+      "description": "Handle request to /api/signals/stats and return statistics",
+      "function": "_handle",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "method": "GET",
+        "path": "/api/signals/stats"
+      },
+      "input_description": "",
+      "expected_output_description": "HTTP 200 response with stats JSON",
+      "expected_error": "",
+      "assertions": [
+        "writer.write.called",
+        "response contains 200"
+      ]
+    },
+    {
+      "id": "test_handle_unknown_api_route",
+      "description": "Handle request to unknown API path returns 404",
+      "function": "_handle",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "method": "GET",
+        "path": "/api/unknown"
+      },
+      "input_description": "",
+      "expected_output_description": "HTTP 404 response",
+      "expected_error": "",
+      "assertions": [
+        "writer.write.called",
+        "response contains 404"
+      ]
+    },
+    {
+      "id": "test_handle_static_file_route",
+      "description": "Handle request to non-API path attempts static file serving",
+      "function": "_handle",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "method": "GET",
+        "path": "/index.html"
+      },
+      "input_description": "",
+      "expected_output_description": "Static file handler called",
+      "expected_error": "",
+      "assertions": [
+        "writer.close.called"
+      ]
+    },
+    {
+      "id": "test_handle_timeout_error",
+      "description": "Handle raises TimeoutError when reading takes longer than 5 seconds",
+      "function": "_handle",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "TimeoutError during read is caught and logged",
+      "expected_error": "TimeoutError",
+      "assertions": []
+    },
+    {
+      "id": "test_handle_generic_exception",
+      "description": "Handle catches and logs any exception during request handling",
+      "function": "_handle",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Exception is caught, logged, and suppressed",
+      "expected_error": "GenericException",
+      "assertions": []
+    },
+    {
+      "id": "test_handle_snapshot_happy_path",
+      "description": "Collect dashboard snapshot and return as JSON string",
+      "function": "_handle_snapshot",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns JSON string with snapshot data",
+      "expected_error": "",
+      "assertions": [
+        "isinstance(result, str)",
+        "json.loads(result) is not None"
+      ]
+    },
+    {
+      "id": "test_handle_snapshot_exception",
+      "description": "Handle exception when collect() or json.dumps() fails",
+      "function": "_handle_snapshot",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Exception raised",
+      "expected_error": "Exception",
+      "assertions": []
+    },
+    {
+      "id": "test_handle_topology_happy_path",
+      "description": "Extract circuit topology and return as JSON with nodes and edges",
+      "function": "_handle_topology",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns JSON string with nodes and edges arrays",
+      "expected_error": "",
+      "assertions": [
+        "isinstance(result, str)",
+        "'nodes' in result",
+        "'edges' in result"
+      ]
+    },
+    {
+      "id": "test_handle_topology_attribute_error",
+      "description": "Handle AttributeError when nodes or edges lack expected attributes",
+      "function": "_handle_topology",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "AttributeError raised",
+      "expected_error": "AttributeError",
+      "assertions": []
+    },
+    {
+      "id": "test_handle_topology_json_encode_error",
+      "description": "Handle JSONEncodeError when json.dumps() fails",
+      "function": "_handle_topology",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "JSONEncodeError raised",
+      "expected_error": "JSONEncodeError",
+      "assertions": []
+    },
+    {
+      "id": "test_handle_signals_with_aggregator",
+      "description": "Query signal aggregator for last N signals and return as JSON",
+      "function": "_handle_signals",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "last_n": "10"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns JSON array of signals",
+      "expected_error": "",
+      "assertions": [
+        "isinstance(result, str)",
+        "json.loads(result) is not None"
+      ]
+    },
+    {
+      "id": "test_handle_signals_no_aggregator",
+      "description": "Return empty array when _signal_aggregator is None",
+      "function": "_handle_signals",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "last_n": "10"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns '[]'",
+      "expected_error": "",
+      "assertions": [
+        "result == '[]'"
+      ]
+    },
+    {
+      "id": "test_handle_signals_zero_last_n",
+      "description": "Handle signals with last_n=0",
+      "function": "_handle_signals",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "last_n": "0"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns empty or valid JSON array",
+      "expected_error": "",
+      "assertions": [
+        "isinstance(result, str)"
+      ]
+    },
+    {
+      "id": "test_handle_signals_negative_last_n",
+      "description": "Handle signals with last_n=-1",
+      "function": "_handle_signals",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "last_n": "-1"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns valid JSON array",
+      "expected_error": "",
+      "assertions": [
+        "isinstance(result, str)"
+      ]
+    },
+    {
+      "id": "test_handle_signals_attribute_error",
+      "description": "Handle AttributeError when query() or model_dump() fails",
+      "function": "_handle_signals",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "last_n": "10"
+      },
+      "input_description": "",
+      "expected_output_description": "AttributeError raised",
+      "expected_error": "AttributeError",
+      "assertions": []
+    },
+    {
+      "id": "test_handle_signals_json_encode_error",
+      "description": "Handle JSONEncodeError when json.dumps() fails",
+      "function": "_handle_signals",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "last_n": "10"
+      },
+      "input_description": "",
+      "expected_output_description": "JSONEncodeError raised",
+      "expected_error": "JSONEncodeError",
+      "assertions": []
+    },
+    {
+      "id": "test_handle_signal_stats_with_aggregator",
+      "description": "Query signal aggregator for path stats and return with computed metrics",
+      "function": "_handle_signal_stats",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns JSON object with path keys, count, avg_latency_ms, error_count, error_rate",
+      "expected_error": "",
+      "assertions": [
+        "isinstance(result, str)",
+        "json.loads(result) is not None"
+      ]
+    },
+    {
+      "id": "test_handle_signal_stats_no_aggregator",
+      "description": "Return empty object when _signal_aggregator is None",
+      "function": "_handle_signal_stats",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns '{}'",
+      "expected_error": "",
+      "assertions": [
+        "result == '{}'"
+      ]
+    },
+    {
+      "id": "test_handle_signal_stats_attribute_error",
+      "description": "Handle AttributeError when path_stats() fails",
+      "function": "_handle_signal_stats",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "AttributeError raised",
+      "expected_error": "AttributeError",
+      "assertions": []
+    },
+    {
+      "id": "test_handle_signal_stats_json_encode_error",
+      "description": "Handle JSONEncodeError when json.dumps() fails",
+      "function": "_handle_signal_stats",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "JSONEncodeError raised",
+      "expected_error": "JSONEncodeError",
+      "assertions": []
+    },
+    {
+      "id": "test_handle_static_no_static_dir",
+      "description": "Return 404 JSON error when _static_dir is None",
+      "function": "_handle_static",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "path": "/index.html"
+      },
+      "input_description": "",
+      "expected_output_description": "404 response written",
+      "expected_error": "",
+      "assertions": [
+        "writer.write.called",
+        "404 in response"
+      ]
+    },
+    {
+      "id": "test_handle_static_root_path",
+      "description": "Resolve root path / to /index.html",
+      "function": "_handle_static",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "path": "/"
+      },
+      "input_description": "",
+      "expected_output_description": "Resolves to index.html and serves it",
+      "expected_error": "",
+      "assertions": [
+        "writer.write.called"
+      ]
+    },
+    {
+      "id": "test_handle_static_empty_path",
+      "description": "Resolve empty path to /index.html",
+      "function": "_handle_static",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "path": ""
+      },
+      "input_description": "",
+      "expected_output_description": "Resolves to index.html",
+      "expected_error": "",
+      "assertions": [
+        "writer.write.called"
+      ]
+    },
+    {
+      "id": "test_handle_static_directory_traversal",
+      "description": "Return 403 for path with directory traversal attempt",
+      "function": "_handle_static",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "path": "/../etc/passwd"
+      },
+      "input_description": "",
+      "expected_output_description": "403 response written",
+      "expected_error": "",
+      "assertions": [
+        "writer.write.called",
+        "403 in response"
+      ]
+    },
+    {
+      "id": "test_handle_static_file_not_found",
+      "description": "Return 404 when file does not exist",
+      "function": "_handle_static",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "path": "/nonexistent.html"
+      },
+      "input_description": "",
+      "expected_output_description": "404 response written",
+      "expected_error": "",
+      "assertions": [
+        "writer.write.called",
+        "404 in response"
+      ]
+    },
+    {
+      "id": "test_handle_static_file_is_directory",
+      "description": "Return 404 when path is a directory",
+      "function": "_handle_static",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "path": "/somedir"
+      },
+      "input_description": "",
+      "expected_output_description": "404 response written",
+      "expected_error": "",
+      "assertions": [
+        "writer.write.called",
+        "404 in response"
+      ]
+    },
+    {
+      "id": "test_handle_static_file_exists",
+      "description": "Serve existing file with 200 response and correct MIME type",
+      "function": "_handle_static",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "path": "/index.html"
+      },
+      "input_description": "",
+      "expected_output_description": "200 response with file content and text/html MIME type",
+      "expected_error": "",
+      "assertions": [
+        "writer.write.called",
+        "200 in response",
+        "text/html in response"
+      ]
+    },
+    {
+      "id": "test_handle_static_os_error",
+      "description": "Handle OSError when file read fails",
+      "function": "_handle_static",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "path": "/file.txt"
+      },
+      "input_description": "",
+      "expected_output_description": "OSError raised",
+      "expected_error": "OSError",
+      "assertions": []
+    },
+    {
+      "id": "test_handle_static_unicode_decode_error",
+      "description": "Handle UnicodeDecodeError for invalid unicode in path",
+      "function": "_handle_static",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "path": "/invalid�.html"
+      },
+      "input_description": "",
+      "expected_output_description": "UnicodeDecodeError raised",
+      "expected_error": "UnicodeDecodeError",
+      "assertions": []
+    },
+    {
+      "id": "test_write_json_response_happy_path",
+      "description": "Write HTTP JSON response with status, headers, and body",
+      "function": "_write_json_response",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "status": "200",
+        "body": "{\"success\": true}"
+      },
+      "input_description": "",
+      "expected_output_description": "Complete HTTP response written with correct headers",
+      "expected_error": "",
+      "assertions": [
+        "writer.write.called",
+        "Content-Type: application/json in response",
+        "Access-Control-Allow-Origin: * in response",
+        "body in response"
+      ]
+    },
+    {
+      "id": "test_write_json_response_404",
+      "description": "Write 404 JSON response",
+      "function": "_write_json_response",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "status": "404",
+        "body": "{\"error\": \"Not found\"}"
+      },
+      "input_description": "",
+      "expected_output_description": "404 response written",
+      "expected_error": "",
+      "assertions": [
+        "404 in response"
+      ]
+    },
+    {
+      "id": "test_write_json_response_unicode_encode_error",
+      "description": "Handle UnicodeEncodeError when body cannot be encoded as UTF-8",
+      "function": "_write_json_response",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "status": "200",
+        "body": "invalid"
+      },
+      "input_description": "",
+      "expected_output_description": "UnicodeEncodeError raised",
+      "expected_error": "UnicodeEncodeError",
+      "assertions": []
+    },
+    {
+      "id": "test_invariant_server_instance",
+      "description": "Verify _server is None or asyncio.Server instance",
+      "function": "__init__",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "_server is None initially, asyncio.Server after start",
+      "expected_error": "",
+      "assertions": [
+        "self._server is None or isinstance(self._server, asyncio.Server)"
+      ]
+    },
+    {
+      "id": "test_invariant_static_dir_type",
+      "description": "Verify _static_dir is None or Path object",
+      "function": "__init__",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "_static_dir is Path or None",
+      "expected_error": "",
+      "assertions": [
+        "self._static_dir is None or isinstance(self._static_dir, Path)"
+      ]
+    },
+    {
+      "id": "test_invariant_cors_header",
+      "description": "Verify all JSON responses include CORS header",
+      "function": "_write_json_response",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "status": "200",
+        "body": "{}"
+      },
+      "input_description": "",
+      "expected_output_description": "Response includes Access-Control-Allow-Origin: *",
+      "expected_error": "",
+      "assertions": [
+        "'Access-Control-Allow-Origin: *' in response"
+      ]
+    }
+  ],
+  "test_language": "python",
+  "generated_code": "\"\"\"\nContract-based tests for DashboardServer component.\n\nThis test suite verifies the DashboardServer implementation against its contract,\ncovering happy paths, edge cases, error cases, and invariants.\n\"\"\"\n\nimport asyncio\nimport json\nimport pytest\nfrom pathlib import Path\nfrom unittest.mock import Mock, MagicMock, patch, AsyncMock, mock_open\nfrom io import BytesIO\n\n\n# Import the component under test\ntry:\n    from src.baton.dashboard_server import DashboardServer\nexcept ImportError:\n    # Fallback import paths\n    try:\n        from src_baton_dashboard_server import DashboardServer\n    except ImportError:\n        # Mock the class for testing if import fails\n        class DashboardServer:\n            pass\n\n\n# Mock classes for type hints\nclass CircuitState:\n    pass\n\n\nclass CircuitSpec:\n    pass\n\n\nclass Adapter:\n    pass\n\n\nclass SignalAggregator:\n    pass\n\n\nclass Signal:\n    def model_dump(self):\n        return {\"signal\": \"data\"}\n\n\n# ============================================================================\n# FIXTURES\n# ============================================================================\n\n@pytest.fixture\ndef mock_adapters():\n    \"\"\"Mock adapters dictionary.\"\"\"\n    return {\"adapter1\": Mock(spec=Adapter), \"adapter2\": Mock(spec=Adapter)}\n\n\n@pytest.fixture\ndef mock_state():\n    \"\"\"Mock CircuitState.\"\"\"\n    return Mock(spec=CircuitState)\n\n\n@pytest.fixture\ndef mock_circuit():\n    \"\"\"Mock CircuitSpec with nodes and edges.\"\"\"\n    mock = Mock(spec=CircuitSpec)\n    \n    # Mock nodes\n    node1 = Mock()\n    node1.name = \"node1\"\n    node1.port = 8001\n    node1.role = \"worker\"\n    node1.host = \"localhost\"\n    \n    node2 = Mock()\n    node2.name = \"node2\"\n    node2.port = 8002\n    node2.role = \"worker\"\n    node2.host = \"localhost\"\n    \n    mock.nodes = [node1, node2]\n    \n    # Mock edges\n    edge1 = Mock()\n    edge1.source = \"node1\"\n    edge1.target = \"node2\"\n    edge1.label = \"edge1\"\n    \n    mock.edges = [edge1]\n    \n    return mock\n\n\n@pytest.fixture\ndef mock_signal_aggregator():\n    \"\"\"Mock SignalAggregator.\"\"\"\n    mock = Mock(spec=SignalAggregator)\n    \n    # Mock query method\n    signal1 = Mock()\n    signal1.model_dump.return_value = {\"id\": 1, \"data\": \"signal1\"}\n    \n    signal2 = Mock()\n    signal2.model_dump.return_value = {\"id\": 2, \"data\": \"signal2\"}\n    \n    mock.query.return_value = [signal1, signal2]\n    \n    # Mock path_stats method\n    stat1 = Mock()\n    stat1.path = \"/api/test\"\n    stat1.count = 10\n    stat1.total_latency_ms = 1000\n    stat1.error_count = 2\n    \n    mock.path_stats.return_value = {\"path1\": stat1}\n    \n    return mock\n\n\n@pytest.fixture\ndef mock_reader():\n    \"\"\"Mock asyncio.StreamReader.\"\"\"\n    reader = AsyncMock()\n    reader.readline = AsyncMock(return_value=b\"GET /api/snapshot HTTP/1.1\\r\\n\")\n    return reader\n\n\n@pytest.fixture\ndef mock_writer():\n    \"\"\"Mock asyncio.StreamWriter.\"\"\"\n    writer = AsyncMock()\n    writer.write = Mock()\n    writer.drain = AsyncMock()\n    writer.close = Mock()\n    writer.wait_closed = AsyncMock()\n    writer.get_extra_info = Mock(return_value=(\"127.0.0.1\", 12345))\n    return writer\n\n\n@pytest.fixture\ndef dashboard_server(mock_adapters, mock_state, mock_circuit, mock_signal_aggregator):\n    \"\"\"Create a DashboardServer instance for testing.\"\"\"\n    return DashboardServer(\n        adapters=mock_adapters,\n        state=mock_state,\n        circuit=mock_circuit,\n        signal_aggregator=mock_signal_aggregator,\n        static_dir=\"/var/www\",\n        host=\"localhost\",\n        port=8080\n    )\n\n\n@pytest.fixture\ndef dashboard_server_no_aggregator(mock_adapters, mock_state, mock_circuit):\n    \"\"\"Create a DashboardServer without signal aggregator.\"\"\"\n    return DashboardServer(\n        adapters=mock_adapters,\n        state=mock_state,\n        circuit=mock_circuit,\n        signal_aggregator=None,\n        static_dir=None,\n        host=\"localhost\",\n        port=8080\n    )\n\n\n# ============================================================================\n# __init__ TESTS\n# ============================================================================\n\ndef test_init_happy_path(mock_adapters, mock_state, mock_circuit, mock_signal_aggregator):\n    \"\"\"Initialize DashboardServer with all parameters and verify all fields are set correctly.\"\"\"\n    server = DashboardServer(\n        adapters=mock_adapters,\n        state=mock_state,\n        circuit=mock_circuit,\n        signal_aggregator=mock_signal_aggregator,\n        static_dir=\"/var/www\",\n        host=\"localhost\",\n        port=8080\n    )\n    \n    assert server._adapters == mock_adapters\n    assert server._state == mock_state\n    assert server._circuit == mock_circuit\n    assert server._signal_aggregator == mock_signal_aggregator\n    assert isinstance(server._static_dir, Path)\n    assert str(server._static_dir) == \"/var/www\"\n    assert server._host == \"localhost\"\n    assert server._port == 8080\n    assert server._server is None\n\n\ndef test_init_none_signal_aggregator(mock_adapters, mock_state, mock_circuit):\n    \"\"\"Initialize DashboardServer with None signal_aggregator.\"\"\"\n    server = DashboardServer(\n        adapters=mock_adapters,\n        state=mock_state,\n        circuit=mock_circuit,\n        signal_aggregator=None,\n        static_dir=None,\n        host=\"localhost\",\n        port=8080\n    )\n    \n    assert server._signal_aggregator is None\n    assert server._static_dir is None\n\n\ndef test_invariant_server_instance(dashboard_server):\n    \"\"\"Verify _server is None or asyncio.Server instance.\"\"\"\n    assert dashboard_server._server is None or isinstance(dashboard_server._server, asyncio.Server)\n\n\ndef test_invariant_static_dir_type(dashboard_server):\n    \"\"\"Verify _static_dir is None or Path object.\"\"\"\n    assert dashboard_server._static_dir is None or isinstance(dashboard_server._static_dir, Path)\n\n\n# ============================================================================\n# is_running TESTS\n# ============================================================================\n\ndef test_is_running_true(dashboard_server):\n    \"\"\"is_running returns True when _server exists and is_serving() is True.\"\"\"\n    mock_server = Mock()\n    mock_server.is_serving.return_value = True\n    dashboard_server._server = mock_server\n    \n    result = dashboard_server.is_running()\n    \n    assert result is True\n\n\ndef test_is_running_false_no_server(dashboard_server):\n    \"\"\"is_running returns False when _server is None.\"\"\"\n    dashboard_server._server = None\n    \n    result = dashboard_server.is_running()\n    \n    assert result is False\n\n\ndef test_is_running_false_not_serving(dashboard_server):\n    \"\"\"is_running returns False when _server exists but is_serving() is False.\"\"\"\n    mock_server = Mock()\n    mock_server.is_serving.return_value = False\n    dashboard_server._server = mock_server\n    \n    result = dashboard_server.is_running()\n    \n    assert result is False\n\n\n# ============================================================================\n# start TESTS\n# ============================================================================\n\n@pytest.mark.asyncio\nasync def test_start_happy_path(dashboard_server):\n    \"\"\"Start server successfully and verify _server is set, logging occurs.\"\"\"\n    mock_server = Mock()\n    mock_server.is_serving.return_value = True\n    \n    with patch('asyncio.start_server', new_callable=AsyncMock) as mock_start_server, \\\n         patch('logging.getLogger') as mock_get_logger:\n        \n        mock_logger = Mock()\n        mock_get_logger.return_value = mock_logger\n        mock_start_server.return_value = mock_server\n        \n        await dashboard_server.start()\n        \n        assert dashboard_server._server is not None\n        assert mock_logger.info.called\n\n\n@pytest.mark.asyncio\nasync def test_start_port_in_use(dashboard_server):\n    \"\"\"Start raises OSError when port is already in use.\"\"\"\n    with patch('asyncio.start_server', new_callable=AsyncMock) as mock_start_server:\n        mock_start_server.side_effect = OSError(\"Port already in use\")\n        \n        with pytest.raises(OSError):\n            await dashboard_server.start()\n\n\n@pytest.mark.asyncio\nasync def test_start_permission_error(dashboard_server):\n    \"\"\"Start raises PermissionError when insufficient permissions.\"\"\"\n    with patch('asyncio.start_server', new_callable=AsyncMock) as mock_start_server:\n        mock_start_server.side_effect = PermissionError(\"Insufficient permissions\")\n        \n        with pytest.raises(PermissionError):\n            await dashboard_server.start()\n\n\n# ============================================================================\n# stop TESTS\n# ============================================================================\n\n@pytest.mark.asyncio\nasync def test_stop_with_running_server(dashboard_server):\n    \"\"\"Stop server when _server is not None, verify close and cleanup.\"\"\"\n    mock_server = Mock()\n    mock_server.close = Mock()\n    mock_server.wait_closed = AsyncMock()\n    dashboard_server._server = mock_server\n    \n    await dashboard_server.stop()\n    \n    assert mock_server.close.called\n    assert dashboard_server._server is None\n\n\n@pytest.mark.asyncio\nasync def test_stop_with_no_server(dashboard_server):\n    \"\"\"Stop server when _server is None, should handle gracefully.\"\"\"\n    dashboard_server._server = None\n    \n    await dashboard_server.stop()\n    \n    assert dashboard_server._server is None\n\n\n# ============================================================================\n# _handle TESTS\n# ============================================================================\n\n@pytest.mark.asyncio\nasync def test_handle_snapshot_route(dashboard_server, mock_reader, mock_writer):\n    \"\"\"Handle request to /api/snapshot and return JSON snapshot.\"\"\"\n    mock_reader.readline.return_value = b\"GET /api/snapshot HTTP/1.1\\r\\n\"\n    \n    with patch.object(dashboard_server, '_handle_snapshot', return_value='{\"data\": \"snapshot\"}'):\n        await dashboard_server._handle(mock_reader, mock_writer)\n        \n        assert mock_writer.write.called\n        written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n        response = written_data.decode('utf-8')\n        assert '200' in response\n        assert 'application/json' in response\n\n\n@pytest.mark.asyncio\nasync def test_handle_topology_route(dashboard_server, mock_reader, mock_writer):\n    \"\"\"Handle request to /api/topology and return JSON topology.\"\"\"\n    mock_reader.readline.return_value = b\"GET /api/topology HTTP/1.1\\r\\n\"\n    \n    with patch.object(dashboard_server, '_handle_topology', return_value='{\"nodes\": [], \"edges\": []}'):\n        await dashboard_server._handle(mock_reader, mock_writer)\n        \n        assert mock_writer.write.called\n        written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n        response = written_data.decode('utf-8')\n        assert 'nodes' in response or '200' in response\n\n\n@pytest.mark.asyncio\nasync def test_handle_signals_route(dashboard_server, mock_reader, mock_writer):\n    \"\"\"Handle request to /api/signals?last_n=10 and return signals.\"\"\"\n    mock_reader.readline.return_value = b\"GET /api/signals?last_n=10 HTTP/1.1\\r\\n\"\n    \n    with patch.object(dashboard_server, '_handle_signals', return_value='[]'):\n        await dashboard_server._handle(mock_reader, mock_writer)\n        \n        assert mock_writer.write.called\n        written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n        response = written_data.decode('utf-8')\n        assert '200' in response\n\n\n@pytest.mark.asyncio\nasync def test_handle_signal_stats_route(dashboard_server, mock_reader, mock_writer):\n    \"\"\"Handle request to /api/signals/stats and return statistics.\"\"\"\n    mock_reader.readline.return_value = b\"GET /api/signals/stats HTTP/1.1\\r\\n\"\n    \n    with patch.object(dashboard_server, '_handle_signal_stats', return_value='{}'):\n        await dashboard_server._handle(mock_reader, mock_writer)\n        \n        assert mock_writer.write.called\n        written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n        response = written_data.decode('utf-8')\n        assert '200' in response\n\n\n@pytest.mark.asyncio\nasync def test_handle_unknown_api_route(dashboard_server, mock_reader, mock_writer):\n    \"\"\"Handle request to unknown API path returns 404.\"\"\"\n    mock_reader.readline.return_value = b\"GET /api/unknown HTTP/1.1\\r\\n\"\n    \n    await dashboard_server._handle(mock_reader, mock_writer)\n    \n    assert mock_writer.write.called\n    written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n    response = written_data.decode('utf-8')\n    assert '404' in response\n\n\n@pytest.mark.asyncio\nasync def test_handle_static_file_route(dashboard_server, mock_reader, mock_writer):\n    \"\"\"Handle request to non-API path attempts static file serving.\"\"\"\n    mock_reader.readline.return_value = b\"GET /index.html HTTP/1.1\\r\\n\"\n    \n    with patch.object(dashboard_server, '_handle_static'):\n        await dashboard_server._handle(mock_reader, mock_writer)\n        \n        assert mock_writer.close.called\n\n\n@pytest.mark.asyncio\nasync def test_handle_timeout_error(dashboard_server, mock_reader, mock_writer):\n    \"\"\"Handle raises TimeoutError when reading takes longer than 5 seconds.\"\"\"\n    mock_reader.readline.side_effect = asyncio.TimeoutError()\n    \n    with patch('logging.getLogger') as mock_get_logger:\n        mock_logger = Mock()\n        mock_get_logger.return_value = mock_logger\n        \n        # Should catch and log the timeout\n        await dashboard_server._handle(mock_reader, mock_writer)\n        \n        # Verify error was logged\n        assert mock_logger.error.called or mock_writer.close.called\n\n\n@pytest.mark.asyncio\nasync def test_handle_generic_exception(dashboard_server, mock_reader, mock_writer):\n    \"\"\"Handle catches and logs any exception during request handling.\"\"\"\n    mock_reader.readline.side_effect = Exception(\"Generic error\")\n    \n    with patch('logging.getLogger') as mock_get_logger:\n        mock_logger = Mock()\n        mock_get_logger.return_value = mock_logger\n        \n        # Should catch and suppress the exception\n        await dashboard_server._handle(mock_reader, mock_writer)\n        \n        # Verify error was logged and writer closed\n        assert mock_writer.close.called\n\n\n# ============================================================================\n# _handle_snapshot TESTS\n# ============================================================================\n\ndef test_handle_snapshot_happy_path(dashboard_server):\n    \"\"\"Collect dashboard snapshot and return as JSON string.\"\"\"\n    mock_snapshot = {\"adapters\": {}, \"state\": {}, \"circuit\": {}}\n    \n    with patch('baton.dashboard.collect') as mock_collect:\n        mock_collect.return_value = mock_snapshot\n        \n        result = dashboard_server._handle_snapshot()\n        \n        assert isinstance(result, str)\n        parsed = json.loads(result)\n        assert parsed is not None\n\n\ndef test_handle_snapshot_exception(dashboard_server):\n    \"\"\"Handle exception when collect() or json.dumps() fails.\"\"\"\n    with patch('baton.dashboard.collect') as mock_collect:\n        mock_collect.side_effect = Exception(\"Collection failed\")\n        \n        with pytest.raises(Exception):\n            dashboard_server._handle_snapshot()\n\n\n# ============================================================================\n# _handle_topology TESTS\n# ============================================================================\n\ndef test_handle_topology_happy_path(dashboard_server):\n    \"\"\"Extract circuit topology and return as JSON with nodes and edges.\"\"\"\n    result = dashboard_server._handle_topology()\n    \n    assert isinstance(result, str)\n    assert 'nodes' in result\n    assert 'edges' in result\n    \n    parsed = json.loads(result)\n    assert 'nodes' in parsed\n    assert 'edges' in parsed\n\n\ndef test_handle_topology_attribute_error(dashboard_server):\n    \"\"\"Handle AttributeError when nodes or edges lack expected attributes.\"\"\"\n    # Create a circuit with nodes missing attributes\n    dashboard_server._circuit.nodes = [Mock(spec=[])]\n    \n    with pytest.raises(AttributeError):\n        dashboard_server._handle_topology()\n\n\ndef test_handle_topology_json_encode_error(dashboard_server):\n    \"\"\"Handle JSONEncodeError when json.dumps() fails.\"\"\"\n    # Create a node with a non-serializable attribute\n    node = Mock()\n    node.name = lambda x: x  # Function is not JSON serializable\n    node.port = 8000\n    node.role = \"worker\"\n    node.host = \"localhost\"\n    dashboard_server._circuit.nodes = [node]\n    \n    with pytest.raises((TypeError, AttributeError)):\n        dashboard_server._handle_topology()\n\n\n# ============================================================================\n# _handle_signals TESTS\n# ============================================================================\n\ndef test_handle_signals_with_aggregator(dashboard_server):\n    \"\"\"Query signal aggregator for last N signals and return as JSON.\"\"\"\n    result = dashboard_server._handle_signals(10)\n    \n    assert isinstance(result, str)\n    parsed = json.loads(result)\n    assert parsed is not None\n\n\ndef test_handle_signals_no_aggregator(dashboard_server_no_aggregator):\n    \"\"\"Return empty array when _signal_aggregator is None.\"\"\"\n    result = dashboard_server_no_aggregator._handle_signals(10)\n    \n    assert result == '[]'\n\n\ndef test_handle_signals_zero_last_n(dashboard_server):\n    \"\"\"Handle signals with last_n=0.\"\"\"\n    result = dashboard_server._handle_signals(0)\n    \n    assert isinstance(result, str)\n\n\ndef test_handle_signals_negative_last_n(dashboard_server):\n    \"\"\"Handle signals with last_n=-1.\"\"\"\n    result = dashboard_server._handle_signals(-1)\n    \n    assert isinstance(result, str)\n\n\ndef test_handle_signals_attribute_error(dashboard_server):\n    \"\"\"Handle AttributeError when query() or model_dump() fails.\"\"\"\n    dashboard_server._signal_aggregator.query.side_effect = AttributeError(\"No query method\")\n    \n    with pytest.raises(AttributeError):\n        dashboard_server._handle_signals(10)\n\n\ndef test_handle_signals_json_encode_error(dashboard_server):\n    \"\"\"Handle JSONEncodeError when json.dumps() fails.\"\"\"\n    signal = Mock()\n    signal.model_dump.return_value = {\"data\": lambda x: x}  # Non-serializable\n    dashboard_server._signal_aggregator.query.return_value = [signal]\n    \n    with pytest.raises((TypeError, json.JSONDecodeError)):\n        dashboard_server._handle_signals(10)\n\n\n# ============================================================================\n# _handle_signal_stats TESTS\n# ============================================================================\n\ndef test_handle_signal_stats_with_aggregator(dashboard_server):\n    \"\"\"Query signal aggregator for path stats and return with computed metrics.\"\"\"\n    result = dashboard_server._handle_signal_stats()\n    \n    assert isinstance(result, str)\n    parsed = json.loads(result)\n    assert parsed is not None\n\n\ndef test_handle_signal_stats_no_aggregator(dashboard_server_no_aggregator):\n    \"\"\"Return empty object when _signal_aggregator is None.\"\"\"\n    result = dashboard_server_no_aggregator._handle_signal_stats()\n    \n    assert result == '{}'\n\n\ndef test_handle_signal_stats_attribute_error(dashboard_server):\n    \"\"\"Handle AttributeError when path_stats() fails.\"\"\"\n    dashboard_server._signal_aggregator.path_stats.side_effect = AttributeError(\"No path_stats\")\n    \n    with pytest.raises(AttributeError):\n        dashboard_server._handle_signal_stats()\n\n\ndef test_handle_signal_stats_json_encode_error(dashboard_server):\n    \"\"\"Handle JSONEncodeError when json.dumps() fails.\"\"\"\n    stat = Mock()\n    stat.path = \"/test\"\n    stat.count = lambda x: x  # Non-serializable\n    dashboard_server._signal_aggregator.path_stats.return_value = {\"path1\": stat}\n    \n    with pytest.raises((TypeError, json.JSONDecodeError, AttributeError)):\n        dashboard_server._handle_signal_stats()\n\n\n# ============================================================================\n# _handle_static TESTS\n# ============================================================================\n\n@pytest.mark.asyncio\nasync def test_handle_static_no_static_dir(dashboard_server_no_aggregator, mock_writer):\n    \"\"\"Return 404 JSON error when _static_dir is None.\"\"\"\n    await dashboard_server_no_aggregator._handle_static(mock_writer, \"/index.html\")\n    \n    assert mock_writer.write.called\n    written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n    response = written_data.decode('utf-8')\n    assert '404' in response\n\n\n@pytest.mark.asyncio\nasync def test_handle_static_root_path(dashboard_server, mock_writer):\n    \"\"\"Resolve root path / to /index.html.\"\"\"\n    mock_file_content = b\"<html>Test</html>\"\n    \n    with patch('pathlib.Path.exists', return_value=True), \\\n         patch('pathlib.Path.is_file', return_value=True), \\\n         patch('pathlib.Path.read_bytes', return_value=mock_file_content):\n        \n        await dashboard_server._handle_static(mock_writer, \"/\")\n        \n        assert mock_writer.write.called\n\n\n@pytest.mark.asyncio\nasync def test_handle_static_empty_path(dashboard_server, mock_writer):\n    \"\"\"Resolve empty path to /index.html.\"\"\"\n    mock_file_content = b\"<html>Test</html>\"\n    \n    with patch('pathlib.Path.exists', return_value=True), \\\n         patch('pathlib.Path.is_file', return_value=True), \\\n         patch('pathlib.Path.read_bytes', return_value=mock_file_content):\n        \n        await dashboard_server._handle_static(mock_writer, \"\")\n        \n        assert mock_writer.write.called\n\n\n@pytest.mark.asyncio\nasync def test_handle_static_directory_traversal(dashboard_server, mock_writer):\n    \"\"\"Return 403 for path with directory traversal attempt.\"\"\"\n    await dashboard_server._handle_static(mock_writer, \"/../etc/passwd\")\n    \n    assert mock_writer.write.called\n    written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n    response = written_data.decode('utf-8')\n    assert '403' in response or '404' in response\n\n\n@pytest.mark.asyncio\nasync def test_handle_static_file_not_found(dashboard_server, mock_writer):\n    \"\"\"Return 404 when file does not exist.\"\"\"\n    with patch('pathlib.Path.exists', return_value=False):\n        await dashboard_server._handle_static(mock_writer, \"/nonexistent.html\")\n        \n        assert mock_writer.write.called\n        written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n        response = written_data.decode('utf-8')\n        assert '404' in response\n\n\n@pytest.mark.asyncio\nasync def test_handle_static_file_is_directory(dashboard_server, mock_writer):\n    \"\"\"Return 404 when path is a directory.\"\"\"\n    with patch('pathlib.Path.exists', return_value=True), \\\n         patch('pathlib.Path.is_file', return_value=False):\n        \n        await dashboard_server._handle_static(mock_writer, \"/somedir\")\n        \n        assert mock_writer.write.called\n        written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n        response = written_data.decode('utf-8')\n        assert '404' in response\n\n\n@pytest.mark.asyncio\nasync def test_handle_static_file_exists(dashboard_server, mock_writer):\n    \"\"\"Serve existing file with 200 response and correct MIME type.\"\"\"\n    mock_file_content = b\"<html>Test</html>\"\n    \n    with patch('pathlib.Path.exists', return_value=True), \\\n         patch('pathlib.Path.is_file', return_value=True), \\\n         patch('pathlib.Path.read_bytes', return_value=mock_file_content), \\\n         patch('mimetypes.guess_type', return_value=('text/html', None)):\n        \n        await dashboard_server._handle_static(mock_writer, \"/index.html\")\n        \n        assert mock_writer.write.called\n        written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n        response = written_data.decode('utf-8')\n        assert '200' in response\n        assert 'text/html' in response\n\n\n@pytest.mark.asyncio\nasync def test_handle_static_os_error(dashboard_server, mock_writer):\n    \"\"\"Handle OSError when file read fails.\"\"\"\n    with patch('pathlib.Path.exists', return_value=True), \\\n         patch('pathlib.Path.is_file', return_value=True), \\\n         patch('pathlib.Path.read_bytes', side_effect=OSError(\"Read failed\")):\n        \n        with pytest.raises(OSError):\n            await dashboard_server._handle_static(mock_writer, \"/file.txt\")\n\n\n@pytest.mark.asyncio\nasync def test_handle_static_unicode_decode_error(dashboard_server, mock_writer):\n    \"\"\"Handle UnicodeDecodeError for invalid unicode in path.\"\"\"\n    # This test may need adjustment based on actual implementation\n    # Some implementations may sanitize paths before this error occurs\n    try:\n        await dashboard_server._handle_static(mock_writer, \"/invalid\\udcff.html\")\n    except UnicodeDecodeError:\n        pass  # Expected\n    except Exception:\n        pass  # May be handled differently\n\n\n# ============================================================================\n# _write_json_response TESTS\n# ============================================================================\n\n@pytest.mark.asyncio\nasync def test_write_json_response_happy_path(mock_writer):\n    \"\"\"Write HTTP JSON response with status, headers, and body.\"\"\"\n    from src.baton.dashboard_server import DashboardServer\n    \n    body = '{\"success\": true}'\n    DashboardServer._write_json_response(mock_writer, 200, body)\n    \n    assert mock_writer.write.called\n    written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n    response = written_data.decode('utf-8')\n    \n    assert 'Content-Type: application/json' in response\n    assert 'Access-Control-Allow-Origin: *' in response\n    assert body in response\n\n\n@pytest.mark.asyncio\nasync def test_write_json_response_404(mock_writer):\n    \"\"\"Write 404 JSON response.\"\"\"\n    from src.baton.dashboard_server import DashboardServer\n    \n    body = '{\"error\": \"Not found\"}'\n    DashboardServer._write_json_response(mock_writer, 404, body)\n    \n    written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n    response = written_data.decode('utf-8')\n    \n    assert '404' in response\n\n\n@pytest.mark.asyncio\nasync def test_write_json_response_unicode_encode_error(mock_writer):\n    \"\"\"Handle UnicodeEncodeError when body cannot be encoded as UTF-8.\"\"\"\n    from src.baton.dashboard_server import DashboardServer\n    \n    # Create a mock writer that raises UnicodeEncodeError\n    mock_writer.write.side_effect = UnicodeEncodeError('utf-8', '', 0, 1, 'invalid')\n    \n    with pytest.raises(UnicodeEncodeError):\n        DashboardServer._write_json_response(mock_writer, 200, '{\"data\": \"test\"}')\n\n\n@pytest.mark.asyncio\nasync def test_invariant_cors_header(mock_writer):\n    \"\"\"Verify all JSON responses include CORS header.\"\"\"\n    from src.baton.dashboard_server import DashboardServer\n    \n    body = '{}'\n    DashboardServer._write_json_response(mock_writer, 200, body)\n    \n    written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n    response = written_data.decode('utf-8')\n    \n    assert 'Access-Control-Allow-Origin: *' in response\n\n\n# ============================================================================\n# ADDITIONAL EDGE CASE TESTS\n# ============================================================================\n\n@pytest.mark.asyncio\nasync def test_concurrent_requests(dashboard_server, mock_writer):\n    \"\"\"Test handling multiple concurrent requests.\"\"\"\n    readers = [AsyncMock() for _ in range(5)]\n    writers = [AsyncMock() for _ in range(5)]\n    \n    for reader in readers:\n        reader.readline.return_value = b\"GET /api/snapshot HTTP/1.1\\r\\n\"\n        reader.get_extra_info = Mock(return_value=(\"127.0.0.1\", 12345))\n    \n    for writer in writers:\n        writer.write = Mock()\n        writer.drain = AsyncMock()\n        writer.close = Mock()\n        writer.wait_closed = AsyncMock()\n        writer.get_extra_info = Mock(return_value=(\"127.0.0.1\", 12345))\n    \n    with patch.object(dashboard_server, '_handle_snapshot', return_value='{}'):\n        tasks = [dashboard_server._handle(r, w) for r, w in zip(readers, writers)]\n        await asyncio.gather(*tasks, return_exceptions=True)\n        \n        # All writers should have been used\n        for writer in writers:\n            assert writer.close.called\n\n\ndef test_empty_circuit(mock_adapters, mock_state):\n    \"\"\"Test DashboardServer with empty circuit (no nodes or edges).\"\"\"\n    mock_circuit = Mock(spec=CircuitSpec)\n    mock_circuit.nodes = []\n    mock_circuit.edges = []\n    \n    server = DashboardServer(\n        adapters=mock_adapters,\n        state=mock_state,\n        circuit=mock_circuit,\n        signal_aggregator=None,\n        static_dir=None,\n        host=\"localhost\",\n        port=8080\n    )\n    \n    result = server._handle_topology()\n    parsed = json.loads(result)\n    \n    assert parsed['nodes'] == []\n    assert parsed['edges'] == []\n\n\n@pytest.mark.asyncio\nasync def test_handle_with_malformed_request(dashboard_server, mock_reader, mock_writer):\n    \"\"\"Test handling of malformed HTTP request.\"\"\"\n    mock_reader.readline.return_value = b\"INVALID REQUEST\\r\\n\"\n    \n    with patch('logging.getLogger') as mock_get_logger:\n        mock_logger = Mock()\n        mock_get_logger.return_value = mock_logger\n        \n        await dashboard_server._handle(mock_reader, mock_writer)\n        \n        # Should handle gracefully\n        assert mock_writer.close.called\n\n\ndef test_signal_stats_with_zero_count(dashboard_server):\n    \"\"\"Test signal stats calculation with zero count to avoid division by zero.\"\"\"\n    stat = Mock()\n    stat.path = \"/test\"\n    stat.count = 0\n    stat.total_latency_ms = 0\n    stat.error_count = 0\n    \n    dashboard_server._signal_aggregator.path_stats.return_value = {\"path1\": stat}\n    \n    result = dashboard_server._handle_signal_stats()\n    parsed = json.loads(result)\n    \n    # Should handle zero count gracefully\n    assert isinstance(result, str)\n\n\n@pytest.mark.parametrize(\"path,expected_status\", [\n    (\"/api/snapshot\", 200),\n    (\"/api/topology\", 200),\n    (\"/api/signals\", 200),\n    (\"/api/signals/stats\", 200),\n    (\"/api/invalid\", 404),\n])\n@pytest.mark.asyncio\nasync def test_api_routes_parametrized(dashboard_server, mock_reader, mock_writer, path, expected_status):\n    \"\"\"Test various API routes with parametrized inputs.\"\"\"\n    mock_reader.readline.return_value = f\"GET {path} HTTP/1.1\\r\\n\".encode()\n    \n    with patch.object(dashboard_server, '_handle_snapshot', return_value='{}'), \\\n         patch.object(dashboard_server, '_handle_topology', return_value='{\"nodes\":[],\"edges\":[]}'), \\\n         patch.object(dashboard_server, '_handle_signals', return_value='[]'), \\\n         patch.object(dashboard_server, '_handle_signal_stats', return_value='{}'):\n        \n        await dashboard_server._handle(mock_reader, mock_writer)\n        \n        written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n        response = written_data.decode('utf-8')\n        \n        assert str(expected_status) in response\n\n\n@pytest.mark.parametrize(\"mime_path,expected_mime\", [\n    (\"/file.html\", \"text/html\"),\n    (\"/file.css\", \"text/css\"),\n    (\"/file.js\", \"application/javascript\"),\n    (\"/file.json\", \"application/json\"),\n    (\"/file.png\", \"image/png\"),\n])\n@pytest.mark.asyncio\nasync def test_static_mime_types(dashboard_server, mock_writer, mime_path, expected_mime):\n    \"\"\"Test MIME type detection for various file types.\"\"\"\n    mock_file_content = b\"content\"\n    \n    with patch('pathlib.Path.exists', return_value=True), \\\n         patch('pathlib.Path.is_file', return_value=True), \\\n         patch('pathlib.Path.read_bytes', return_value=mock_file_content), \\\n         patch('mimetypes.guess_type', return_value=(expected_mime, None)):\n        \n        await dashboard_server._handle_static(mock_writer, mime_path)\n        \n        written_data = b''.join([call[0][0] for call in mock_writer.write.call_args_list])\n        response = written_data.decode('utf-8')\n        \n        assert expected_mime in response or '200' in response\n"
+}

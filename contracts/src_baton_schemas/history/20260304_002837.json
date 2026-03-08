@@ -1,0 +1,1572 @@
+{
+  "component_id": "src_baton_schemas",
+  "name": "Baton Schemas",
+  "description": "Pydantic v2 data models for Baton circuit topology (frozen), runtime state (mutable), health monitoring, signals, and custodian events. Provides validation logic for circuit definitions, routing configurations, and node specifications.",
+  "version": 1,
+  "types": [
+    {
+      "name": "NodeStatus",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "IDLE",
+        "LISTENING",
+        "ACTIVE",
+        "DRAINING",
+        "FAULTED"
+      ],
+      "inner_types": [],
+      "description": "Status of a node in the circuit"
+    },
+    {
+      "name": "ProxyMode",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "HTTP",
+        "TCP"
+      ],
+      "inner_types": [],
+      "description": "Protocol mode for proxy"
+    },
+    {
+      "name": "NodeRole",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "SERVICE",
+        "INGRESS",
+        "EGRESS"
+      ],
+      "inner_types": [],
+      "description": "Role classification for nodes"
+    },
+    {
+      "name": "CollapseLevel",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "FULL_MOCK",
+        "PARTIAL",
+        "FULL_LIVE"
+      ],
+      "inner_types": [],
+      "description": "Level of mock vs live service deployment"
+    },
+    {
+      "name": "HealthVerdict",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "HEALTHY",
+        "DEGRADED",
+        "UNHEALTHY",
+        "UNKNOWN"
+      ],
+      "inner_types": [],
+      "description": "Health check result classification"
+    },
+    {
+      "name": "CustodianAction",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "RESTART_SERVICE",
+        "REPLACE_SERVICE",
+        "BOOT_SECONDARY",
+        "REROUTE",
+        "ESCALATE"
+      ],
+      "inner_types": [],
+      "description": "Actions the custodian can take"
+    },
+    {
+      "name": "RoutingStrategy",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "SINGLE",
+        "WEIGHTED",
+        "HEADER",
+        "CANARY"
+      ],
+      "inner_types": [],
+      "description": "Routing strategy for traffic distribution"
+    },
+    {
+      "name": "NodeSpec",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Node name matching pattern ^[a-z][a-z0-9_-]*$",
+          "validators": []
+        },
+        {
+          "name": "host",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Host address",
+          "validators": []
+        },
+        {
+          "name": "port",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Port between 1024-65535",
+          "validators": []
+        },
+        {
+          "name": "proxy_mode",
+          "type_ref": "ProxyMode",
+          "required": false,
+          "default": "",
+          "description": "Proxy protocol mode",
+          "validators": []
+        },
+        {
+          "name": "contract",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Contract identifier",
+          "validators": []
+        },
+        {
+          "name": "role",
+          "type_ref": "NodeRole",
+          "required": false,
+          "default": "",
+          "description": "Node role",
+          "validators": []
+        },
+        {
+          "name": "management_port",
+          "type_ref": "int",
+          "required": false,
+          "default": "",
+          "description": "Management port (auto-computed if 0)",
+          "validators": []
+        },
+        {
+          "name": "metadata",
+          "type_ref": "dict[str, str]",
+          "required": false,
+          "default": "",
+          "description": "Additional metadata",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A named slot in the circuit with a pre-assigned address (frozen)"
+    },
+    {
+      "name": "EdgeSpec",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "source",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Source node name",
+          "validators": []
+        },
+        {
+          "name": "target",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Target node name",
+          "validators": []
+        },
+        {
+          "name": "label",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Edge label",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A directed connection between two nodes (frozen)"
+    },
+    {
+      "name": "DependencySpec",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Dependency name",
+          "validators": []
+        },
+        {
+          "name": "expected_api",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Expected API specification",
+          "validators": []
+        },
+        {
+          "name": "optional",
+          "type_ref": "bool",
+          "required": false,
+          "default": "",
+          "description": "Whether dependency is optional",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A service's declared dependency on another service (frozen)"
+    },
+    {
+      "name": "CircuitSpec",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Circuit name",
+          "validators": []
+        },
+        {
+          "name": "version",
+          "type_ref": "int",
+          "required": false,
+          "default": "",
+          "description": "Circuit version",
+          "validators": []
+        },
+        {
+          "name": "nodes",
+          "type_ref": "list[NodeSpec]",
+          "required": false,
+          "default": "",
+          "description": "List of nodes in circuit",
+          "validators": []
+        },
+        {
+          "name": "edges",
+          "type_ref": "list[EdgeSpec]",
+          "required": false,
+          "default": "",
+          "description": "List of edges connecting nodes",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "The full circuit board definition (frozen)"
+    },
+    {
+      "name": "ServiceManifest",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Service name matching pattern ^[a-z][a-z0-9_-]*$",
+          "validators": []
+        },
+        {
+          "name": "version",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Service version",
+          "validators": []
+        },
+        {
+          "name": "api_spec",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "API specification",
+          "validators": []
+        },
+        {
+          "name": "mock_spec",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Mock specification",
+          "validators": []
+        },
+        {
+          "name": "command",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Command to run service",
+          "validators": []
+        },
+        {
+          "name": "port",
+          "type_ref": "int",
+          "required": false,
+          "default": "",
+          "description": "Service port",
+          "validators": []
+        },
+        {
+          "name": "proxy_mode",
+          "type_ref": "ProxyMode",
+          "required": false,
+          "default": "",
+          "description": "Proxy mode",
+          "validators": []
+        },
+        {
+          "name": "role",
+          "type_ref": "NodeRole",
+          "required": false,
+          "default": "",
+          "description": "Service role",
+          "validators": []
+        },
+        {
+          "name": "dependencies",
+          "type_ref": "list[DependencySpec]",
+          "required": false,
+          "default": "",
+          "description": "Service dependencies",
+          "validators": []
+        },
+        {
+          "name": "metadata",
+          "type_ref": "dict[str, str]",
+          "required": false,
+          "default": "",
+          "description": "Additional metadata",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Self-description of a service for circuit derivation (frozen)"
+    },
+    {
+      "name": "RoutingTarget",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Target name",
+          "validators": []
+        },
+        {
+          "name": "host",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Target host",
+          "validators": []
+        },
+        {
+          "name": "port",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Target port 1-65535",
+          "validators": []
+        },
+        {
+          "name": "weight",
+          "type_ref": "int",
+          "required": false,
+          "default": "",
+          "description": "Routing weight 0-100",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A backend target for routing (frozen)"
+    },
+    {
+      "name": "RoutingRule",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "header",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Header name",
+          "validators": []
+        },
+        {
+          "name": "value",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Header value to match",
+          "validators": []
+        },
+        {
+          "name": "target",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Target name for this rule",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Route by header value to a named target (frozen)"
+    },
+    {
+      "name": "RoutingConfig",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "strategy",
+          "type_ref": "RoutingStrategy",
+          "required": false,
+          "default": "",
+          "description": "Routing strategy",
+          "validators": []
+        },
+        {
+          "name": "targets",
+          "type_ref": "list[RoutingTarget]",
+          "required": false,
+          "default": "",
+          "description": "List of routing targets",
+          "validators": []
+        },
+        {
+          "name": "rules",
+          "type_ref": "list[RoutingRule]",
+          "required": false,
+          "default": "",
+          "description": "List of routing rules",
+          "validators": []
+        },
+        {
+          "name": "default_target",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "Default target name",
+          "validators": []
+        },
+        {
+          "name": "locked",
+          "type_ref": "bool",
+          "required": false,
+          "default": "",
+          "description": "Whether routing is locked",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Routing configuration for an adapter (frozen)"
+    },
+    {
+      "name": "ServiceSlot",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "command",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "is_mock",
+          "type_ref": "bool",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "pid",
+          "type_ref": "int",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "started_at",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "What is slotted into an adapter (mutable)"
+    },
+    {
+      "name": "AdapterState",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "status",
+          "type_ref": "NodeStatus",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "adapter_pid",
+          "type_ref": "int",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "service",
+          "type_ref": "ServiceSlot",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "last_health_check",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "last_health_verdict",
+          "type_ref": "HealthVerdict",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "consecutive_failures",
+          "type_ref": "int",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "routing_config",
+          "type_ref": "dict | None",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Runtime state of a single adapter (mutable)"
+    },
+    {
+      "name": "CircuitState",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "circuit_name",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "collapse_level",
+          "type_ref": "CollapseLevel",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "live_nodes",
+          "type_ref": "list[str]",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "adapters",
+          "type_ref": "dict[str, AdapterState]",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "mock_pid",
+          "type_ref": "int",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "custodian_pid",
+          "type_ref": "int",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "started_at",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "updated_at",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Full runtime state persisted to .baton/state.json (mutable)"
+    },
+    {
+      "name": "HealthCheck",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "verdict",
+          "type_ref": "HealthVerdict",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "latency_ms",
+          "type_ref": "float",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "detail",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "timestamp",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Result of a single health check (frozen)"
+    },
+    {
+      "name": "SignalRecord",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "direction",
+          "type_ref": "Literal['inbound', 'outbound']",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "method",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "path",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "status_code",
+          "type_ref": "int",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "body_bytes",
+          "type_ref": "int",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "latency_ms",
+          "type_ref": "float",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "timestamp",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "A recorded request/response through an adapter (frozen)"
+    },
+    {
+      "name": "CustodianEvent",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "action",
+          "type_ref": "CustodianAction",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "reason",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "success",
+          "type_ref": "bool",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "detail",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "timestamp",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "An event from the custodian's repair playbook (mutable)"
+    },
+    {
+      "name": "ImageInfo",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "node_name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "tag",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "built_at",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "digest",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Metadata for a built container image (mutable)"
+    },
+    {
+      "name": "DeploymentTarget",
+      "kind": "struct",
+      "fields": [
+        {
+          "name": "provider",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "region",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "namespace",
+          "type_ref": "str",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        },
+        {
+          "name": "config",
+          "type_ref": "dict[str, str]",
+          "required": false,
+          "default": "",
+          "description": "",
+          "validators": []
+        }
+      ],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "Target for circuit deployment (frozen)"
+    }
+  ],
+  "functions": [
+    {
+      "name": "auto_management_port",
+      "description": "Pydantic validator that automatically assigns a management port if it is set to 0. Adds 10000 to the main port, or 1000 if that exceeds 65535.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "NodeSpec",
+          "required": true,
+          "default": "",
+          "description": "The NodeSpec instance being validated",
+          "validators": []
+        }
+      ],
+      "output_type": "NodeSpec",
+      "error_cases": [],
+      "preconditions": [
+        "self.management_port must be an integer",
+        "self.port must be valid (1024-65535)"
+      ],
+      "postconditions": [
+        "If self.management_port was 0, it is set to self.port + 10000 (or self.port + 1000 if > 65535)",
+        "Returns the modified NodeSpec instance"
+      ],
+      "idempotent": false,
+      "side_effects": [
+        "Mutates self.management_port via object.__setattr__"
+      ],
+      "structured_side_effects": [
+        {
+          "kind": "mutates_state",
+          "target": "self.management_port",
+          "description": "Sets management_port if it was 0"
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "no_self_loop",
+      "description": "Pydantic validator that ensures an edge does not connect a node to itself (no self-loops allowed).",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "EdgeSpec",
+          "required": true,
+          "default": "",
+          "description": "The EdgeSpec instance being validated",
+          "validators": []
+        }
+      ],
+      "output_type": "EdgeSpec",
+      "error_cases": [
+        {
+          "name": "SelfLoopError",
+          "condition": "self.source == self.target",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Self-loop not allowed: {source}"
+          }
+        }
+      ],
+      "preconditions": [
+        "self.source and self.target must be non-empty strings"
+      ],
+      "postconditions": [
+        "Returns self unchanged if source != target"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "unique_node_names",
+      "description": "Pydantic validator that ensures all node names in a circuit are unique.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The CircuitSpec instance being validated",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitSpec",
+      "error_cases": [
+        {
+          "name": "DuplicateNodeNamesError",
+          "condition": "len(names) != len(set(names))",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Duplicate node names: {dupes}"
+          }
+        }
+      ],
+      "preconditions": [
+        "self.nodes must be a list of NodeSpec instances"
+      ],
+      "postconditions": [
+        "Returns self unchanged if all node names are unique"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "unique_ports",
+      "description": "Pydantic validator that ensures all node ports in a circuit are unique.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The CircuitSpec instance being validated",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitSpec",
+      "error_cases": [
+        {
+          "name": "DuplicatePortsError",
+          "condition": "len(ports) != len(set(ports))",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Duplicate ports in circuit"
+          }
+        }
+      ],
+      "preconditions": [
+        "self.nodes must be a list of NodeSpec instances"
+      ],
+      "postconditions": [
+        "Returns self unchanged if all node ports are unique"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "egress_not_edge_source",
+      "description": "Pydantic validator that ensures egress nodes (external dependencies) cannot be sources of edges, as they should not be producers.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The CircuitSpec instance being validated",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitSpec",
+      "error_cases": [
+        {
+          "name": "EgressAsSourceError",
+          "condition": "e.source in egress_names for any edge e",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Egress node '{source}' cannot be an edge source (egress nodes are external dependencies, not producers)"
+          }
+        }
+      ],
+      "preconditions": [
+        "self.nodes must be a list of NodeSpec instances",
+        "self.edges must be a list of EdgeSpec instances"
+      ],
+      "postconditions": [
+        "Returns self unchanged if no egress nodes are edge sources"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "edges_reference_existing_nodes",
+      "description": "Pydantic validator that ensures all edge sources and targets reference actual nodes in the circuit.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The CircuitSpec instance being validated",
+          "validators": []
+        }
+      ],
+      "output_type": "CircuitSpec",
+      "error_cases": [
+        {
+          "name": "EdgeSourceNotFoundError",
+          "condition": "e.source not in names for any edge e",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Edge source '{source}' not in nodes"
+          }
+        },
+        {
+          "name": "EdgeTargetNotFoundError",
+          "condition": "e.target not in names for any edge e",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Edge target '{target}' not in nodes"
+          }
+        }
+      ],
+      "preconditions": [
+        "self.nodes must be a list of NodeSpec instances",
+        "self.edges must be a list of EdgeSpec instances"
+      ],
+      "postconditions": [
+        "Returns self unchanged if all edge sources and targets exist in nodes"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "node_by_name",
+      "description": "Looks up a node in the circuit by name. Returns None if not found.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The CircuitSpec instance",
+          "validators": []
+        },
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "The name of the node to find",
+          "validators": []
+        }
+      ],
+      "output_type": "NodeSpec | None",
+      "error_cases": [],
+      "preconditions": [
+        "name must be a string"
+      ],
+      "postconditions": [
+        "Returns NodeSpec if found, None otherwise"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "neighbors",
+      "description": "Returns a list of node names that the given node connects TO (outbound edges).",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The CircuitSpec instance",
+          "validators": []
+        },
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "The name of the node",
+          "validators": []
+        }
+      ],
+      "output_type": "list[str]",
+      "error_cases": [],
+      "preconditions": [
+        "name must be a string"
+      ],
+      "postconditions": [
+        "Returns list of target node names from edges where source == name"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "dependents",
+      "description": "Returns a list of node names that connect TO the given node (inbound edges).",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The CircuitSpec instance",
+          "validators": []
+        },
+        {
+          "name": "name",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "The name of the node",
+          "validators": []
+        }
+      ],
+      "output_type": "list[str]",
+      "error_cases": [],
+      "preconditions": [
+        "name must be a string"
+      ],
+      "postconditions": [
+        "Returns list of source node names from edges where target == name"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "ingress_nodes",
+      "description": "Property that returns all nodes with the INGRESS role.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The CircuitSpec instance",
+          "validators": []
+        }
+      ],
+      "output_type": "list[NodeSpec]",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns list of NodeSpec where role == NodeRole.INGRESS"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "egress_nodes",
+      "description": "Property that returns all nodes with the EGRESS role.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "CircuitSpec",
+          "required": true,
+          "default": "",
+          "description": "The CircuitSpec instance",
+          "validators": []
+        }
+      ],
+      "output_type": "list[NodeSpec]",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns list of NodeSpec where role == NodeRole.EGRESS"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "weights_sum_to_100",
+      "description": "Pydantic validator that ensures routing target weights sum to 100 for WEIGHTED and CANARY strategies. Allows rollback configs where some targets have weight=0 as long as non-zero weights sum to 100.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "RoutingConfig",
+          "required": true,
+          "default": "",
+          "description": "The RoutingConfig instance being validated",
+          "validators": []
+        }
+      ],
+      "output_type": "RoutingConfig",
+      "error_cases": [
+        {
+          "name": "WeightSumError",
+          "condition": "strategy in (WEIGHTED, CANARY) and non-zero weights don't sum to 100",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Weights must sum to 100 for {strategy} strategy, got {total}"
+          }
+        }
+      ],
+      "preconditions": [
+        "self.targets must be a list of RoutingTarget instances",
+        "self.strategy must be a valid RoutingStrategy"
+      ],
+      "postconditions": [
+        "Returns self unchanged if weights are valid for the strategy"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "header_requires_rules",
+      "description": "Pydantic validator that ensures HEADER routing strategy has at least one rule and a default_target.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "RoutingConfig",
+          "required": true,
+          "default": "",
+          "description": "The RoutingConfig instance being validated",
+          "validators": []
+        }
+      ],
+      "output_type": "RoutingConfig",
+      "error_cases": [
+        {
+          "name": "NoRulesError",
+          "condition": "strategy == HEADER and not self.rules",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Header strategy requires at least one rule"
+          }
+        },
+        {
+          "name": "NoDefaultTargetError",
+          "condition": "strategy == HEADER and not self.default_target",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Header strategy requires a default_target"
+          }
+        }
+      ],
+      "preconditions": [
+        "self.strategy must be a valid RoutingStrategy",
+        "self.rules must be a list",
+        "self.default_target must be a string"
+      ],
+      "postconditions": [
+        "Returns self unchanged if HEADER strategy has rules and default_target"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "no_duplicate_target_names",
+      "description": "Pydantic validator that ensures all routing target names are unique within a RoutingConfig.",
+      "inputs": [
+        {
+          "name": "self",
+          "type_ref": "RoutingConfig",
+          "required": true,
+          "default": "",
+          "description": "The RoutingConfig instance being validated",
+          "validators": []
+        }
+      ],
+      "output_type": "RoutingConfig",
+      "error_cases": [
+        {
+          "name": "DuplicateTargetNamesError",
+          "condition": "len(names) != len(set(names))",
+          "error_type": "ValueError",
+          "error_data": {
+            "message": "Duplicate target names: {dupes}"
+          }
+        }
+      ],
+      "preconditions": [
+        "self.targets must be a list of RoutingTarget instances"
+      ],
+      "postconditions": [
+        "Returns self unchanged if all target names are unique"
+      ],
+      "idempotent": false,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "pydantic",
+    "datetime",
+    "enum",
+    "typing"
+  ],
+  "dependency_contracts": {
+    "pydantic": [
+      "BaseModel",
+      "ConfigDict",
+      "Field",
+      "model_validator"
+    ],
+    "datetime": [
+      "datetime",
+      "timezone"
+    ],
+    "enum": [
+      "StrEnum"
+    ],
+    "typing": [
+      "Literal"
+    ]
+  },
+  "invariants": [
+    "All NodeSpec instances are frozen (immutable) after validation",
+    "All EdgeSpec instances are frozen (immutable) after validation",
+    "All CircuitSpec instances are frozen (immutable) after validation",
+    "All ServiceManifest instances are frozen (immutable) after validation",
+    "All RoutingConfig instances are frozen (immutable) after validation",
+    "Node names must match pattern ^[a-z][a-z0-9_-]*$",
+    "Service names must match pattern ^[a-z][a-z0-9_-]*$",
+    "Node ports must be in range 1024-65535",
+    "Management ports are auto-computed as port + 10000 (or port + 1000 if overflow)",
+    "Routing target weights must be in range 0-100",
+    "For WEIGHTED and CANARY strategies, non-zero target weights must sum to 100",
+    "For HEADER strategy, at least one rule and a default_target must be specified",
+    "No edge can be a self-loop (source == target)",
+    "All edge sources and targets must reference existing nodes in the circuit",
+    "Egress nodes cannot be sources of edges (they are consumers, not producers)",
+    "All node names in a circuit must be unique",
+    "All node ports in a circuit must be unique",
+    "All routing target names in a config must be unique"
+  ],
+  "requires": []
+}

@@ -1,0 +1,524 @@
+{
+  "component_id": "src_baton_circuit",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "test_add_node_happy_path_explicit_port",
+      "description": "Add a node with explicitly specified port to an empty circuit",
+      "function": "add_node",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "name": "node1",
+        "port": "9001",
+        "proxy_mode": "http",
+        "contract": "contract1.yaml",
+        "role": "client"
+      },
+      "input_description": "Empty circuit, node name 'node1', port 9001",
+      "expected_output_description": "New CircuitSpec with one node named 'node1' on port 9001",
+      "expected_error": "",
+      "assertions": [
+        "New circuit contains the added node",
+        "Original circuit is unchanged",
+        "New circuit has same name and version",
+        "Node has correct attributes"
+      ]
+    },
+    {
+      "id": "test_add_node_happy_path_auto_port",
+      "description": "Add a node with auto-assigned port (port=0)",
+      "function": "add_node",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "name": "node1",
+        "port": "0",
+        "proxy_mode": "http",
+        "contract": "contract1.yaml",
+        "role": "server"
+      },
+      "input_description": "Empty circuit, node name 'node1', port 0 (auto-assign)",
+      "expected_output_description": "New CircuitSpec with node assigned port 9001",
+      "expected_error": "",
+      "assertions": [
+        "Node is assigned port 9001 (first available)",
+        "Original circuit is unchanged"
+      ]
+    },
+    {
+      "id": "test_add_node_error_duplicate_node",
+      "description": "Adding a node with duplicate name raises duplicate_node error",
+      "function": "add_node",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with existing node 'node1', attempt to add another 'node1'",
+      "expected_output_description": "",
+      "expected_error": "duplicate_node",
+      "assertions": [
+        "Raises exception with duplicate_node error"
+      ]
+    },
+    {
+      "id": "test_add_node_error_no_available_port",
+      "description": "Adding a node with auto-port when all ports are used raises no_available_port error",
+      "function": "add_node",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with all ports 9001-9999 occupied, port=0",
+      "expected_output_description": "",
+      "expected_error": "no_available_port",
+      "assertions": [
+        "Raises exception with no_available_port error"
+      ]
+    },
+    {
+      "id": "test_add_node_edge_case_last_available_port",
+      "description": "Add node with auto-port when only one port remains (9999)",
+      "function": "add_node",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with ports 9001-9998 occupied, add node with port=0",
+      "expected_output_description": "Node assigned to port 9999",
+      "expected_error": "",
+      "assertions": [
+        "Node is assigned port 9999",
+        "No error is raised"
+      ]
+    },
+    {
+      "id": "test_remove_node_happy_path",
+      "description": "Remove an existing node from circuit",
+      "function": "remove_node",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with node 'node1', remove 'node1'",
+      "expected_output_description": "New CircuitSpec without 'node1'",
+      "expected_error": "",
+      "assertions": [
+        "Node is removed from new circuit",
+        "Original circuit is unchanged",
+        "Name and version preserved"
+      ]
+    },
+    {
+      "id": "test_remove_node_error_not_found",
+      "description": "Removing non-existent node raises node_not_found error",
+      "function": "remove_node",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit without 'nonexistent' node, attempt to remove it",
+      "expected_output_description": "",
+      "expected_error": "node_not_found",
+      "assertions": [
+        "Raises exception with node_not_found error"
+      ]
+    },
+    {
+      "id": "test_remove_node_removes_edges",
+      "description": "Removing a node also removes all edges connected to it",
+      "function": "remove_node",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with nodes A, B, C and edges A->B, B->C, remove B",
+      "expected_output_description": "New circuit without B and without edges A->B and B->C",
+      "expected_error": "",
+      "assertions": [
+        "Node B is removed",
+        "Edges involving B are removed",
+        "Other nodes and edges remain"
+      ]
+    },
+    {
+      "id": "test_add_edge_happy_path",
+      "description": "Add an edge between two existing nodes",
+      "function": "add_edge",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "source": "A",
+        "target": "B",
+        "label": "connects"
+      },
+      "input_description": "Circuit with nodes 'A' and 'B', add edge A->B",
+      "expected_output_description": "New CircuitSpec with edge A->B labeled 'connects'",
+      "expected_error": "",
+      "assertions": [
+        "Edge exists in new circuit",
+        "Original circuit unchanged",
+        "All nodes remain unchanged"
+      ]
+    },
+    {
+      "id": "test_add_edge_error_source_not_found",
+      "description": "Adding edge with non-existent source raises source_not_found error",
+      "function": "add_edge",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with node 'B' but not 'A', attempt edge A->B",
+      "expected_output_description": "",
+      "expected_error": "source_not_found",
+      "assertions": [
+        "Raises exception with source_not_found error"
+      ]
+    },
+    {
+      "id": "test_add_edge_error_target_not_found",
+      "description": "Adding edge with non-existent target raises target_not_found error",
+      "function": "add_edge",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with node 'A' but not 'B', attempt edge A->B",
+      "expected_output_description": "",
+      "expected_error": "target_not_found",
+      "assertions": [
+        "Raises exception with target_not_found error"
+      ]
+    },
+    {
+      "id": "test_add_edge_error_duplicate_edge",
+      "description": "Adding duplicate edge raises duplicate_edge error",
+      "function": "add_edge",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with edge A->B, attempt to add A->B again",
+      "expected_output_description": "",
+      "expected_error": "duplicate_edge",
+      "assertions": [
+        "Raises exception with duplicate_edge error"
+      ]
+    },
+    {
+      "id": "test_remove_edge_happy_path",
+      "description": "Remove an existing edge from circuit",
+      "function": "remove_edge",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "source": "A",
+        "target": "B"
+      },
+      "input_description": "Circuit with edge A->B, remove A->B",
+      "expected_output_description": "New CircuitSpec without edge A->B",
+      "expected_error": "",
+      "assertions": [
+        "Edge is removed from new circuit",
+        "Original circuit unchanged",
+        "Nodes remain unchanged"
+      ]
+    },
+    {
+      "id": "test_remove_edge_error_not_found",
+      "description": "Removing non-existent edge raises edge_not_found error",
+      "function": "remove_edge",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with nodes A, B but no edge A->B, attempt to remove A->B",
+      "expected_output_description": "",
+      "expected_error": "edge_not_found",
+      "assertions": [
+        "Raises exception with edge_not_found error"
+      ]
+    },
+    {
+      "id": "test_set_contract_happy_path",
+      "description": "Update contract path for an existing node",
+      "function": "set_contract",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "node_name": "node1",
+        "contract_path": "new_contract.yaml"
+      },
+      "input_description": "Circuit with node 'node1', update contract to 'new_contract.yaml'",
+      "expected_output_description": "New CircuitSpec with node1's contract updated",
+      "expected_error": "",
+      "assertions": [
+        "Node contract is updated",
+        "Original circuit unchanged",
+        "Other node fields unchanged",
+        "All edges unchanged"
+      ]
+    },
+    {
+      "id": "test_set_contract_error_not_found",
+      "description": "Setting contract for non-existent node raises node_not_found error",
+      "function": "set_contract",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit without 'nonexistent' node, attempt to set contract",
+      "expected_output_description": "",
+      "expected_error": "node_not_found",
+      "assertions": [
+        "Raises exception with node_not_found error"
+      ]
+    },
+    {
+      "id": "test_has_cycle_acyclic_graph",
+      "description": "has_cycle returns False for acyclic graph (DAG)",
+      "function": "has_cycle",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with nodes A->B->C (linear chain)",
+      "expected_output_description": "Returns False",
+      "expected_error": "",
+      "assertions": [
+        "Returns False for DAG",
+        "Original circuit unchanged"
+      ]
+    },
+    {
+      "id": "test_has_cycle_with_cycle",
+      "description": "has_cycle returns True for graph with cycle",
+      "function": "has_cycle",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with nodes A->B->C->A (cycle)",
+      "expected_output_description": "Returns True",
+      "expected_error": "",
+      "assertions": [
+        "Returns True for cyclic graph",
+        "Original circuit unchanged"
+      ]
+    },
+    {
+      "id": "test_has_cycle_empty_graph",
+      "description": "has_cycle returns False for empty graph",
+      "function": "has_cycle",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Empty circuit with no nodes",
+      "expected_output_description": "Returns False",
+      "expected_error": "",
+      "assertions": [
+        "Returns False for empty graph"
+      ]
+    },
+    {
+      "id": "test_has_cycle_self_loop",
+      "description": "has_cycle returns True for graph with self-loop",
+      "function": "has_cycle",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with node A and edge A->A",
+      "expected_output_description": "Returns True",
+      "expected_error": "",
+      "assertions": [
+        "Returns True for self-loop"
+      ]
+    },
+    {
+      "id": "test_topological_sort_happy_path",
+      "description": "topological_sort returns valid ordering for DAG",
+      "function": "topological_sort",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with A->B, A->C, B->D, C->D",
+      "expected_output_description": "List where A before B and C, B and C before D",
+      "expected_error": "",
+      "assertions": [
+        "Returns list of all node names",
+        "For every edge (u,v), u appears before v",
+        "Original circuit unchanged"
+      ]
+    },
+    {
+      "id": "test_topological_sort_error_contains_cycle",
+      "description": "topological_sort raises contains_cycle error for cyclic graph",
+      "function": "topological_sort",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with cycle A->B->C->A",
+      "expected_output_description": "",
+      "expected_error": "contains_cycle",
+      "assertions": [
+        "Raises exception with contains_cycle error"
+      ]
+    },
+    {
+      "id": "test_topological_sort_deterministic",
+      "description": "topological_sort returns deterministic result",
+      "function": "topological_sort",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with nodes that have multiple valid orderings",
+      "expected_output_description": "Consistent ordering across multiple calls",
+      "expected_error": "",
+      "assertions": [
+        "Multiple calls return same result",
+        "Result is deterministic"
+      ]
+    },
+    {
+      "id": "test_topological_sort_empty_graph",
+      "description": "topological_sort returns empty list for empty circuit",
+      "function": "topological_sort",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Empty circuit with no nodes",
+      "expected_output_description": "Empty list",
+      "expected_error": "",
+      "assertions": [
+        "Returns empty list"
+      ]
+    },
+    {
+      "id": "test_next_port_happy_path",
+      "description": "Find next available port in empty circuit",
+      "function": "_next_port",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Empty circuit",
+      "expected_output_description": "Returns 9001",
+      "expected_error": "",
+      "assertions": [
+        "Returns 9001 for empty circuit",
+        "Original circuit unchanged"
+      ]
+    },
+    {
+      "id": "test_next_port_finds_gap",
+      "description": "Find next available port skipping used ports",
+      "function": "_next_port",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with ports 9001, 9002 used",
+      "expected_output_description": "Returns 9003",
+      "expected_error": "",
+      "assertions": [
+        "Returns first unused port (9003)"
+      ]
+    },
+    {
+      "id": "test_next_port_error_no_available",
+      "description": "No available ports raises no_available_ports error",
+      "function": "_next_port",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Circuit with all ports 9001-9999 occupied",
+      "expected_output_description": "",
+      "expected_error": "no_available_ports",
+      "assertions": [
+        "Raises exception with no_available_ports error"
+      ]
+    },
+    {
+      "id": "test_invariant_port_range",
+      "description": "Verify DEFAULT_PORT_START and DEFAULT_PORT_MAX constants",
+      "function": "add_node",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Auto-assign ports and verify they are in range [9001, 9999]",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Auto-assigned ports are >= 9001",
+        "Auto-assigned ports are <= 9999"
+      ]
+    },
+    {
+      "id": "test_invariant_pure_functions",
+      "description": "Verify all functions are pure (don't mutate inputs)",
+      "function": "add_node",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Perform operations and verify original circuit unchanged",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Original CircuitSpec is never modified",
+        "All operations return new instances"
+      ]
+    },
+    {
+      "id": "test_state_transition_build_circuit",
+      "description": "Build a circuit through sequence of operations",
+      "function": "add_node",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Add multiple nodes and edges, verify graph integrity",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "All nodes are added correctly",
+        "All edges connect valid nodes",
+        "State is consistent after each operation"
+      ]
+    },
+    {
+      "id": "test_integration_workflow",
+      "description": "End-to-end workflow: build circuit, check cycle, sort, modify",
+      "function": "add_node",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Complete workflow of circuit operations",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Circuit can be built incrementally",
+        "Cycle detection works correctly",
+        "Topological sort produces valid ordering",
+        "Modifications work as expected"
+      ]
+    }
+  ],
+  "test_language": "python",
+  "generated_code": "\"\"\"\nContract-driven tests for Circuit Graph Operations (src_baton_circuit)\n\nThis test suite verifies the circuit graph operations contract implementation\nusing a layered testing strategy:\n1. Unit Tests for CRUD Operations\n2. State Transition Tests\n3. Algorithm Verification Tests\n4. Error Coverage Tests\n5. Domain-Specific Tests\n6. Invariant Tests\n7. Integration Tests\n\nAll dependencies are mocked. Tests verify behavior at boundaries only.\n\"\"\"\n\nimport pytest\nfrom unittest.mock import Mock, MagicMock, patch\nfrom typing import List, Dict, Any\nimport random\n\n# Import the component under test\nfrom src.baton.circuit import *\n\n\n# ============================================================================\n# Test Fixtures\n# ============================================================================\n\n@pytest.fixture\ndef empty_circuit():\n    \"\"\"Create an empty circuit for testing.\"\"\"\n    circuit = CircuitSpec(name=\"test_circuit\", version=1, nodes=[], edges=[])\n    return circuit\n\n\n@pytest.fixture\ndef circuit_with_one_node():\n    \"\"\"Create a circuit with one node.\"\"\"\n    node = NodeSpec(name=\"node1\", port=9001, proxy_mode=\"http\", \n                    contract=\"contract1.yaml\", role=\"client\")\n    circuit = CircuitSpec(name=\"test_circuit\", version=1, \n                         nodes=[node], edges=[])\n    return circuit\n\n\n@pytest.fixture\ndef circuit_with_multiple_nodes():\n    \"\"\"Create a circuit with multiple nodes.\"\"\"\n    nodes = [\n        NodeSpec(name=\"A\", port=9001, proxy_mode=\"http\", \n                contract=\"contract_a.yaml\", role=\"client\"),\n        NodeSpec(name=\"B\", port=9002, proxy_mode=\"http\", \n                contract=\"contract_b.yaml\", role=\"server\"),\n        NodeSpec(name=\"C\", port=9003, proxy_mode=\"http\", \n                contract=\"contract_c.yaml\", role=\"client\"),\n    ]\n    circuit = CircuitSpec(name=\"test_circuit\", version=1, \n                         nodes=nodes, edges=[])\n    return circuit\n\n\n@pytest.fixture\ndef circuit_with_edges():\n    \"\"\"Create a circuit with nodes and edges forming a DAG.\"\"\"\n    nodes = [\n        NodeSpec(name=\"A\", port=9001, proxy_mode=\"http\", \n                contract=\"contract_a.yaml\", role=\"client\"),\n        NodeSpec(name=\"B\", port=9002, proxy_mode=\"http\", \n                contract=\"contract_b.yaml\", role=\"server\"),\n        NodeSpec(name=\"C\", port=9003, proxy_mode=\"http\", \n                contract=\"contract_c.yaml\", role=\"client\"),\n    ]\n    edges = [\n        EdgeSpec(source=\"A\", target=\"B\", label=\"edge1\"),\n        EdgeSpec(source=\"B\", target=\"C\", label=\"edge2\"),\n    ]\n    circuit = CircuitSpec(name=\"test_circuit\", version=1, \n                         nodes=nodes, edges=edges)\n    return circuit\n\n\n@pytest.fixture\ndef circuit_with_cycle():\n    \"\"\"Create a circuit with a cycle.\"\"\"\n    nodes = [\n        NodeSpec(name=\"A\", port=9001, proxy_mode=\"http\", \n                contract=\"contract_a.yaml\", role=\"client\"),\n        NodeSpec(name=\"B\", port=9002, proxy_mode=\"http\", \n                contract=\"contract_b.yaml\", role=\"server\"),\n        NodeSpec(name=\"C\", port=9003, proxy_mode=\"http\", \n                contract=\"contract_c.yaml\", role=\"client\"),\n    ]\n    edges = [\n        EdgeSpec(source=\"A\", target=\"B\", label=\"edge1\"),\n        EdgeSpec(source=\"B\", target=\"C\", label=\"edge2\"),\n        EdgeSpec(source=\"C\", target=\"A\", label=\"edge3\"),\n    ]\n    circuit = CircuitSpec(name=\"test_circuit\", version=1, \n                         nodes=nodes, edges=edges)\n    return circuit\n\n\n@pytest.fixture\ndef circuit_nearly_full_ports():\n    \"\"\"Create a circuit with ports 9001-9998 occupied (one port left).\"\"\"\n    nodes = [\n        NodeSpec(name=f\"node{i}\", port=9000+i, proxy_mode=\"http\",\n                contract=f\"contract{i}.yaml\", role=\"client\")\n        for i in range(1, 999)  # 9001 to 9998\n    ]\n    circuit = CircuitSpec(name=\"test_circuit\", version=1,\n                         nodes=nodes, edges=[])\n    return circuit\n\n\n@pytest.fixture\ndef circuit_full_ports():\n    \"\"\"Create a circuit with all ports 9001-9999 occupied.\"\"\"\n    nodes = [\n        NodeSpec(name=f\"node{i}\", port=9000+i, proxy_mode=\"http\",\n                contract=f\"contract{i}.yaml\", role=\"client\")\n        for i in range(1, 1000)  # 9001 to 9999\n    ]\n    circuit = CircuitSpec(name=\"test_circuit\", version=1,\n                         nodes=nodes, edges=[])\n    return circuit\n\n\n# ============================================================================\n# Layer 1: Unit Tests for CRUD Operations - add_node\n# ============================================================================\n\ndef test_add_node_happy_path_explicit_port(empty_circuit):\n    \"\"\"Add a node with explicitly specified port to an empty circuit.\"\"\"\n    result = add_node(empty_circuit, name=\"node1\", port=9001, \n                     proxy_mode=\"http\", contract=\"contract1.yaml\", \n                     role=\"client\")\n    \n    # New circuit contains the added node\n    assert len(result.nodes) == 1, \"New circuit should have 1 node\"\n    assert result.nodes[0].name == \"node1\", \"Node name should be 'node1'\"\n    assert result.nodes[0].port == 9001, \"Node port should be 9001\"\n    \n    # Original circuit is unchanged\n    assert len(empty_circuit.nodes) == 0, \"Original circuit should remain empty\"\n    \n    # New circuit has same name and version\n    assert result.name == empty_circuit.name, \"Circuit name should be preserved\"\n    assert result.version == empty_circuit.version, \"Circuit version should be preserved\"\n    \n    # Node has correct attributes\n    assert result.nodes[0].proxy_mode == \"http\", \"proxy_mode should be 'http'\"\n    assert result.nodes[0].contract == \"contract1.yaml\", \"contract should match\"\n    assert result.nodes[0].role == \"client\", \"role should be 'client'\"\n\n\ndef test_add_node_happy_path_auto_port(empty_circuit):\n    \"\"\"Add a node with auto-assigned port (port=0).\"\"\"\n    result = add_node(empty_circuit, name=\"node1\", port=0,\n                     proxy_mode=\"http\", contract=\"contract1.yaml\",\n                     role=\"server\")\n    \n    # Node is assigned port 9001 (first available)\n    assert result.nodes[0].port == 9001, \"First auto-assigned port should be 9001\"\n    \n    # Original circuit is unchanged\n    assert len(empty_circuit.nodes) == 0, \"Original circuit should remain unchanged\"\n\n\ndef test_add_node_error_duplicate_node(circuit_with_one_node):\n    \"\"\"Adding a node with duplicate name raises duplicate_node error.\"\"\"\n    with pytest.raises(Exception) as exc_info:\n        add_node(circuit_with_one_node, name=\"node1\", port=9002,\n                proxy_mode=\"http\", contract=\"contract2.yaml\",\n                role=\"server\")\n    \n    # Raises exception with duplicate_node error\n    assert \"duplicate_node\" in str(exc_info.value).lower() or \\\n           \"duplicate\" in str(exc_info.value).lower() or \\\n           \"already exists\" in str(exc_info.value).lower(), \\\n           \"Should raise duplicate_node error\"\n\n\ndef test_add_node_error_no_available_port(circuit_full_ports):\n    \"\"\"Adding a node with auto-port when all ports are used raises no_available_port error.\"\"\"\n    with pytest.raises(Exception) as exc_info:\n        add_node(circuit_full_ports, name=\"new_node\", port=0,\n                proxy_mode=\"http\", contract=\"contract.yaml\",\n                role=\"client\")\n    \n    # Raises exception with no_available_port error\n    assert \"no_available_port\" in str(exc_info.value).lower() or \\\n           \"no available\" in str(exc_info.value).lower() or \\\n           \"port\" in str(exc_info.value).lower(), \\\n           \"Should raise no_available_port error\"\n\n\ndef test_add_node_edge_case_last_available_port(circuit_nearly_full_ports):\n    \"\"\"Add node with auto-port when only one port remains (9999).\"\"\"\n    result = add_node(circuit_nearly_full_ports, name=\"last_node\", port=0,\n                     proxy_mode=\"http\", contract=\"contract.yaml\",\n                     role=\"client\")\n    \n    # Node is assigned port 9999\n    new_node = [n for n in result.nodes if n.name == \"last_node\"][0]\n    assert new_node.port == 9999, \"Last available port should be 9999\"\n\n\ndef test_add_node_preserves_existing_nodes(circuit_with_one_node):\n    \"\"\"Adding a node preserves all existing nodes.\"\"\"\n    result = add_node(circuit_with_one_node, name=\"node2\", port=9002,\n                     proxy_mode=\"http\", contract=\"contract2.yaml\",\n                     role=\"server\")\n    \n    assert len(result.nodes) == 2, \"Should have 2 nodes\"\n    node_names = [n.name for n in result.nodes]\n    assert \"node1\" in node_names, \"Original node should be preserved\"\n    assert \"node2\" in node_names, \"New node should be added\"\n\n\n# ============================================================================\n# Layer 1: Unit Tests for CRUD Operations - remove_node\n# ============================================================================\n\ndef test_remove_node_happy_path(circuit_with_one_node):\n    \"\"\"Remove an existing node from circuit.\"\"\"\n    result = remove_node(circuit_with_one_node, name=\"node1\")\n    \n    # Node is removed from new circuit\n    assert len(result.nodes) == 0, \"Node should be removed\"\n    \n    # Original circuit is unchanged\n    assert len(circuit_with_one_node.nodes) == 1, \"Original circuit unchanged\"\n    \n    # Name and version preserved\n    assert result.name == circuit_with_one_node.name, \"Name preserved\"\n    assert result.version == circuit_with_one_node.version, \"Version preserved\"\n\n\ndef test_remove_node_error_not_found(empty_circuit):\n    \"\"\"Removing non-existent node raises node_not_found error.\"\"\"\n    with pytest.raises(Exception) as exc_info:\n        remove_node(empty_circuit, name=\"nonexistent\")\n    \n    # Raises exception with node_not_found error\n    assert \"node_not_found\" in str(exc_info.value).lower() or \\\n           \"not found\" in str(exc_info.value).lower() or \\\n           \"does not exist\" in str(exc_info.value).lower(), \\\n           \"Should raise node_not_found error\"\n\n\ndef test_remove_node_removes_edges(circuit_with_edges):\n    \"\"\"Removing a node also removes all edges connected to it.\"\"\"\n    result = remove_node(circuit_with_edges, name=\"B\")\n    \n    # Node B is removed\n    node_names = [n.name for n in result.nodes]\n    assert \"B\" not in node_names, \"Node B should be removed\"\n    \n    # Edges involving B are removed\n    edge_sources = [e.source for e in result.edges]\n    edge_targets = [e.target for e in result.edges]\n    assert \"B\" not in edge_sources, \"No edges should have B as source\"\n    assert \"B\" not in edge_targets, \"No edges should have B as target\"\n    \n    # Other nodes and edges remain\n    assert \"A\" in node_names, \"Node A should remain\"\n    assert \"C\" in node_names, \"Node C should remain\"\n\n\ndef test_remove_node_from_multiple(circuit_with_multiple_nodes):\n    \"\"\"Remove one node from circuit with multiple nodes.\"\"\"\n    result = remove_node(circuit_with_multiple_nodes, name=\"B\")\n    \n    assert len(result.nodes) == 2, \"Should have 2 nodes remaining\"\n    node_names = [n.name for n in result.nodes]\n    assert \"A\" in node_names and \"C\" in node_names, \"A and C should remain\"\n    assert \"B\" not in node_names, \"B should be removed\"\n\n\n# ============================================================================\n# Layer 1: Unit Tests for CRUD Operations - add_edge\n# ============================================================================\n\ndef test_add_edge_happy_path(circuit_with_multiple_nodes):\n    \"\"\"Add an edge between two existing nodes.\"\"\"\n    result = add_edge(circuit_with_multiple_nodes, source=\"A\", \n                     target=\"B\", label=\"connects\")\n    \n    # Edge exists in new circuit\n    assert len(result.edges) == 1, \"Should have 1 edge\"\n    assert result.edges[0].source == \"A\", \"Edge source should be A\"\n    assert result.edges[0].target == \"B\", \"Edge target should be B\"\n    assert result.edges[0].label == \"connects\", \"Edge label should be 'connects'\"\n    \n    # Original circuit unchanged\n    assert len(circuit_with_multiple_nodes.edges) == 0, \"Original unchanged\"\n    \n    # All nodes remain unchanged\n    assert len(result.nodes) == len(circuit_with_multiple_nodes.nodes), \\\n           \"Node count unchanged\"\n\n\ndef test_add_edge_error_source_not_found(circuit_with_one_node):\n    \"\"\"Adding edge with non-existent source raises source_not_found error.\"\"\"\n    with pytest.raises(Exception) as exc_info:\n        add_edge(circuit_with_one_node, source=\"nonexistent\", \n                target=\"node1\", label=\"edge\")\n    \n    # Raises exception with source_not_found error\n    assert \"source\" in str(exc_info.value).lower() and \\\n           (\"not found\" in str(exc_info.value).lower() or \\\n            \"does not exist\" in str(exc_info.value).lower()), \\\n           \"Should raise source_not_found error\"\n\n\ndef test_add_edge_error_target_not_found(circuit_with_one_node):\n    \"\"\"Adding edge with non-existent target raises target_not_found error.\"\"\"\n    with pytest.raises(Exception) as exc_info:\n        add_edge(circuit_with_one_node, source=\"node1\", \n                target=\"nonexistent\", label=\"edge\")\n    \n    # Raises exception with target_not_found error\n    assert \"target\" in str(exc_info.value).lower() and \\\n           (\"not found\" in str(exc_info.value).lower() or \\\n            \"does not exist\" in str(exc_info.value).lower()), \\\n           \"Should raise target_not_found error\"\n\n\ndef test_add_edge_error_duplicate_edge(circuit_with_edges):\n    \"\"\"Adding duplicate edge raises duplicate_edge error.\"\"\"\n    with pytest.raises(Exception) as exc_info:\n        add_edge(circuit_with_edges, source=\"A\", target=\"B\", label=\"dup\")\n    \n    # Raises exception with duplicate_edge error\n    assert \"duplicate\" in str(exc_info.value).lower() or \\\n           \"already exists\" in str(exc_info.value).lower(), \\\n           \"Should raise duplicate_edge error\"\n\n\ndef test_add_edge_allows_reverse_direction(circuit_with_edges):\n    \"\"\"Adding edge in reverse direction is allowed (directed graph).\"\"\"\n    # Circuit has A->B, adding B->A should work\n    result = add_edge(circuit_with_edges, source=\"B\", target=\"A\", \n                     label=\"reverse\")\n    \n    assert len(result.edges) == 3, \"Should have 3 edges total\"\n    edge_pairs = [(e.source, e.target) for e in result.edges]\n    assert (\"A\", \"B\") in edge_pairs, \"Original A->B should exist\"\n    assert (\"B\", \"A\") in edge_pairs, \"Reverse B->A should exist\"\n\n\n# ============================================================================\n# Layer 1: Unit Tests for CRUD Operations - remove_edge\n# ============================================================================\n\ndef test_remove_edge_happy_path(circuit_with_edges):\n    \"\"\"Remove an existing edge from circuit.\"\"\"\n    result = remove_edge(circuit_with_edges, source=\"A\", target=\"B\")\n    \n    # Edge is removed from new circuit\n    edge_pairs = [(e.source, e.target) for e in result.edges]\n    assert (\"A\", \"B\") not in edge_pairs, \"Edge A->B should be removed\"\n    \n    # Original circuit unchanged\n    assert len(circuit_with_edges.edges) == 2, \"Original unchanged\"\n    \n    # Nodes remain unchanged\n    assert len(result.nodes) == len(circuit_with_edges.nodes), \\\n           \"All nodes should remain\"\n\n\ndef test_remove_edge_error_not_found(circuit_with_multiple_nodes):\n    \"\"\"Removing non-existent edge raises edge_not_found error.\"\"\"\n    with pytest.raises(Exception) as exc_info:\n        remove_edge(circuit_with_multiple_nodes, source=\"A\", target=\"B\")\n    \n    # Raises exception with edge_not_found error\n    assert \"edge\" in str(exc_info.value).lower() and \\\n           (\"not found\" in str(exc_info.value).lower() or \\\n            \"does not exist\" in str(exc_info.value).lower()), \\\n           \"Should raise edge_not_found error\"\n\n\ndef test_remove_edge_keeps_other_edges(circuit_with_edges):\n    \"\"\"Removing one edge keeps other edges intact.\"\"\"\n    result = remove_edge(circuit_with_edges, source=\"A\", target=\"B\")\n    \n    assert len(result.edges) == 1, \"Should have 1 edge remaining\"\n    assert result.edges[0].source == \"B\", \"Remaining edge source is B\"\n    assert result.edges[0].target == \"C\", \"Remaining edge target is C\"\n\n\n# ============================================================================\n# Layer 1: Unit Tests for CRUD Operations - set_contract\n# ============================================================================\n\ndef test_set_contract_happy_path(circuit_with_one_node):\n    \"\"\"Update contract path for an existing node.\"\"\"\n    result = set_contract(circuit_with_one_node, node_name=\"node1\",\n                         contract_path=\"new_contract.yaml\")\n    \n    # Node contract is updated\n    assert result.nodes[0].contract == \"new_contract.yaml\", \\\n           \"Contract should be updated\"\n    \n    # Original circuit unchanged\n    assert circuit_with_one_node.nodes[0].contract == \"contract1.yaml\", \\\n           \"Original contract unchanged\"\n    \n    # Other node fields unchanged\n    assert result.nodes[0].name == \"node1\", \"Name unchanged\"\n    assert result.nodes[0].port == 9001, \"Port unchanged\"\n    assert result.nodes[0].proxy_mode == \"http\", \"Proxy mode unchanged\"\n    assert result.nodes[0].role == \"client\", \"Role unchanged\"\n    \n    # All edges unchanged (though this circuit has no edges)\n    assert len(result.edges) == len(circuit_with_one_node.edges), \\\n           \"Edge count unchanged\"\n\n\ndef test_set_contract_error_not_found(empty_circuit):\n    \"\"\"Setting contract for non-existent node raises node_not_found error.\"\"\"\n    with pytest.raises(Exception) as exc_info:\n        set_contract(empty_circuit, node_name=\"nonexistent\",\n                    contract_path=\"contract.yaml\")\n    \n    # Raises exception with node_not_found error\n    assert \"node_not_found\" in str(exc_info.value).lower() or \\\n           \"not found\" in str(exc_info.value).lower() or \\\n           \"does not exist\" in str(exc_info.value).lower(), \\\n           \"Should raise node_not_found error\"\n\n\ndef test_set_contract_in_multi_node_circuit(circuit_with_multiple_nodes):\n    \"\"\"Set contract for one node in multi-node circuit.\"\"\"\n    result = set_contract(circuit_with_multiple_nodes, node_name=\"B\",\n                         contract_path=\"updated_b.yaml\")\n    \n    # Find the updated node\n    node_b = [n for n in result.nodes if n.name == \"B\"][0]\n    assert node_b.contract == \"updated_b.yaml\", \"Node B contract updated\"\n    \n    # Other nodes unchanged\n    node_a = [n for n in result.nodes if n.name == \"A\"][0]\n    node_c = [n for n in result.nodes if n.name == \"C\"][0]\n    assert node_a.contract == \"contract_a.yaml\", \"Node A contract unchanged\"\n    assert node_c.contract == \"contract_c.yaml\", \"Node C contract unchanged\"\n\n\n# ============================================================================\n# Layer 3: Algorithm Verification Tests - has_cycle\n# ============================================================================\n\ndef test_has_cycle_acyclic_graph(circuit_with_edges):\n    \"\"\"has_cycle returns False for acyclic graph (DAG).\"\"\"\n    result = has_cycle(circuit_with_edges)\n    \n    # Returns False for DAG\n    assert result is False, \"Should return False for acyclic graph\"\n    \n    # Original circuit unchanged\n    assert len(circuit_with_edges.nodes) == 3, \"Original unchanged\"\n\n\ndef test_has_cycle_with_cycle(circuit_with_cycle):\n    \"\"\"has_cycle returns True for graph with cycle.\"\"\"\n    result = has_cycle(circuit_with_cycle)\n    \n    # Returns True for cyclic graph\n    assert result is True, \"Should return True for graph with cycle\"\n    \n    # Original circuit unchanged\n    assert len(circuit_with_cycle.nodes) == 3, \"Original unchanged\"\n\n\ndef test_has_cycle_empty_graph(empty_circuit):\n    \"\"\"has_cycle returns False for empty graph.\"\"\"\n    result = has_cycle(empty_circuit)\n    \n    # Returns False for empty graph\n    assert result is False, \"Should return False for empty graph\"\n\n\ndef test_has_cycle_self_loop():\n    \"\"\"has_cycle returns True for graph with self-loop.\"\"\"\n    nodes = [NodeSpec(name=\"A\", port=9001, proxy_mode=\"http\",\n                     contract=\"contract.yaml\", role=\"client\")]\n    edges = [EdgeSpec(source=\"A\", target=\"A\", label=\"self\")]\n    circuit = CircuitSpec(name=\"test\", version=1, nodes=nodes, edges=edges)\n    \n    result = has_cycle(circuit)\n    \n    # Returns True for self-loop\n    assert result is True, \"Should return True for self-loop\"\n\n\ndef test_has_cycle_disconnected_components():\n    \"\"\"has_cycle correctly handles disconnected components.\"\"\"\n    nodes = [\n        NodeSpec(name=\"A\", port=9001, proxy_mode=\"http\",\n                contract=\"c.yaml\", role=\"client\"),\n        NodeSpec(name=\"B\", port=9002, proxy_mode=\"http\",\n                contract=\"c.yaml\", role=\"client\"),\n        NodeSpec(name=\"C\", port=9003, proxy_mode=\"http\",\n                contract=\"c.yaml\", role=\"client\"),\n        NodeSpec(name=\"D\", port=9004, proxy_mode=\"http\",\n                contract=\"c.yaml\", role=\"client\"),\n    ]\n    edges = [\n        EdgeSpec(source=\"A\", target=\"B\", label=\"e1\"),\n        EdgeSpec(source=\"C\", target=\"D\", label=\"e2\"),\n    ]\n    circuit = CircuitSpec(name=\"test\", version=1, nodes=nodes, edges=edges)\n    \n    result = has_cycle(circuit)\n    assert result is False, \"Disconnected acyclic components should be acyclic\"\n\n\n# ============================================================================\n# Layer 3: Algorithm Verification Tests - topological_sort\n# ============================================================================\n\ndef test_topological_sort_happy_path():\n    \"\"\"topological_sort returns valid ordering for DAG.\"\"\"\n    nodes = [\n        NodeSpec(name=\"A\", port=9001, proxy_mode=\"http\",\n                contract=\"c.yaml\", role=\"client\"),\n        NodeSpec(name=\"B\", port=9002, proxy_mode=\"http\",\n                contract=\"c.yaml\", role=\"client\"),\n        NodeSpec(name=\"C\", port=9003, proxy_mode=\"http\",\n                contract=\"c.yaml\", role=\"client\"),\n        NodeSpec(name=\"D\", port=9004, proxy_mode=\"http\",\n                contract=\"c.yaml\", role=\"client\"),\n    ]\n    edges = [\n        EdgeSpec(source=\"A\", target=\"B\", label=\"e1\"),\n        EdgeSpec(source=\"A\", target=\"C\", label=\"e2\"),\n        EdgeSpec(source=\"B\", target=\"D\", label=\"e3\"),\n        EdgeSpec(source=\"C\", target=\"D\", label=\"e4\"),\n    ]\n    circuit = CircuitSpec(name=\"test\", version=1, nodes=nodes, edges=edges)\n    \n    result = topological_sort(circuit)\n    \n    # Returns list of all node names\n    assert len(result) == 4, \"Should return all 4 nodes\"\n    assert set(result) == {\"A\", \"B\", \"C\", \"D\"}, \"Should contain all nodes\"\n    \n    # For every edge (u,v), u appears before v\n    a_idx = result.index(\"A\")\n    b_idx = result.index(\"B\")\n    c_idx = result.index(\"C\")\n    d_idx = result.index(\"D\")\n    \n    assert a_idx < b_idx, \"A should appear before B\"\n    assert a_idx < c_idx, \"A should appear before C\"\n    assert b_idx < d_idx, \"B should appear before D\"\n    assert c_idx < d_idx, \"C should appear before D\"\n    \n    # Original circuit unchanged\n    assert len(circuit.nodes) == 4, \"Original circuit unchanged\"\n\n\ndef test_topological_sort_error_contains_cycle(circuit_with_cycle):\n    \"\"\"topological_sort raises contains_cycle error for cyclic graph.\"\"\"\n    with pytest.raises(Exception) as exc_info:\n        topological_sort(circuit_with_cycle)\n    \n    # Raises exception with contains_cycle error\n    assert \"cycle\" in str(exc_info.value).lower() or \\\n           \"contains_cycle\" in str(exc_info.value).lower(), \\\n           \"Should raise contains_cycle error\"\n\n\ndef test_topological_sort_deterministic(circuit_with_multiple_nodes):\n    \"\"\"topological_sort returns deterministic result.\"\"\"\n    # Add edges to create a DAG with multiple valid orderings\n    circuit = add_edge(circuit_with_multiple_nodes, \"A\", \"C\", \"e1\")\n    circuit = add_edge(circuit, \"B\", \"C\", \"e2\")\n    \n    # Multiple calls return same result\n    result1 = topological_sort(circuit)\n    result2 = topological_sort(circuit)\n    result3 = topological_sort(circuit)\n    \n    assert result1 == result2, \"Results should be deterministic\"\n    assert result2 == result3, \"Results should be deterministic\"\n\n\ndef test_topological_sort_empty_graph(empty_circuit):\n    \"\"\"topological_sort returns empty list for empty circuit.\"\"\"\n    result = topological_sort(empty_circuit)\n    \n    # Returns empty list\n    assert result == [], \"Should return empty list for empty circuit\"\n\n\ndef test_topological_sort_single_node(circuit_with_one_node):\n    \"\"\"topological_sort handles single node correctly.\"\"\"\n    result = topological_sort(circuit_with_one_node)\n    \n    assert result == [\"node1\"], \"Should return single node\"\n\n\ndef test_topological_sort_linear_chain(circuit_with_edges):\n    \"\"\"topological_sort handles linear chain correctly.\"\"\"\n    result = topological_sort(circuit_with_edges)\n    \n    # A->B->C, so order should be A, B, C\n    assert result.index(\"A\") < result.index(\"B\"), \"A before B\"\n    assert result.index(\"B\") < result.index(\"C\"), \"B before C\"\n\n\n# ============================================================================\n# Layer 1: Unit Tests for _next_port\n# ============================================================================\n\ndef test_next_port_happy_path(empty_circuit):\n    \"\"\"Find next available port in empty circuit.\"\"\"\n    result = _next_port(empty_circuit)\n    \n    # Returns 9001 for empty circuit\n    assert result == 9001, \"First port should be 9001\"\n    \n    # Original circuit unchanged\n    assert len(empty_circuit.nodes) == 0, \"Original circuit unchanged\"\n\n\ndef test_next_port_finds_gap():\n    \"\"\"Find next available port skipping used ports.\"\"\"\n    nodes = [\n        NodeSpec(name=\"node1\", port=9001, proxy_mode=\"http\",\n                contract=\"c.yaml\", role=\"client\"),\n        NodeSpec(name=\"node2\", port=9002, proxy_mode=\"http\",\n                contract=\"c.yaml\", role=\"client\"),\n    ]\n    circuit = CircuitSpec(name=\"test\", version=1, nodes=nodes, edges=[])\n    \n    result = _next_port(circuit)\n    \n    # Returns first unused port (9003)\n    assert result == 9003, \"Should return next available port 9003\"\n\n\ndef test_next_port_error_no_available(circuit_full_ports):\n    \"\"\"No available ports raises no_available_ports error.\"\"\"\n    with pytest.raises(Exception) as exc_info:\n        _next_port(circuit_full_ports)\n    \n    # Raises exception with no_available_ports error\n    assert \"no_available\" in str(exc_info.value).lower() or \\\n           \"no available\" in str(exc_info.value).lower() or \\\n           \"port\" in str(exc_info.value).lower(), \\\n           \"Should raise no_available_ports error\"\n\n\ndef test_next_port_finds_gap_in_middle():\n    \"\"\"Find port when there's a gap in the middle.\"\"\"\n    nodes = [\n        NodeSpec(name=\"node1\", port=9001, proxy_mode=\"http\",\n                contract=\"c.yaml\", role=\"client\"),\n        NodeSpec(name=\"node2\", port=9003, proxy_mode=\"http\",\n                contract=\"c.yaml\", role=\"client\"),\n        NodeSpec(name=\"node3\", port=9005, proxy_mode=\"http\",\n                contract=\"c.yaml\", role=\"client\"),\n    ]\n    circuit = CircuitSpec(name=\"test\", version=1, nodes=nodes, edges=[])\n    \n    result = _next_port(circuit)\n    \n    # Should find 9002 (first gap)\n    assert result == 9002, \"Should find first gap at 9002\"\n\n\n# ============================================================================\n# Layer 6: Invariant Tests\n# ============================================================================\n\ndef test_invariant_port_range(empty_circuit):\n    \"\"\"Verify DEFAULT_PORT_START and DEFAULT_PORT_MAX constants.\"\"\"\n    # Auto-assign multiple ports and verify they are in range [9001, 9999]\n    circuit = empty_circuit\n    for i in range(10):\n        circuit = add_node(circuit, name=f\"node{i}\", port=0,\n                          proxy_mode=\"http\", contract=\"c.yaml\",\n                          role=\"client\")\n        last_node = circuit.nodes[-1]\n        \n        # Auto-assigned ports are >= 9001\n        assert last_node.port >= 9001, \\\n               f\"Port {last_node.port} should be >= 9001\"\n        \n        # Auto-assigned ports are <= 9999\n        assert last_node.port <= 9999, \\\n               f\"Port {last_node.port} should be <= 9999\"\n\n\ndef test_invariant_pure_functions(circuit_with_one_node):\n    \"\"\"Verify all functions are pure (don't mutate inputs).\"\"\"\n    original_nodes_count = len(circuit_with_one_node.nodes)\n    original_edges_count = len(circuit_with_one_node.edges)\n    original_node_name = circuit_with_one_node.nodes[0].name\n    original_node_port = circuit_with_one_node.nodes[0].port\n    \n    # Perform operations\n    _ = add_node(circuit_with_one_node, \"node2\", 9002, \"http\", \"c.yaml\", \"client\")\n    _ = set_contract(circuit_with_one_node, \"node1\", \"new.yaml\")\n    _ = has_cycle(circuit_with_one_node)\n    _ = topological_sort(circuit_with_one_node)\n    _ = _next_port(circuit_with_one_node)\n    \n    # Original CircuitSpec is never modified\n    assert len(circuit_with_one_node.nodes) == original_nodes_count, \\\n           \"Node count should be unchanged\"\n    assert len(circuit_with_one_node.edges) == original_edges_count, \\\n           \"Edge count should be unchanged\"\n    assert circuit_with_one_node.nodes[0].name == original_node_name, \\\n           \"Node name should be unchanged\"\n    assert circuit_with_one_node.nodes[0].port == original_node_port, \\\n           \"Node port should be unchanged\"\n\n\ndef test_invariant_name_version_preservation(circuit_with_multiple_nodes):\n    \"\"\"Verify all CircuitSpec modifications preserve name and version fields.\"\"\"\n    original_name = circuit_with_multiple_nodes.name\n    original_version = circuit_with_multiple_nodes.version\n    \n    # Perform various operations\n    circuit2 = add_node(circuit_with_multiple_nodes, \"D\", 9004, \n                       \"http\", \"c.yaml\", \"client\")\n    assert circuit2.name == original_name, \"Name preserved after add_node\"\n    assert circuit2.version == original_version, \"Version preserved after add_node\"\n    \n    circuit3 = remove_node(circuit_with_multiple_nodes, \"A\")\n    assert circuit3.name == original_name, \"Name preserved after remove_node\"\n    assert circuit3.version == original_version, \"Version preserved after remove_node\"\n    \n    circuit4 = add_edge(circuit_with_multiple_nodes, \"A\", \"B\", \"e\")\n    assert circuit4.name == original_name, \"Name preserved after add_edge\"\n    assert circuit4.version == original_version, \"Version preserved after add_edge\"\n    \n    circuit5 = set_contract(circuit_with_multiple_nodes, \"A\", \"new.yaml\")\n    assert circuit5.name == original_name, \"Name preserved after set_contract\"\n    assert circuit5.version == original_version, \"Version preserved after set_contract\"\n\n\n# ============================================================================\n# Layer 2: State Transition Tests\n# ============================================================================\n\ndef test_state_transition_build_circuit(empty_circuit):\n    \"\"\"Build a circuit through sequence of operations.\"\"\"\n    # Start with empty circuit\n    circuit = empty_circuit\n    \n    # Add multiple nodes\n    circuit = add_node(circuit, \"A\", 9001, \"http\", \"a.yaml\", \"client\")\n    circuit = add_node(circuit, \"B\", 9002, \"http\", \"b.yaml\", \"server\")\n    circuit = add_node(circuit, \"C\", 9003, \"http\", \"c.yaml\", \"client\")\n    \n    # All nodes are added correctly\n    assert len(circuit.nodes) == 3, \"Should have 3 nodes\"\n    node_names = [n.name for n in circuit.nodes]\n    assert set(node_names) == {\"A\", \"B\", \"C\"}, \"All nodes present\"\n    \n    # Add edges\n    circuit = add_edge(circuit, \"A\", \"B\", \"e1\")\n    circuit = add_edge(circuit, \"B\", \"C\", \"e2\")\n    \n    # All edges connect valid nodes\n    assert len(circuit.edges) == 2, \"Should have 2 edges\"\n    for edge in circuit.edges:\n        assert edge.source in node_names, \"Edge source is valid node\"\n        assert edge.target in node_names, \"Edge target is valid node\"\n    \n    # State is consistent after each operation\n    assert not has_cycle(circuit), \"Circuit should be acyclic\"\n\n\ndef test_state_transition_remove_and_re_add():\n    \"\"\"Remove node and re-add with same name.\"\"\"\n    circuit = CircuitSpec(name=\"test\", version=1, nodes=[], edges=[])\n    \n    # Add node\n    circuit = add_node(circuit, \"A\", 9001, \"http\", \"a.yaml\", \"client\")\n    assert len(circuit.nodes) == 1, \"Node added\"\n    \n    # Remove node\n    circuit = remove_node(circuit, \"A\")\n    assert len(circuit.nodes) == 0, \"Node removed\"\n    \n    # Re-add with same name (should work)\n    circuit = add_node(circuit, \"A\", 9002, \"http\", \"a2.yaml\", \"server\")\n    assert len(circuit.nodes) == 1, \"Node re-added\"\n    assert circuit.nodes[0].port == 9002, \"New port assigned\"\n\n\ndef test_state_transition_complex_graph_modifications():\n    \"\"\"Perform complex sequence of graph modifications.\"\"\"\n    circuit = CircuitSpec(name=\"test\", version=1, nodes=[], edges=[])\n    \n    # Build initial graph\n    circuit = add_node(circuit, \"A\", 0, \"http\", \"a.yaml\", \"client\")\n    circuit = add_node(circuit, \"B\", 0, \"http\", \"b.yaml\", \"server\")\n    circuit = add_node(circuit, \"C\", 0, \"http\", \"c.yaml\", \"client\")\n    circuit = add_node(circuit, \"D\", 0, \"http\", \"d.yaml\", \"server\")\n    \n    circuit = add_edge(circuit, \"A\", \"B\", \"e1\")\n    circuit = add_edge(circuit, \"A\", \"C\", \"e2\")\n    circuit = add_edge(circuit, \"C\", \"D\", \"e3\")\n    \n    # Verify state\n    assert len(circuit.nodes) == 4, \"4 nodes present\"\n    assert len(circuit.edges) == 3, \"3 edges present\"\n    assert not has_cycle(circuit), \"No cycle\"\n    \n    # Remove node C (should remove edges A->C and C->D)\n    circuit = remove_node(circuit, \"C\")\n    assert len(circuit.nodes) == 3, \"3 nodes remain\"\n    assert len(circuit.edges) == 1, \"Only 1 edge remains (A->B)\"\n    \n    # Add new edge\n    circuit = add_edge(circuit, \"B\", \"D\", \"e4\")\n    assert len(circuit.edges) == 2, \"2 edges now\"\n    \n    # Verify topological sort still works\n    sorted_nodes = topological_sort(circuit)\n    assert len(sorted_nodes) == 3, \"All nodes in sort\"\n\n\n# ============================================================================\n# Layer 5: Domain-Specific Tests\n# ============================================================================\n\ndef test_domain_circuit_attributes_persist():\n    \"\"\"Verify circuit attributes (port, proxy_mode, contract, role) persist correctly.\"\"\"\n    circuit = CircuitSpec(name=\"test\", version=1, nodes=[], edges=[])\n    \n    circuit = add_node(circuit, \"node1\", 9050, \"grpc\", \"contract_a.yaml\", \"client\")\n    \n    node = circuit.nodes[0]\n    assert node.name == \"node1\", \"Name persists\"\n    assert node.port == 9050, \"Port persists\"\n    assert node.proxy_mode == \"grpc\", \"Proxy mode persists\"\n    assert node.contract == \"contract_a.yaml\", \"Contract persists\"\n    assert node.role == \"client\", \"Role persists\"\n\n\ndef test_domain_set_contract_updates():\n    \"\"\"Verify set_contract updates work correctly.\"\"\"\n    circuit = CircuitSpec(name=\"test\", version=1, nodes=[], edges=[])\n    circuit = add_node(circuit, \"node1\", 9001, \"http\", \"old.yaml\", \"client\")\n    \n    # Update contract\n    circuit = set_contract(circuit, \"node1\", \"new.yaml\")\n    \n    assert circuit.nodes[0].contract == \"new.yaml\", \"Contract updated\"\n    \n    # Other attributes unchanged\n    assert circuit.nodes[0].name == \"node1\", \"Name unchanged\"\n    assert circuit.nodes[0].port == 9001, \"Port unchanged\"\n    assert circuit.nodes[0].proxy_mode == \"http\", \"Proxy mode unchanged\"\n    assert circuit.nodes[0].role == \"client\", \"Role unchanged\"\n\n\ndef test_domain_multiple_contract_updates():\n    \"\"\"Multiple contract updates on different nodes.\"\"\"\n    circuit = CircuitSpec(name=\"test\", version=1, nodes=[], edges=[])\n    circuit = add_node(circuit, \"A\", 9001, \"http\", \"a.yaml\", \"client\")\n    circuit = add_node(circuit, \"B\", 9002, \"http\", \"b.yaml\", \"server\")\n    circuit = add_node(circuit, \"C\", 9003, \"http\", \"c.yaml\", \"client\")\n    \n    # Update contracts\n    circuit = set_contract(circuit, \"A\", \"a_v2.yaml\")\n    circuit = set_contract(circuit, \"C\", \"c_v2.yaml\")\n    \n    # Verify updates\n    node_a = [n for n in circuit.nodes if n.name == \"A\"][0]\n    node_b = [n for n in circuit.nodes if n.name == \"B\"][0]\n    node_c = [n for n in circuit.nodes if n.name == \"C\"][0]\n    \n    assert node_a.contract == \"a_v2.yaml\", \"A contract updated\"\n    assert node_b.contract == \"b.yaml\", \"B contract unchanged\"\n    assert node_c.contract == \"c_v2.yaml\", \"C contract updated\"\n\n\n# ============================================================================\n# Layer 7: Integration Tests\n# ============================================================================\n\ndef test_integration_workflow():\n    \"\"\"End-to-end workflow: build circuit, check cycle, sort, modify.\"\"\"\n    # Start fresh\n    circuit = CircuitSpec(name=\"integration_test\", version=1, \n                         nodes=[], edges=[])\n    \n    # Build circuit incrementally\n    circuit = add_node(circuit, \"frontend\", 0, \"http\", \"fe.yaml\", \"client\")\n    circuit = add_node(circuit, \"api\", 0, \"http\", \"api.yaml\", \"server\")\n    circuit = add_node(circuit, \"database\", 0, \"http\", \"db.yaml\", \"server\")\n    circuit = add_node(circuit, \"cache\", 0, \"http\", \"cache.yaml\", \"server\")\n    \n    # Circuit can be built incrementally\n    assert len(circuit.nodes) == 4, \"All nodes added\"\n    \n    # Add edges to create a DAG\n    circuit = add_edge(circuit, \"frontend\", \"api\", \"calls\")\n    circuit = add_edge(circuit, \"api\", \"database\", \"queries\")\n    circuit = add_edge(circuit, \"api\", \"cache\", \"reads\")\n    \n    # Cycle detection works correctly\n    assert not has_cycle(circuit), \"No cycle in DAG\"\n    \n    # Topological sort produces valid ordering\n    sorted_nodes = topological_sort(circuit)\n    assert len(sorted_nodes) == 4, \"All nodes in sort\"\n    assert sorted_nodes.index(\"frontend\") < sorted_nodes.index(\"api\"), \\\n           \"Frontend before API\"\n    assert sorted_nodes.index(\"api\") < sorted_nodes.index(\"database\"), \\\n           \"API before database\"\n    assert sorted_nodes.index(\"api\") < sorted_nodes.index(\"cache\"), \\\n           \"API before cache\"\n    \n    # Modifications work as expected\n    circuit = set_contract(circuit, \"api\", \"api_v2.yaml\")\n    api_node = [n for n in circuit.nodes if n.name == \"api\"][0]\n    assert api_node.contract == \"api_v2.yaml\", \"Contract updated\"\n    \n    # Remove edge and verify\n    circuit = remove_edge(circuit, \"api\", \"cache\")\n    edge_pairs = [(e.source, e.target) for e in circuit.edges]\n    assert (\"api\", \"cache\") not in edge_pairs, \"Edge removed\"\n    assert len(circuit.edges) == 2, \"2 edges remain\"\n    \n    # Still a valid DAG\n    assert not has_cycle(circuit), \"Still acyclic\"\n\n\ndef test_integration_cycle_detection_and_sort_consistency():\n    \"\"\"Verify cycle detection is consistent with topological sort.\"\"\"\n    # Build DAG\n    circuit = CircuitSpec(name=\"test\", version=1, nodes=[], edges=[])\n    circuit = add_node(circuit, \"A\", 9001, \"http\", \"a.yaml\", \"client\")\n    circuit = add_node(circuit, \"B\", 9002, \"http\", \"b.yaml\", \"server\")\n    circuit = add_node(circuit, \"C\", 9003, \"http\", \"c.yaml\", \"client\")\n    \n    circuit = add_edge(circuit, \"A\", \"B\", \"e1\")\n    circuit = add_edge(circuit, \"B\", \"C\", \"e2\")\n    \n    # Should be acyclic and sortable\n    assert not has_cycle(circuit), \"DAG has no cycle\"\n    sorted_nodes = topological_sort(circuit)\n    assert len(sorted_nodes) == 3, \"Sort succeeds\"\n    \n    # Add cycle\n    circuit = add_edge(circuit, \"C\", \"A\", \"e3\")\n    \n    # Should detect cycle and fail sort\n    assert has_cycle(circuit), \"Cycle detected\"\n    \n    with pytest.raises(Exception) as exc_info:\n        topological_sort(circuit)\n    assert \"cycle\" in str(exc_info.value).lower(), \"Sort fails on cycle\"\n\n\ndef test_integration_realistic_microservices_circuit():\n    \"\"\"Build a realistic microservices circuit.\"\"\"\n    circuit = CircuitSpec(name=\"microservices\", version=1, \n                         nodes=[], edges=[])\n    \n    # Add services\n    services = [\"gateway\", \"auth\", \"users\", \"orders\", \"inventory\", \n                \"payments\", \"notifications\"]\n    for service in services:\n        circuit = add_node(circuit, service, 0, \"grpc\", \n                          f\"{service}.yaml\", \"server\")\n    \n    # Add dependencies\n    circuit = add_edge(circuit, \"gateway\", \"auth\", \"authenticate\")\n    circuit = add_edge(circuit, \"gateway\", \"users\", \"user_data\")\n    circuit = add_edge(circuit, \"gateway\", \"orders\", \"order_data\")\n    circuit = add_edge(circuit, \"orders\", \"inventory\", \"check_stock\")\n    circuit = add_edge(circuit, \"orders\", \"payments\", \"process_payment\")\n    circuit = add_edge(circuit, \"orders\", \"notifications\", \"send_email\")\n    circuit = add_edge(circuit, \"auth\", \"users\", \"verify_user\")\n    \n    # Verify circuit structure\n    assert len(circuit.nodes) == 7, \"All services added\"\n    assert len(circuit.edges) == 7, \"All dependencies added\"\n    \n    # Should be acyclic\n    assert not has_cycle(circuit), \"Microservices DAG is acyclic\"\n    \n    # Should be sortable\n    sorted_nodes = topological_sort(circuit)\n    assert len(sorted_nodes) == 7, \"All services in topological order\"\n    \n    # Verify ordering constraints\n    gateway_idx = sorted_nodes.index(\"gateway\")\n    orders_idx = sorted_nodes.index(\"orders\")\n    inventory_idx = sorted_nodes.index(\"inventory\")\n    \n    assert gateway_idx < orders_idx, \"Gateway before orders\"\n    assert orders_idx < inventory_idx, \"Orders before inventory\"\n\n\ndef test_integration_random_dag_operations():\n    \"\"\"Test random valid operation sequences and verify invariants.\"\"\"\n    random.seed(42)  # For reproducibility\n    \n    circuit = CircuitSpec(name=\"random_test\", version=1, nodes=[], edges=[])\n    \n    # Add random nodes\n    num_nodes = 10\n    for i in range(num_nodes):\n        circuit = add_node(circuit, f\"node{i}\", 0, \"http\", \n                          f\"contract{i}.yaml\", \"client\")\n    \n    # Node count consistency\n    assert len(circuit.nodes) == num_nodes, \"All nodes added\"\n    \n    # Add random edges (ensuring no cycles by only connecting i to j where i < j)\n    edges_to_add = 15\n    for _ in range(edges_to_add):\n        i = random.randint(0, num_nodes - 2)\n        j = random.randint(i + 1, num_nodes - 1)\n        try:\n            circuit = add_edge(circuit, f\"node{i}\", f\"node{j}\", f\"edge_{i}_{j}\")\n        except:\n            pass  # Edge might already exist\n    \n    # Edge endpoint validity\n    for edge in circuit.edges:\n        source_exists = any(n.name == edge.source for n in circuit.nodes)\n        target_exists = any(n.name == edge.target for n in circuit.nodes)\n        assert source_exists, f\"Edge source {edge.source} exists\"\n        assert target_exists, f\"Edge target {edge.target} exists\"\n    \n    # Cycle detection consistency with topological_sort\n    has_cycle_result = has_cycle(circuit)\n    if not has_cycle_result:\n        # Should be able to sort\n        sorted_nodes = topological_sort(circuit)\n        assert len(sorted_nodes) == num_nodes, \"All nodes in sort\"\n        \n        # Verify ordering\n        node_indices = {name: idx for idx, name in enumerate(sorted_nodes)}\n        for edge in circuit.edges:\n            assert node_indices[edge.source] < node_indices[edge.target], \\\n                   f\"Edge {edge.source}->{edge.target} respects topological order\"\n    else:\n        # Should fail to sort\n        with pytest.raises(Exception):\n            topological_sort(circuit)\n\n\ndef test_integration_port_exhaustion_recovery():\n    \"\"\"Test behavior when approaching port exhaustion.\"\"\"\n    circuit = CircuitSpec(name=\"test\", version=1, nodes=[], edges=[])\n    \n    # Add nodes until close to exhaustion\n    # We'll add 50 nodes with explicit ports near the end of range\n    for i in range(50):\n        port = 9950 + i  # Ports 9950-9999\n        circuit = add_node(circuit, f\"node{i}\", port, \"http\", \n                          \"c.yaml\", \"client\")\n    \n    # Now auto-assign should still work for lower ports\n    circuit = add_node(circuit, \"auto_node\", 0, \"http\", \"c.yaml\", \"client\")\n    auto_node = [n for n in circuit.nodes if n.name == \"auto_node\"][0]\n    \n    # Should get a port in lower range\n    assert 9001 <= auto_node.port <= 9949, \\\n           f\"Auto-assigned port {auto_node.port} in available range\"\n"
+}

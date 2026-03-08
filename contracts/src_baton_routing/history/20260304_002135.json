@@ -1,0 +1,278 @@
+{
+  "component_id": "src_baton_routing",
+  "name": "Baton Routing Patterns",
+  "description": "Pre-baked routing patterns. Convenience functions that construct RoutingConfig for common use cases including A/B testing, canary deployments, header-based routing, and weighted splits.",
+  "version": 1,
+  "types": [
+    {
+      "name": "RoutingConfig",
+      "kind": "struct",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "External type from baton.schemas representing routing configuration"
+    },
+    {
+      "name": "RoutingTarget",
+      "kind": "struct",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "External type from baton.schemas representing a routing target with name, host, port, and optional weight"
+    },
+    {
+      "name": "RoutingRule",
+      "kind": "struct",
+      "fields": [],
+      "item_type": "",
+      "variants": [],
+      "inner_types": [],
+      "description": "External type from baton.schemas representing a routing rule with header, value, and target"
+    },
+    {
+      "name": "RoutingStrategy",
+      "kind": "enum",
+      "fields": [],
+      "item_type": "",
+      "variants": [
+        "WEIGHTED",
+        "CANARY",
+        "HEADER"
+      ],
+      "inner_types": [],
+      "description": "External enum from baton.schemas with routing strategy types"
+    }
+  ],
+  "functions": [
+    {
+      "name": "ab_split",
+      "description": "Two-target weighted split (A/B test). Creates a RoutingConfig with two targets (a and b) where traffic is split according to pct_a percentage.",
+      "inputs": [
+        {
+          "name": "host",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Hostname for both A and B targets",
+          "validators": []
+        },
+        {
+          "name": "port_a",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Port number for target A",
+          "validators": []
+        },
+        {
+          "name": "port_b",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Port number for target B",
+          "validators": []
+        },
+        {
+          "name": "pct_a",
+          "type_ref": "int",
+          "required": false,
+          "default": "80",
+          "description": "Percentage of traffic to route to target A (target B gets 100 - pct_a)",
+          "validators": []
+        }
+      ],
+      "output_type": "RoutingConfig",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns RoutingConfig with strategy=WEIGHTED",
+        "Returns exactly 2 targets named 'a' and 'b'",
+        "Target 'a' has weight=pct_a",
+        "Target 'b' has weight=100-pct_a",
+        "Both targets use the same host",
+        "Sum of weights equals 100"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "canary",
+      "description": "Canary rollout: small percentage to new version. Creates a RoutingConfig with a stable target and a canary target for gradual rollout.",
+      "inputs": [
+        {
+          "name": "host",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Hostname for both stable and canary targets",
+          "validators": []
+        },
+        {
+          "name": "port_stable",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Port number for stable version",
+          "validators": []
+        },
+        {
+          "name": "port_canary",
+          "type_ref": "int",
+          "required": true,
+          "default": "",
+          "description": "Port number for canary version",
+          "validators": []
+        },
+        {
+          "name": "canary_pct",
+          "type_ref": "int",
+          "required": false,
+          "default": "10",
+          "description": "Percentage of traffic to route to canary (stable gets 100 - canary_pct)",
+          "validators": []
+        }
+      ],
+      "output_type": "RoutingConfig",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns RoutingConfig with strategy=CANARY",
+        "Returns exactly 2 targets named 'stable' and 'canary'",
+        "Target 'stable' has weight=100-canary_pct",
+        "Target 'canary' has weight=canary_pct",
+        "Both targets use the same host",
+        "Sum of weights equals 100"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "header_route",
+      "description": "Header-based routing. Creates a RoutingConfig that routes requests based on HTTP header values using specified rules.",
+      "inputs": [
+        {
+          "name": "targets",
+          "type_ref": "list[tuple[str, str, int]]",
+          "required": true,
+          "default": "",
+          "description": "List of (name, host, port) tuples defining available routing targets",
+          "validators": []
+        },
+        {
+          "name": "header",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Header name to match on for routing decisions",
+          "validators": []
+        },
+        {
+          "name": "rules",
+          "type_ref": "list[tuple[str, str]]",
+          "required": true,
+          "default": "",
+          "description": "List of (header_value, target_name) tuples defining routing rules",
+          "validators": []
+        },
+        {
+          "name": "default",
+          "type_ref": "str",
+          "required": true,
+          "default": "",
+          "description": "Name of the default target when no rules match",
+          "validators": []
+        }
+      ],
+      "output_type": "RoutingConfig",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns RoutingConfig with strategy=HEADER",
+        "Returns targets matching the input targets list",
+        "Returns rules with specified header name and value-target mappings",
+        "Sets default_target to the specified default value",
+        "Number of targets equals length of targets input",
+        "Number of rules equals length of rules input"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    },
+    {
+      "name": "weighted_split",
+      "description": "N-target weighted split. Creates a RoutingConfig with multiple targets where traffic is distributed according to specified weights.",
+      "inputs": [
+        {
+          "name": "targets",
+          "type_ref": "list[tuple[str, str, int, int]]",
+          "required": true,
+          "default": "",
+          "description": "List of (name, host, port, weight) tuples defining targets and their weights",
+          "validators": []
+        }
+      ],
+      "output_type": "RoutingConfig",
+      "error_cases": [],
+      "preconditions": [],
+      "postconditions": [
+        "Returns RoutingConfig with strategy=WEIGHTED",
+        "Returns targets matching the input targets list with corresponding weights",
+        "Number of targets equals length of targets input",
+        "Each target has name, host, port, and weight from corresponding input tuple"
+      ],
+      "idempotent": true,
+      "side_effects": [],
+      "structured_side_effects": [
+        {
+          "kind": "none",
+          "target": "",
+          "description": ""
+        }
+      ],
+      "performance_budget": null
+    }
+  ],
+  "dependencies": [
+    "baton.schemas"
+  ],
+  "dependency_contracts": {
+    "baton.schemas": [
+      "RoutingConfig",
+      "RoutingRule",
+      "RoutingStrategy",
+      "RoutingTarget"
+    ]
+  },
+  "invariants": [
+    "All functions are pure and idempotent - same inputs always produce same outputs",
+    "No validation is performed on input values (ports, percentages, target names)",
+    "Percentage calculations assume integer arithmetic (100 - pct)",
+    "All functions construct and return new RoutingConfig instances"
+  ],
+  "requires": []
+}

@@ -1,0 +1,482 @@
+{
+  "component_id": "src_baton_process",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "test_init_creates_empty_process_dict",
+      "description": "Initialize ProcessManager creates empty process dictionary",
+      "function": "__init__",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "No input parameters",
+      "expected_output_description": "ProcessManager initialized with empty _processes dict",
+      "expected_error": "",
+      "assertions": [
+        "self._processes is an empty dict",
+        "_processes has type dict[str, ProcessInfo]"
+      ]
+    },
+    {
+      "id": "test_processes_returns_copy",
+      "description": "processes() property returns a copy of internal state",
+      "function": "processes",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "ProcessManager with some tracked processes",
+      "expected_output_description": "Returns copy of processes dict",
+      "expected_error": "",
+      "assertions": [
+        "Returned dict contains same data as internal _processes",
+        "Returned dict is not the same object (copy, not reference)",
+        "Modifications to returned dict do not affect internal state"
+      ]
+    },
+    {
+      "id": "test_processes_empty_manager",
+      "description": "processes() returns empty dict when no processes tracked",
+      "function": "processes",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Newly initialized ProcessManager",
+      "expected_output_description": "Returns empty dict",
+      "expected_error": "",
+      "assertions": [
+        "Returned dict is empty",
+        "Returned dict is not same object as internal _processes"
+      ]
+    },
+    {
+      "id": "test_start_creates_subprocess",
+      "description": "start() creates a subprocess and tracks it",
+      "function": "start",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "asyncio.create_subprocess_shell": "Returns mock Process object"
+      },
+      "input_values": {
+        "node_name": "test_node",
+        "command": "echo hello",
+        "env": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "ProcessInfo returned with valid pid and process",
+      "expected_error": "",
+      "assertions": [
+        "ProcessInfo is returned",
+        "ProcessInfo has valid pid > 0",
+        "ProcessInfo.node_name matches input",
+        "ProcessInfo.command matches input",
+        "ProcessInfo stored in _processes[node_name]",
+        "asyncio.create_subprocess_shell called with correct arguments"
+      ]
+    },
+    {
+      "id": "test_start_with_env_variables",
+      "description": "start() creates subprocess with environment variables",
+      "function": "start",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "asyncio.create_subprocess_shell": "Returns mock Process with env"
+      },
+      "input_values": {
+        "node_name": "env_node",
+        "command": "printenv TEST_VAR",
+        "env": "{\"TEST_VAR\": \"test_value\"}"
+      },
+      "input_description": "",
+      "expected_output_description": "ProcessInfo returned, env passed to subprocess",
+      "expected_error": "",
+      "assertions": [
+        "ProcessInfo is returned",
+        "asyncio.create_subprocess_shell called with env parameter",
+        "Process tracked in _processes"
+      ]
+    },
+    {
+      "id": "test_start_replaces_existing_process",
+      "description": "start() stops existing process for same node_name before starting new one",
+      "function": "start",
+      "category": "edge_case",
+      "setup_description": "ProcessManager already tracking a process for 'duplicate_node'",
+      "mock_dependencies": {
+        "asyncio.create_subprocess_shell": "Returns mock Process"
+      },
+      "input_values": {
+        "node_name": "duplicate_node",
+        "command": "echo new"
+      },
+      "input_description": "",
+      "expected_output_description": "Old process stopped, new ProcessInfo returned",
+      "expected_error": "",
+      "assertions": [
+        "stop() called for existing process",
+        "New ProcessInfo replaces old one in _processes",
+        "Only one entry exists for node_name"
+      ]
+    },
+    {
+      "id": "test_start_subprocess_creation_failure",
+      "description": "start() raises error when subprocess creation fails",
+      "function": "start",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "asyncio.create_subprocess_shell": "Raises exception"
+      },
+      "input_values": {
+        "node_name": "fail_node",
+        "command": "invalid_command"
+      },
+      "input_description": "",
+      "expected_output_description": "Error raised when asyncio.create_subprocess_shell fails",
+      "expected_error": "subprocess_creation_failure",
+      "assertions": [
+        "subprocess_creation_failure error raised",
+        "Process not added to _processes"
+      ]
+    },
+    {
+      "id": "test_stop_terminates_running_process",
+      "description": "stop() sends SIGTERM to running process and removes from tracking",
+      "function": "stop",
+      "category": "happy_path",
+      "setup_description": "ProcessManager tracking a running process",
+      "mock_dependencies": {
+        "Process": "Mock process with terminate() and wait()"
+      },
+      "input_values": {
+        "node_name": "running_node",
+        "timeout": "5.0"
+      },
+      "input_description": "",
+      "expected_output_description": "Process terminated and removed from _processes",
+      "expected_error": "",
+      "assertions": [
+        "Process.terminate() called",
+        "Process waited with timeout",
+        "Process removed from _processes",
+        "Log entry written"
+      ]
+    },
+    {
+      "id": "test_stop_sends_sigkill_on_timeout",
+      "description": "stop() sends SIGKILL when process does not exit within timeout",
+      "function": "stop",
+      "category": "happy_path",
+      "setup_description": "Process does not respond to SIGTERM within timeout",
+      "mock_dependencies": {
+        "Process": "Mock process that times out on wait()"
+      },
+      "input_values": {
+        "node_name": "stubborn_node",
+        "timeout": "1.0"
+      },
+      "input_description": "",
+      "expected_output_description": "SIGKILL sent after timeout",
+      "expected_error": "",
+      "assertions": [
+        "Process.terminate() called first",
+        "Process.wait() times out",
+        "Process.kill() called after timeout",
+        "Process removed from _processes"
+      ]
+    },
+    {
+      "id": "test_stop_nonexistent_process",
+      "description": "stop() does nothing when node_name not found",
+      "function": "stop",
+      "category": "edge_case",
+      "setup_description": "ProcessManager with no process for given node_name",
+      "mock_dependencies": {},
+      "input_values": {
+        "node_name": "nonexistent_node",
+        "timeout": "5.0"
+      },
+      "input_description": "",
+      "expected_output_description": "No error raised, no action taken",
+      "expected_error": "",
+      "assertions": [
+        "No exception raised",
+        "_processes unchanged"
+      ]
+    },
+    {
+      "id": "test_stop_already_exited_process",
+      "description": "stop() handles process that already exited gracefully",
+      "function": "stop",
+      "category": "edge_case",
+      "setup_description": "Process already has returncode (exited)",
+      "mock_dependencies": {
+        "Process": "Mock process with returncode set"
+      },
+      "input_values": {
+        "node_name": "exited_node",
+        "timeout": "5.0"
+      },
+      "input_description": "",
+      "expected_output_description": "Process removed from tracking without error",
+      "expected_error": "",
+      "assertions": [
+        "No exception raised",
+        "Process removed from _processes",
+        "terminate() not called on already-exited process"
+      ]
+    },
+    {
+      "id": "test_stop_process_lookup_error",
+      "description": "stop() handles process lookup error when process already gone",
+      "function": "stop",
+      "category": "error_case",
+      "setup_description": "Process disappears during termination",
+      "mock_dependencies": {
+        "Process": "Mock process that raises ProcessLookupError"
+      },
+      "input_values": {
+        "node_name": "gone_node",
+        "timeout": "5.0"
+      },
+      "input_description": "",
+      "expected_output_description": "Error handling when process cannot be found",
+      "expected_error": "process_lookup_error",
+      "assertions": [
+        "Process removed from _processes despite error",
+        "Log entry written for error condition"
+      ]
+    },
+    {
+      "id": "test_stop_all_stops_multiple_processes",
+      "description": "stop_all() stops all tracked processes",
+      "function": "stop_all",
+      "category": "happy_path",
+      "setup_description": "ProcessManager tracking multiple processes",
+      "mock_dependencies": {
+        "Process": "Mock processes for multiple nodes"
+      },
+      "input_values": {
+        "timeout": "5.0"
+      },
+      "input_description": "",
+      "expected_output_description": "All processes stopped, _processes empty",
+      "expected_error": "",
+      "assertions": [
+        "stop() called for each tracked process",
+        "_processes is empty after stop_all()",
+        "All processes terminated"
+      ]
+    },
+    {
+      "id": "test_stop_all_empty_manager",
+      "description": "stop_all() on empty ProcessManager does nothing",
+      "function": "stop_all",
+      "category": "edge_case",
+      "setup_description": "ProcessManager with no tracked processes",
+      "mock_dependencies": {},
+      "input_values": {
+        "timeout": "5.0"
+      },
+      "input_description": "",
+      "expected_output_description": "No error, _processes remains empty",
+      "expected_error": "",
+      "assertions": [
+        "No exception raised",
+        "_processes is empty"
+      ]
+    },
+    {
+      "id": "test_is_running_returns_true_for_running_process",
+      "description": "is_running() returns True for tracked running process",
+      "function": "is_running",
+      "category": "happy_path",
+      "setup_description": "ProcessManager tracking a process with returncode None",
+      "mock_dependencies": {
+        "Process": "Mock process with returncode=None"
+      },
+      "input_values": {
+        "node_name": "running_node"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns True",
+      "expected_error": "",
+      "assertions": [
+        "Returns True",
+        "Process returncode is None"
+      ]
+    },
+    {
+      "id": "test_is_running_returns_false_for_exited_process",
+      "description": "is_running() returns False for process with returncode set",
+      "function": "is_running",
+      "category": "happy_path",
+      "setup_description": "ProcessManager tracking a process with returncode 0",
+      "mock_dependencies": {
+        "Process": "Mock process with returncode=0"
+      },
+      "input_values": {
+        "node_name": "exited_node"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns False",
+      "expected_error": "",
+      "assertions": [
+        "Returns False",
+        "Process returncode is not None"
+      ]
+    },
+    {
+      "id": "test_is_running_returns_false_for_nonexistent",
+      "description": "is_running() returns False when node_name not found",
+      "function": "is_running",
+      "category": "edge_case",
+      "setup_description": "ProcessManager with no process for given node_name",
+      "mock_dependencies": {},
+      "input_values": {
+        "node_name": "nonexistent_node"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns False",
+      "expected_error": "",
+      "assertions": [
+        "Returns False"
+      ]
+    },
+    {
+      "id": "test_get_pid_returns_pid_for_tracked_process",
+      "description": "get_pid() returns integer PID for tracked process",
+      "function": "get_pid",
+      "category": "happy_path",
+      "setup_description": "ProcessManager tracking a process with pid 12345",
+      "mock_dependencies": {
+        "Process": "Mock process with pid=12345"
+      },
+      "input_values": {
+        "node_name": "tracked_node"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns integer PID",
+      "expected_error": "",
+      "assertions": [
+        "Returns integer PID",
+        "PID matches tracked process"
+      ]
+    },
+    {
+      "id": "test_get_pid_returns_none_for_nonexistent",
+      "description": "get_pid() returns None when node_name not found",
+      "function": "get_pid",
+      "category": "edge_case",
+      "setup_description": "ProcessManager with no process for given node_name",
+      "mock_dependencies": {},
+      "input_values": {
+        "node_name": "nonexistent_node"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns None",
+      "expected_error": "",
+      "assertions": [
+        "Returns None"
+      ]
+    },
+    {
+      "id": "test_invariant_node_name_uniqueness",
+      "description": "Each node_name maps to at most one ProcessInfo",
+      "function": "start",
+      "category": "invariant",
+      "setup_description": "Multiple start() calls with same node_name",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Only one ProcessInfo per node_name at any time",
+      "expected_error": "",
+      "assertions": [
+        "After multiple start() calls, only one ProcessInfo exists per node_name",
+        "_processes keys are unique"
+      ]
+    },
+    {
+      "id": "test_invariant_node_name_matches_key",
+      "description": "ProcessInfo.node_name always matches dictionary key",
+      "function": "start",
+      "category": "invariant",
+      "setup_description": "ProcessManager with multiple processes",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "All ProcessInfo.node_name match their keys",
+      "expected_error": "",
+      "assertions": [
+        "For all entries in _processes, key == value.node_name"
+      ]
+    },
+    {
+      "id": "test_start_empty_command",
+      "description": "start() with empty command string",
+      "function": "start",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "asyncio.create_subprocess_shell": "Handle empty command"
+      },
+      "input_values": {
+        "node_name": "empty_cmd_node",
+        "command": "",
+        "env": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "Subprocess creation may fail or succeed based on shell behavior",
+      "expected_error": "",
+      "assertions": [
+        "Either ProcessInfo returned or subprocess_creation_failure raised"
+      ]
+    },
+    {
+      "id": "test_stop_zero_timeout",
+      "description": "stop() with timeout=0.0 immediately sends SIGKILL",
+      "function": "stop",
+      "category": "edge_case",
+      "setup_description": "Process tracked and running",
+      "mock_dependencies": {
+        "Process": "Mock process that times out"
+      },
+      "input_values": {
+        "node_name": "zero_timeout_node",
+        "timeout": "0.0"
+      },
+      "input_description": "",
+      "expected_output_description": "SIGTERM sent, immediate timeout, SIGKILL sent",
+      "expected_error": "",
+      "assertions": [
+        "Process.terminate() called",
+        "Process.kill() called due to immediate timeout",
+        "Process removed from _processes"
+      ]
+    },
+    {
+      "id": "test_concurrent_start_operations",
+      "description": "Multiple concurrent start() operations maintain state consistency",
+      "function": "start",
+      "category": "edge_case",
+      "setup_description": "Multiple async start() calls for different nodes",
+      "mock_dependencies": {
+        "asyncio.create_subprocess_shell": "Returns mock Process"
+      },
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "All processes tracked correctly without race conditions",
+      "expected_error": "",
+      "assertions": [
+        "All started processes are in _processes",
+        "No processes lost or overwritten incorrectly"
+      ]
+    }
+  ],
+  "test_language": "python",
+  "generated_code": "\"\"\"\nContract-driven test suite for ProcessManager component.\n\nThis test suite uses a two-tier testing strategy:\n1. Unit tests with mocked subprocess for fast, deterministic testing\n2. Integration tests with real short-lived processes for lifecycle verification\n\nTest coverage includes:\n- Happy path tests for all functions\n- Edge cases (empty states, duplicates, nonexistent processes)\n- Error cases (subprocess creation failure, process lookup errors)\n- Invariant tests (uniqueness, key-value consistency)\n- Concurrency and timeout scenarios\n\"\"\"\n\nimport pytest\nimport asyncio\nfrom unittest.mock import Mock, MagicMock, patch, AsyncMock, call\nfrom typing import Dict, Optional\nimport logging\n\n# Import component under test\nfrom src.baton.process import ProcessManager, ProcessInfo\n\n\nclass TestProcessManagerInit:\n    \"\"\"Tests for ProcessManager.__init__()\"\"\"\n    \n    def test_init_creates_empty_process_dict(self):\n        \"\"\"Initialize ProcessManager creates empty process dictionary\"\"\"\n        manager = ProcessManager()\n        \n        assert hasattr(manager, '_processes'), \"ProcessManager should have _processes attribute\"\n        assert isinstance(manager._processes, dict), \"_processes should be a dict\"\n        assert len(manager._processes) == 0, \"_processes should be empty on initialization\"\n        assert manager._processes == {}, \"_processes should be an empty dict\"\n\n\nclass TestProcessManagerProcesses:\n    \"\"\"Tests for ProcessManager.processes() property\"\"\"\n    \n    def test_processes_empty_manager(self):\n        \"\"\"processes() returns empty dict when no processes tracked\"\"\"\n        manager = ProcessManager()\n        \n        result = manager.processes()\n        \n        assert isinstance(result, dict), \"processes() should return a dict\"\n        assert len(result) == 0, \"Returned dict should be empty for new manager\"\n        assert result is not manager._processes, \"Returned dict should be a copy, not reference\"\n    \n    def test_processes_returns_copy(self):\n        \"\"\"processes() property returns a copy of internal state\"\"\"\n        manager = ProcessManager()\n        \n        # Manually add a mock process to internal state\n        mock_process = Mock()\n        mock_process.pid = 12345\n        mock_process.returncode = None\n        \n        process_info = ProcessInfo(\n            command=\"echo test\",\n            pid=12345,\n            process=mock_process,\n            node_name=\"test_node\"\n        )\n        manager._processes[\"test_node\"] = process_info\n        \n        result = manager.processes()\n        \n        assert \"test_node\" in result, \"Returned dict should contain tracked processes\"\n        assert result[\"test_node\"] == process_info, \"Returned dict should contain same data\"\n        assert result is not manager._processes, \"Returned dict should be a copy\"\n        \n        # Modify returned dict and verify internal state unchanged\n        result[\"new_node\"] = Mock()\n        assert \"new_node\" not in manager._processes, \"Modifications to returned dict should not affect internal state\"\n\n\nclass TestProcessManagerStart:\n    \"\"\"Tests for ProcessManager.start()\"\"\"\n    \n    @pytest.mark.asyncio\n    async def test_start_creates_subprocess(self):\n        \"\"\"start() creates a subprocess and tracks it\"\"\"\n        manager = ProcessManager()\n        \n        # Mock subprocess\n        mock_process = Mock()\n        mock_process.pid = 12345\n        mock_process.returncode = None\n        \n        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_create:\n            mock_create.return_value = mock_process\n            \n            result = await manager.start(\"test_node\", \"echo hello\", None)\n            \n            # Verify subprocess creation\n            mock_create.assert_called_once()\n            call_args = mock_create.call_args\n            assert \"echo hello\" in str(call_args), \"Command should be passed to create_subprocess_shell\"\n            \n            # Verify returned ProcessInfo\n            assert isinstance(result, ProcessInfo), \"start() should return ProcessInfo\"\n            assert result.pid == 12345, \"ProcessInfo should have valid pid\"\n            assert result.node_name == \"test_node\", \"ProcessInfo.node_name should match input\"\n            assert result.command == \"echo hello\", \"ProcessInfo.command should match input\"\n            assert result.process == mock_process, \"ProcessInfo should contain process object\"\n            \n            # Verify process is tracked\n            assert \"test_node\" in manager._processes, \"Process should be stored in _processes\"\n            assert manager._processes[\"test_node\"] == result, \"Stored ProcessInfo should match returned\"\n    \n    @pytest.mark.asyncio\n    async def test_start_with_env_variables(self):\n        \"\"\"start() creates subprocess with environment variables\"\"\"\n        manager = ProcessManager()\n        \n        mock_process = Mock()\n        mock_process.pid = 12346\n        mock_process.returncode = None\n        \n        env_vars = {\"TEST_VAR\": \"test_value\", \"ANOTHER_VAR\": \"another_value\"}\n        \n        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_create:\n            mock_create.return_value = mock_process\n            \n            result = await manager.start(\"env_node\", \"printenv TEST_VAR\", env_vars)\n            \n            # Verify subprocess created with env\n            mock_create.assert_called_once()\n            call_kwargs = mock_create.call_args.kwargs\n            assert 'env' in call_kwargs, \"env parameter should be passed to create_subprocess_shell\"\n            \n            # Verify process tracked\n            assert \"env_node\" in manager._processes, \"Process should be tracked\"\n            assert result.pid == 12346, \"ProcessInfo should have correct pid\"\n    \n    @pytest.mark.asyncio\n    async def test_start_replaces_existing_process(self):\n        \"\"\"start() stops existing process for same node_name before starting new one\"\"\"\n        manager = ProcessManager()\n        \n        # Create first process\n        old_process = Mock()\n        old_process.pid = 11111\n        old_process.returncode = None\n        \n        old_info = ProcessInfo(\n            command=\"old command\",\n            pid=11111,\n            process=old_process,\n            node_name=\"duplicate_node\"\n        )\n        manager._processes[\"duplicate_node\"] = old_info\n        \n        # Mock stop and start\n        new_process = Mock()\n        new_process.pid = 22222\n        new_process.returncode = None\n        \n        with patch.object(manager, 'stop', new_callable=AsyncMock) as mock_stop:\n            with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_create:\n                mock_create.return_value = new_process\n                \n                result = await manager.start(\"duplicate_node\", \"echo new\", None)\n                \n                # Verify old process was stopped\n                mock_stop.assert_called_once_with(\"duplicate_node\", timeout=5.0)\n                \n                # Verify new process tracked\n                assert manager._processes[\"duplicate_node\"].pid == 22222, \"New ProcessInfo should replace old\"\n                assert result.pid == 22222, \"Returned ProcessInfo should be new process\"\n                assert len([k for k in manager._processes.keys() if k == \"duplicate_node\"]) == 1, \\\n                    \"Only one entry should exist for node_name\"\n    \n    @pytest.mark.asyncio\n    async def test_start_subprocess_creation_failure(self):\n        \"\"\"start() raises error when subprocess creation fails\"\"\"\n        manager = ProcessManager()\n        \n        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_create:\n            mock_create.side_effect = OSError(\"Command not found\")\n            \n            with pytest.raises(Exception) as exc_info:\n                await manager.start(\"fail_node\", \"invalid_command\", None)\n            \n            # Verify error contains indication of subprocess creation failure\n            assert \"subprocess\" in str(exc_info.value).lower() or \"command\" in str(exc_info.value).lower(), \\\n                \"Error should indicate subprocess creation failure\"\n            \n            # Verify process not added to tracking\n            assert \"fail_node\" not in manager._processes, \"Failed process should not be tracked\"\n    \n    @pytest.mark.asyncio\n    async def test_start_empty_command(self):\n        \"\"\"start() with empty command string\"\"\"\n        manager = ProcessManager()\n        \n        mock_process = Mock()\n        mock_process.pid = 99999\n        mock_process.returncode = None\n        \n        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_create:\n            # Mock can succeed or fail - test handles both\n            mock_create.return_value = mock_process\n            \n            try:\n                result = await manager.start(\"empty_cmd_node\", \"\", None)\n                # If it succeeds, verify it's tracked\n                assert \"empty_cmd_node\" in manager._processes, \"Process should be tracked if creation succeeds\"\n            except Exception as e:\n                # If it fails, verify it's not tracked\n                assert \"empty_cmd_node\" not in manager._processes, \"Failed process should not be tracked\"\n\n\nclass TestProcessManagerStop:\n    \"\"\"Tests for ProcessManager.stop()\"\"\"\n    \n    @pytest.mark.asyncio\n    async def test_stop_terminates_running_process(self):\n        \"\"\"stop() sends SIGTERM to running process and removes from tracking\"\"\"\n        manager = ProcessManager()\n        \n        # Setup tracked process\n        mock_process = Mock()\n        mock_process.pid = 12345\n        mock_process.returncode = None\n        mock_process.terminate = Mock()\n        mock_process.wait = AsyncMock(return_value=0)\n        \n        process_info = ProcessInfo(\n            command=\"echo test\",\n            pid=12345,\n            process=mock_process,\n            node_name=\"running_node\"\n        )\n        manager._processes[\"running_node\"] = process_info\n        \n        with patch('logging.Logger.info'):\n            await manager.stop(\"running_node\", timeout=5.0)\n        \n        # Verify terminate called\n        mock_process.terminate.assert_called_once()\n        \n        # Verify wait called with timeout\n        mock_process.wait.assert_called()\n        \n        # Verify process removed from tracking\n        assert \"running_node\" not in manager._processes, \"Process should be removed from _processes\"\n    \n    @pytest.mark.asyncio\n    async def test_stop_sends_sigkill_on_timeout(self):\n        \"\"\"stop() sends SIGKILL when process does not exit within timeout\"\"\"\n        manager = ProcessManager()\n        \n        # Setup stubborn process\n        mock_process = Mock()\n        mock_process.pid = 12345\n        mock_process.returncode = None\n        mock_process.terminate = Mock()\n        mock_process.kill = Mock()\n        # Simulate timeout\n        mock_process.wait = AsyncMock(side_effect=asyncio.TimeoutError())\n        \n        process_info = ProcessInfo(\n            command=\"stubborn process\",\n            pid=12345,\n            process=mock_process,\n            node_name=\"stubborn_node\"\n        )\n        manager._processes[\"stubborn_node\"] = process_info\n        \n        with patch('logging.Logger.info'):\n            with patch('logging.Logger.warning'):\n                await manager.stop(\"stubborn_node\", timeout=1.0)\n        \n        # Verify terminate called first\n        mock_process.terminate.assert_called_once()\n        \n        # Verify kill called after timeout\n        mock_process.kill.assert_called_once()\n        \n        # Verify process removed\n        assert \"stubborn_node\" not in manager._processes, \"Process should be removed after kill\"\n    \n    @pytest.mark.asyncio\n    async def test_stop_nonexistent_process(self):\n        \"\"\"stop() does nothing when node_name not found\"\"\"\n        manager = ProcessManager()\n        \n        # No exception should be raised\n        await manager.stop(\"nonexistent_node\", timeout=5.0)\n        \n        # Verify _processes unchanged (still empty)\n        assert len(manager._processes) == 0, \"_processes should remain unchanged\"\n    \n    @pytest.mark.asyncio\n    async def test_stop_already_exited_process(self):\n        \"\"\"stop() handles process that already exited gracefully\"\"\"\n        manager = ProcessManager()\n        \n        # Setup exited process\n        mock_process = Mock()\n        mock_process.pid = 12345\n        mock_process.returncode = 0  # Already exited\n        mock_process.terminate = Mock()\n        \n        process_info = ProcessInfo(\n            command=\"finished process\",\n            pid=12345,\n            process=mock_process,\n            node_name=\"exited_node\"\n        )\n        manager._processes[\"exited_node\"] = process_info\n        \n        with patch('logging.Logger.info'):\n            await manager.stop(\"exited_node\", timeout=5.0)\n        \n        # Verify process removed without attempting to terminate\n        assert \"exited_node\" not in manager._processes, \"Process should be removed\"\n    \n    @pytest.mark.asyncio\n    async def test_stop_process_lookup_error(self):\n        \"\"\"stop() handles process lookup error when process already gone\"\"\"\n        manager = ProcessManager()\n        \n        # Setup process that will raise ProcessLookupError\n        mock_process = Mock()\n        mock_process.pid = 12345\n        mock_process.returncode = None\n        mock_process.terminate = Mock(side_effect=ProcessLookupError(\"Process not found\"))\n        \n        process_info = ProcessInfo(\n            command=\"disappearing process\",\n            pid=12345,\n            process=mock_process,\n            node_name=\"gone_node\"\n        )\n        manager._processes[\"gone_node\"] = process_info\n        \n        with patch('logging.Logger.info'):\n            with patch('logging.Logger.warning'):\n                await manager.stop(\"gone_node\", timeout=5.0)\n        \n        # Verify process removed despite error\n        assert \"gone_node\" not in manager._processes, \"Process should be removed despite lookup error\"\n    \n    @pytest.mark.asyncio\n    async def test_stop_zero_timeout(self):\n        \"\"\"stop() with timeout=0.0 immediately sends SIGKILL\"\"\"\n        manager = ProcessManager()\n        \n        mock_process = Mock()\n        mock_process.pid = 12345\n        mock_process.returncode = None\n        mock_process.terminate = Mock()\n        mock_process.kill = Mock()\n        # Immediate timeout\n        mock_process.wait = AsyncMock(side_effect=asyncio.TimeoutError())\n        \n        process_info = ProcessInfo(\n            command=\"test process\",\n            pid=12345,\n            process=mock_process,\n            node_name=\"zero_timeout_node\"\n        )\n        manager._processes[\"zero_timeout_node\"] = process_info\n        \n        with patch('logging.Logger.info'):\n            with patch('logging.Logger.warning'):\n                await manager.stop(\"zero_timeout_node\", timeout=0.0)\n        \n        # Verify both terminate and kill called\n        mock_process.terminate.assert_called_once()\n        mock_process.kill.assert_called_once()\n        \n        # Verify process removed\n        assert \"zero_timeout_node\" not in manager._processes, \"Process should be removed\"\n\n\nclass TestProcessManagerStopAll:\n    \"\"\"Tests for ProcessManager.stop_all()\"\"\"\n    \n    @pytest.mark.asyncio\n    async def test_stop_all_stops_multiple_processes(self):\n        \"\"\"stop_all() stops all tracked processes\"\"\"\n        manager = ProcessManager()\n        \n        # Setup multiple processes\n        processes = {}\n        for i in range(3):\n            mock_process = Mock()\n            mock_process.pid = 10000 + i\n            mock_process.returncode = None\n            mock_process.terminate = Mock()\n            mock_process.wait = AsyncMock(return_value=0)\n            \n            node_name = f\"node_{i}\"\n            process_info = ProcessInfo(\n                command=f\"command_{i}\",\n                pid=10000 + i,\n                process=mock_process,\n                node_name=node_name\n            )\n            manager._processes[node_name] = process_info\n            processes[node_name] = mock_process\n        \n        assert len(manager._processes) == 3, \"Should have 3 processes tracked\"\n        \n        with patch('logging.Logger.info'):\n            await manager.stop_all(timeout=5.0)\n        \n        # Verify all processes terminated\n        for node_name, mock_process in processes.items():\n            mock_process.terminate.assert_called_once()\n        \n        # Verify _processes is empty\n        assert len(manager._processes) == 0, \"_processes should be empty after stop_all()\"\n    \n    @pytest.mark.asyncio\n    async def test_stop_all_empty_manager(self):\n        \"\"\"stop_all() on empty ProcessManager does nothing\"\"\"\n        manager = ProcessManager()\n        \n        # Should not raise any exception\n        await manager.stop_all(timeout=5.0)\n        \n        # Verify still empty\n        assert len(manager._processes) == 0, \"_processes should remain empty\"\n\n\nclass TestProcessManagerIsRunning:\n    \"\"\"Tests for ProcessManager.is_running()\"\"\"\n    \n    def test_is_running_returns_true_for_running_process(self):\n        \"\"\"is_running() returns True for tracked running process\"\"\"\n        manager = ProcessManager()\n        \n        # Setup running process\n        mock_process = Mock()\n        mock_process.pid = 12345\n        mock_process.returncode = None  # Running\n        \n        process_info = ProcessInfo(\n            command=\"running command\",\n            pid=12345,\n            process=mock_process,\n            node_name=\"running_node\"\n        )\n        manager._processes[\"running_node\"] = process_info\n        \n        result = manager.is_running(\"running_node\")\n        \n        assert result is True, \"is_running() should return True for running process\"\n    \n    def test_is_running_returns_false_for_exited_process(self):\n        \"\"\"is_running() returns False for process with returncode set\"\"\"\n        manager = ProcessManager()\n        \n        # Setup exited process\n        mock_process = Mock()\n        mock_process.pid = 12345\n        mock_process.returncode = 0  # Exited\n        \n        process_info = ProcessInfo(\n            command=\"finished command\",\n            pid=12345,\n            process=mock_process,\n            node_name=\"exited_node\"\n        )\n        manager._processes[\"exited_node\"] = process_info\n        \n        result = manager.is_running(\"exited_node\")\n        \n        assert result is False, \"is_running() should return False for exited process\"\n    \n    def test_is_running_returns_false_for_nonexistent(self):\n        \"\"\"is_running() returns False when node_name not found\"\"\"\n        manager = ProcessManager()\n        \n        result = manager.is_running(\"nonexistent_node\")\n        \n        assert result is False, \"is_running() should return False for nonexistent process\"\n\n\nclass TestProcessManagerGetPid:\n    \"\"\"Tests for ProcessManager.get_pid()\"\"\"\n    \n    def test_get_pid_returns_pid_for_tracked_process(self):\n        \"\"\"get_pid() returns integer PID for tracked process\"\"\"\n        manager = ProcessManager()\n        \n        # Setup tracked process\n        mock_process = Mock()\n        mock_process.pid = 12345\n        \n        process_info = ProcessInfo(\n            command=\"test command\",\n            pid=12345,\n            process=mock_process,\n            node_name=\"tracked_node\"\n        )\n        manager._processes[\"tracked_node\"] = process_info\n        \n        result = manager.get_pid(\"tracked_node\")\n        \n        assert isinstance(result, int), \"get_pid() should return int\"\n        assert result == 12345, \"get_pid() should return correct PID\"\n    \n    def test_get_pid_returns_none_for_nonexistent(self):\n        \"\"\"get_pid() returns None when node_name not found\"\"\"\n        manager = ProcessManager()\n        \n        result = manager.get_pid(\"nonexistent_node\")\n        \n        assert result is None, \"get_pid() should return None for nonexistent process\"\n\n\nclass TestProcessManagerInvariants:\n    \"\"\"Tests for ProcessManager invariants\"\"\"\n    \n    @pytest.mark.asyncio\n    async def test_invariant_node_name_uniqueness(self):\n        \"\"\"Each node_name maps to at most one ProcessInfo\"\"\"\n        manager = ProcessManager()\n        \n        # Start multiple processes with same node_name\n        pids = []\n        for i in range(3):\n            mock_process = Mock()\n            mock_process.pid = 10000 + i\n            mock_process.returncode = None\n            \n            with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_create:\n                mock_create.return_value = mock_process\n                \n                with patch.object(manager, 'stop', new_callable=AsyncMock):\n                    result = await manager.start(\"same_node\", f\"command_{i}\", None)\n                    pids.append(result.pid)\n        \n        # Verify only one process tracked\n        assert len(manager._processes) == 1 or \"same_node\" in manager._processes, \\\n            \"Only one ProcessInfo should exist per node_name\"\n        \n        # Verify it's the latest one\n        if \"same_node\" in manager._processes:\n            assert manager._processes[\"same_node\"].pid == pids[-1], \\\n                \"Should track the most recent process for the node_name\"\n    \n    @pytest.mark.asyncio\n    async def test_invariant_node_name_matches_key(self):\n        \"\"\"ProcessInfo.node_name always matches dictionary key\"\"\"\n        manager = ProcessManager()\n        \n        # Setup multiple processes\n        node_names = [\"node_a\", \"node_b\", \"node_c\"]\n        \n        for node_name in node_names:\n            mock_process = Mock()\n            mock_process.pid = hash(node_name) % 10000\n            mock_process.returncode = None\n            \n            with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_create:\n                mock_create.return_value = mock_process\n                await manager.start(node_name, f\"command for {node_name}\", None)\n        \n        # Verify invariant\n        for key, process_info in manager._processes.items():\n            assert key == process_info.node_name, \\\n                f\"Key '{key}' should match ProcessInfo.node_name '{process_info.node_name}'\"\n\n\nclass TestProcessManagerConcurrency:\n    \"\"\"Tests for concurrent operations\"\"\"\n    \n    @pytest.mark.asyncio\n    async def test_concurrent_start_operations(self):\n        \"\"\"Multiple concurrent start() operations maintain state consistency\"\"\"\n        manager = ProcessManager()\n        \n        async def start_process(node_name: str, command: str):\n            mock_process = Mock()\n            mock_process.pid = hash(node_name) % 10000\n            mock_process.returncode = None\n            \n            with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_create:\n                mock_create.return_value = mock_process\n                return await manager.start(node_name, command, None)\n        \n        # Start multiple processes concurrently\n        tasks = [\n            start_process(f\"node_{i}\", f\"command_{i}\")\n            for i in range(5)\n        ]\n        \n        results = await asyncio.gather(*tasks)\n        \n        # Verify all processes tracked\n        assert len(manager._processes) == 5, \"All started processes should be tracked\"\n        \n        # Verify no processes lost\n        for i in range(5):\n            assert f\"node_{i}\" in manager._processes, f\"node_{i} should be tracked\"\n        \n        # Verify all results valid\n        for result in results:\n            assert isinstance(result, ProcessInfo), \"All results should be ProcessInfo\"\n            assert result.pid > 0, \"All ProcessInfo should have valid PID\"\n\n\nclass TestProcessManagerIntegration:\n    \"\"\"Integration tests with real subprocess (short-lived)\"\"\"\n    \n    @pytest.mark.asyncio\n    async def test_integration_start_and_stop_real_process(self):\n        \"\"\"Integration test: start and stop real subprocess\"\"\"\n        manager = ProcessManager()\n        \n        # Start a real subprocess (sleep for short time)\n        process_info = await manager.start(\"test_sleep\", \"sleep 10\", None)\n        \n        assert process_info is not None, \"ProcessInfo should be returned\"\n        assert process_info.pid > 0, \"Process should have valid PID\"\n        assert manager.is_running(\"test_sleep\"), \"Process should be running\"\n        \n        # Stop the process\n        await manager.stop(\"test_sleep\", timeout=2.0)\n        \n        assert not manager.is_running(\"test_sleep\"), \"Process should be stopped\"\n        assert \"test_sleep\" not in manager._processes, \"Process should be removed from tracking\"\n    \n    @pytest.mark.asyncio\n    async def test_integration_echo_command(self):\n        \"\"\"Integration test: run echo command and verify completion\"\"\"\n        manager = ProcessManager()\n        \n        # Start echo command (completes immediately)\n        process_info = await manager.start(\"test_echo\", \"echo 'Hello World'\", None)\n        \n        assert process_info is not None, \"ProcessInfo should be returned\"\n        assert process_info.pid > 0, \"Process should have valid PID\"\n        \n        # Wait a bit for process to complete\n        await asyncio.sleep(0.5)\n        \n        # Process may or may not be in tracking depending on timing\n        # Just verify no crashes\n        manager.is_running(\"test_echo\")\n        manager.get_pid(\"test_echo\")\n    \n    @pytest.mark.asyncio  \n    async def test_integration_stop_all_real_processes(self):\n        \"\"\"Integration test: stop_all with multiple real processes\"\"\"\n        manager = ProcessManager()\n        \n        # Start multiple processes\n        for i in range(3):\n            await manager.start(f\"sleep_{i}\", f\"sleep {5 + i}\", None)\n        \n        assert len(manager._processes) == 3, \"Should have 3 processes\"\n        \n        # Stop all\n        await manager.stop_all(timeout=2.0)\n        \n        assert len(manager._processes) == 0, \"All processes should be stopped\"\n\n\n# Entry point for pytest\nif __name__ == \"__main__\":\n    pytest.main([__file__, \"-v\"])\n"
+}

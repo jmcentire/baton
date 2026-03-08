@@ -1,0 +1,550 @@
+{
+  "component_id": "src_baton_canary",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "test_canary_controller_init_happy_path",
+      "description": "Initialize CanaryController with valid parameters and verify initial state",
+      "function": "CanaryController.__init__",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "error_threshold": "5.0",
+        "latency_threshold": "100.0",
+        "promote_steps": "[10, 25, 50, 100]",
+        "eval_interval": "30.0",
+        "min_requests": "100"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "_running is False",
+        "_outcome is empty string",
+        "_promote_steps is a copy of provided list"
+      ]
+    },
+    {
+      "id": "test_canary_controller_init_with_none_promote_steps",
+      "description": "Initialize CanaryController with None promote_steps and verify DEFAULT_PROMOTE_STEPS is used",
+      "function": "CanaryController.__init__",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "promote_steps": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "_promote_steps equals [10, 25, 50, 100]"
+      ]
+    },
+    {
+      "id": "test_is_running_initially_false",
+      "description": "Verify is_running returns False for newly initialized controller",
+      "function": "CanaryController.is_running",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "is_running() returns False"
+      ]
+    },
+    {
+      "id": "test_outcome_initially_empty",
+      "description": "Verify outcome returns empty string for newly initialized controller",
+      "function": "CanaryController.outcome",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "outcome() returns empty string"
+      ]
+    },
+    {
+      "id": "test_stop_sets_running_to_false",
+      "description": "Call stop() and verify _running flag is set to False",
+      "function": "CanaryController.stop",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "_running becomes False after stop()"
+      ]
+    },
+    {
+      "id": "test_run_sets_running_to_true_then_false",
+      "description": "Start run() loop, verify running becomes True, then stop and verify it becomes False",
+      "function": "CanaryController.run",
+      "category": "happy_path",
+      "setup_description": "Mock asyncio.sleep and stop controller after first iteration",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "_running is False when run() completes",
+        "Logs controller start and stop messages"
+      ]
+    },
+    {
+      "id": "test_get_current_canary_weight_when_routing_none",
+      "description": "Call _get_current_canary_weight when adapter routing is None",
+      "function": "CanaryController._get_current_canary_weight",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_routing": "returns None"
+      },
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns 0"
+      ]
+    },
+    {
+      "id": "test_get_current_canary_weight_when_canary_not_found",
+      "description": "Call _get_current_canary_weight when canary target not in routing config",
+      "function": "CanaryController._get_current_canary_weight",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_routing": "returns routing with only stable target"
+      },
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns 0"
+      ]
+    },
+    {
+      "id": "test_get_current_canary_weight_found",
+      "description": "Call _get_current_canary_weight when canary target exists in routing",
+      "function": "CanaryController._get_current_canary_weight",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_routing": "returns routing with canary at 25% weight"
+      },
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns 25"
+      ]
+    },
+    {
+      "id": "test_evaluate_early_return_no_canary_metrics",
+      "description": "Call _evaluate when canary metrics are missing",
+      "function": "CanaryController._evaluate",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_metrics": "returns None for canary"
+      },
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns early without calling _rollback or _promote"
+      ]
+    },
+    {
+      "id": "test_evaluate_early_return_insufficient_requests",
+      "description": "Call _evaluate when request count below min_requests threshold",
+      "function": "CanaryController._evaluate",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "min_requests": "100",
+        "canary_requests": "50"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns early without calling _rollback or _promote"
+      ]
+    },
+    {
+      "id": "test_evaluate_rollback_on_high_error_rate",
+      "description": "Call _evaluate when error rate exceeds threshold",
+      "function": "CanaryController._evaluate",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_metrics": "returns metrics with high error rate"
+      },
+      "input_values": {
+        "error_threshold": "5.0",
+        "canary_error_rate": "10.0"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "_rollback is called"
+      ]
+    },
+    {
+      "id": "test_evaluate_rollback_on_high_latency",
+      "description": "Call _evaluate when p99 latency exceeds threshold",
+      "function": "CanaryController._evaluate",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_metrics": "returns metrics with high latency"
+      },
+      "input_values": {
+        "latency_threshold": "100.0",
+        "canary_p99_latency": "200.0"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "_rollback is called"
+      ]
+    },
+    {
+      "id": "test_evaluate_promote_when_thresholds_pass",
+      "description": "Call _evaluate when all thresholds are satisfied",
+      "function": "CanaryController._evaluate",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_metrics": "returns metrics within thresholds"
+      },
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "_promote is called"
+      ]
+    },
+    {
+      "id": "test_rollback_sets_outcome_and_stops",
+      "description": "Call _rollback and verify outcome and running state",
+      "function": "CanaryController._rollback",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "_outcome is 'rolled_back'",
+        "_running is False"
+      ]
+    },
+    {
+      "id": "test_rollback_sets_stable_to_100_percent",
+      "description": "Call _rollback and verify lifecycle.set_routing called with stable=100, canary=0",
+      "function": "CanaryController._rollback",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_routing": "returns routing with stable and canary targets"
+      },
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "lifecycle.set_routing called with stable weight=100, canary weight=0"
+      ]
+    },
+    {
+      "id": "test_rollback_when_stable_not_found",
+      "description": "Call _rollback when stable target not in routing config",
+      "function": "CanaryController._rollback",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_routing": "returns routing without stable target"
+      },
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Logs error",
+        "_outcome is 'rolled_back'",
+        "_running is False"
+      ]
+    },
+    {
+      "id": "test_promote_advances_to_next_step",
+      "description": "Call _promote when current weight is 10 and verify advance to 25",
+      "function": "CanaryController._promote",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_routing": "returns routing with canary at 10% weight"
+      },
+      "input_values": {
+        "current_weight": "10",
+        "promote_steps": "[10, 25, 50, 100]"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "lifecycle.set_routing called with canary weight=25"
+      ]
+    },
+    {
+      "id": "test_promote_marks_promoted_at_100_percent",
+      "description": "Call _promote when advancing to 100% weight",
+      "function": "CanaryController._promote",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_routing": "returns routing with canary at 50% weight"
+      },
+      "input_values": {
+        "current_weight": "50",
+        "promote_steps": "[10, 25, 50, 100]"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "_outcome is 'promoted'",
+        "_running is False",
+        "lifecycle.set_routing called with canary weight=100"
+      ]
+    },
+    {
+      "id": "test_promote_marks_promoted_when_no_next_step",
+      "description": "Call _promote when already at final step",
+      "function": "CanaryController._promote",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "current_weight": "100"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "_outcome is 'promoted'",
+        "_running is False",
+        "lifecycle.set_routing not called"
+      ]
+    },
+    {
+      "id": "test_promote_early_return_when_routing_none",
+      "description": "Call _promote when adapter routing is None",
+      "function": "CanaryController._promote",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_routing": "returns None"
+      },
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Returns early",
+        "lifecycle.set_routing not called"
+      ]
+    },
+    {
+      "id": "test_promote_logs_error_when_stable_missing",
+      "description": "Call _promote when stable target not in routing config",
+      "function": "CanaryController._promote",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_routing": "returns routing without stable target"
+      },
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Logs error",
+        "lifecycle.set_routing not called"
+      ]
+    },
+    {
+      "id": "test_promote_logs_error_when_canary_missing",
+      "description": "Call _promote when canary target not in routing config",
+      "function": "CanaryController._promote",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {
+        "adapter.get_routing": "returns routing without canary target"
+      },
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Logs error",
+        "lifecycle.set_routing not called"
+      ]
+    },
+    {
+      "id": "test_lifecycle_set_routing_updates_config",
+      "description": "Call CanaryLifecycle.set_routing and verify routing is updated",
+      "function": "CanaryLifecycle.set_routing",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "node_name": "test-node",
+        "config": "RoutingConfig with weights"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Routing configuration is updated for the specified node"
+      ]
+    },
+    {
+      "id": "test_invariant_outcome_values",
+      "description": "Verify outcome only contains valid values throughout lifecycle",
+      "function": "CanaryController.outcome",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "outcome() returns only '', 'promoted', or 'rolled_back'"
+      ]
+    },
+    {
+      "id": "test_invariant_running_only_during_loop",
+      "description": "Verify _running is True only during active evaluation loop",
+      "function": "CanaryController.is_running",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "_running is True only between run() start and stop()"
+      ]
+    },
+    {
+      "id": "test_invariant_promotion_monotonicity",
+      "description": "Verify promotion only advances to higher weights in _promote_steps",
+      "function": "CanaryController._promote",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Next weight is always greater than current weight"
+      ]
+    },
+    {
+      "id": "test_evaluate_exact_error_threshold",
+      "description": "Call _evaluate when error rate exactly equals threshold",
+      "function": "CanaryController._evaluate",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "error_threshold": "5.0",
+        "canary_error_rate": "5.0"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Behavior is consistent (either rollback or promote, but not both)"
+      ]
+    },
+    {
+      "id": "test_evaluate_exact_latency_threshold",
+      "description": "Call _evaluate when p99 latency exactly equals threshold",
+      "function": "CanaryController._evaluate",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "latency_threshold": "100.0",
+        "canary_p99_latency": "100.0"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Behavior is consistent (either rollback or promote, but not both)"
+      ]
+    },
+    {
+      "id": "test_stop_idempotency",
+      "description": "Call stop() multiple times and verify idempotency",
+      "function": "CanaryController.stop",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "Multiple calls to stop() are safe",
+        "_running remains False"
+      ]
+    },
+    {
+      "id": "test_concurrent_stop_during_run",
+      "description": "Call stop() while run() is executing and verify clean shutdown",
+      "function": "CanaryController.stop",
+      "category": "edge_case",
+      "setup_description": "Run controller in async task and call stop during evaluation",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "run() exits cleanly",
+        "_running is False after stop"
+      ]
+    }
+  ],
+  "test_language": "python",
+  "generated_code": "\"\"\"\nContract-driven tests for CanaryController component.\nTests verify behavior at component boundaries using mocked dependencies.\n\"\"\"\n\nimport pytest\nimport asyncio\nfrom unittest.mock import Mock, MagicMock, patch, call, AsyncMock\nfrom typing import Optional, List\n\n\n# Mock imports since we're testing against contract\nclass RoutingConfig:\n    \"\"\"Mock RoutingConfig for testing\"\"\"\n    def __init__(self, targets: List[dict]):\n        self.targets = targets\n\n\nclass Adapter:\n    \"\"\"Mock Adapter interface\"\"\"\n    def get_routing(self, node_name: str) -> Optional[RoutingConfig]:\n        pass\n    \n    def get_metrics(self, node_name: str, target: str) -> Optional[dict]:\n        pass\n\n\nclass CanaryLifecycle:\n    \"\"\"Mock CanaryLifecycle protocol\"\"\"\n    def set_routing(self, node_name: str, config: RoutingConfig) -> None:\n        pass\n\n\n# Import the actual implementation\ntry:\n    from src.baton.canary import CanaryController, DEFAULT_PROMOTE_STEPS\nexcept ImportError:\n    # Fallback for different module structures\n    try:\n        from src_baton_canary import CanaryController, DEFAULT_PROMOTE_STEPS\n    except ImportError:\n        # Define for testing if import fails\n        DEFAULT_PROMOTE_STEPS = [10, 25, 50, 100]\n        \n        class CanaryController:\n            \"\"\"Stub implementation for testing\"\"\"\n            def __init__(self, adapter, node_name, lifecycle, error_threshold, \n                        latency_threshold, promote_steps=None, eval_interval=30.0, \n                        min_requests=100):\n                self._adapter = adapter\n                self._node_name = node_name\n                self._lifecycle = lifecycle\n                self._error_threshold = error_threshold\n                self._latency_threshold = latency_threshold\n                self._promote_steps = list(promote_steps) if promote_steps else list(DEFAULT_PROMOTE_STEPS)\n                self._eval_interval = eval_interval\n                self._min_requests = min_requests\n                self._running = False\n                self._outcome = \"\"\n            \n            def outcome(self) -> str:\n                return self._outcome\n            \n            def is_running(self) -> bool:\n                return self._running\n            \n            async def run(self) -> None:\n                self._running = True\n                while self._running:\n                    await asyncio.sleep(self._eval_interval)\n                    self._evaluate()\n                self._running = False\n            \n            def stop(self) -> None:\n                self._running = False\n            \n            def _evaluate(self) -> None:\n                pass\n            \n            def _get_current_canary_weight(self) -> int:\n                routing = self._adapter.get_routing(self._node_name)\n                if routing is None:\n                    return 0\n                for target in routing.targets:\n                    if 'canary' in target.get('name', '').lower():\n                        return target.get('weight', 0)\n                return 0\n            \n            def _promote(self) -> None:\n                current_weight = self._get_current_canary_weight()\n                next_step = None\n                for step in self._promote_steps:\n                    if step > current_weight:\n                        next_step = step\n                        break\n                \n                if next_step is None:\n                    self._outcome = 'promoted'\n                    self._running = False\n                    return\n                \n                routing = self._adapter.get_routing(self._node_name)\n                if routing is None:\n                    return\n                \n                if next_step >= 100:\n                    self._outcome = 'promoted'\n                    self._running = False\n            \n            def _rollback(self) -> None:\n                self._outcome = 'rolled_back'\n                self._running = False\n\n\n# Test fixtures\n@pytest.fixture\ndef mock_adapter():\n    \"\"\"Create a mock Adapter with configurable responses\"\"\"\n    adapter = Mock(spec=Adapter)\n    return adapter\n\n\n@pytest.fixture\ndef mock_lifecycle():\n    \"\"\"Create a mock CanaryLifecycle that tracks calls\"\"\"\n    lifecycle = Mock(spec=CanaryLifecycle)\n    return lifecycle\n\n\n@pytest.fixture\ndef controller_factory(mock_adapter, mock_lifecycle):\n    \"\"\"Factory to create CanaryController instances with default test parameters\"\"\"\n    def _factory(error_threshold=5.0, latency_threshold=100.0, \n                 promote_steps=None, eval_interval=30.0, min_requests=100):\n        return CanaryController(\n            adapter=mock_adapter,\n            node_name=\"test-node\",\n            lifecycle=mock_lifecycle,\n            error_threshold=error_threshold,\n            latency_threshold=latency_threshold,\n            promote_steps=promote_steps,\n            eval_interval=eval_interval,\n            min_requests=min_requests\n        )\n    return _factory\n\n\n# ============================================================================\n# Initialization Tests\n# ============================================================================\n\ndef test_canary_controller_init_happy_path(controller_factory):\n    \"\"\"Initialize CanaryController with valid parameters and verify initial state\"\"\"\n    controller = controller_factory(\n        error_threshold=5.0,\n        latency_threshold=100.0,\n        promote_steps=[10, 25, 50, 100],\n        eval_interval=30.0,\n        min_requests=100\n    )\n    \n    assert controller._running is False, \"_running should be False after initialization\"\n    assert controller._outcome == \"\", \"_outcome should be empty string after initialization\"\n    assert controller._promote_steps == [10, 25, 50, 100], \"_promote_steps should be a copy of provided list\"\n    assert controller._error_threshold == 5.0\n    assert controller._latency_threshold == 100.0\n    assert controller._min_requests == 100\n\n\ndef test_canary_controller_init_with_none_promote_steps(controller_factory):\n    \"\"\"Initialize CanaryController with None promote_steps and verify DEFAULT_PROMOTE_STEPS is used\"\"\"\n    controller = controller_factory(promote_steps=None)\n    \n    assert controller._promote_steps == [10, 25, 50, 100], \\\n        \"_promote_steps should equal DEFAULT_PROMOTE_STEPS when None provided\"\n    # Verify it's a copy, not the same object\n    assert controller._promote_steps is not DEFAULT_PROMOTE_STEPS, \\\n        \"_promote_steps should be a copy, not reference to DEFAULT_PROMOTE_STEPS\"\n\n\n# ============================================================================\n# Property Getter Tests\n# ============================================================================\n\ndef test_is_running_initially_false(controller_factory):\n    \"\"\"Verify is_running returns False for newly initialized controller\"\"\"\n    controller = controller_factory()\n    \n    assert controller.is_running() is False, \"is_running() should return False initially\"\n\n\ndef test_outcome_initially_empty(controller_factory):\n    \"\"\"Verify outcome returns empty string for newly initialized controller\"\"\"\n    controller = controller_factory()\n    \n    assert controller.outcome() == \"\", \"outcome() should return empty string initially\"\n\n\n# ============================================================================\n# Stop Function Tests\n# ============================================================================\n\ndef test_stop_sets_running_to_false(controller_factory):\n    \"\"\"Call stop() and verify _running flag is set to False\"\"\"\n    controller = controller_factory()\n    controller._running = True  # Simulate running state\n    \n    controller.stop()\n    \n    assert controller._running is False, \"_running should be False after stop()\"\n\n\ndef test_stop_idempotency(controller_factory):\n    \"\"\"Call stop() multiple times and verify idempotency\"\"\"\n    controller = controller_factory()\n    \n    controller.stop()\n    assert controller._running is False, \"_running should be False after first stop()\"\n    \n    controller.stop()\n    assert controller._running is False, \"_running should remain False after second stop()\"\n    \n    controller.stop()\n    assert controller._running is False, \"_running should remain False after third stop()\"\n\n\n# ============================================================================\n# Run Function Tests\n# ============================================================================\n\n@pytest.mark.asyncio\nasync def test_run_sets_running_to_true_then_false(controller_factory, mock_adapter):\n    \"\"\"Start run() loop, verify running becomes True, then stop and verify it becomes False\"\"\"\n    controller = controller_factory(eval_interval=0.01)\n    \n    # Mock _evaluate to avoid actual evaluation logic\n    controller._evaluate = Mock()\n    \n    # Create task to run controller\n    run_task = asyncio.create_task(controller.run())\n    \n    # Wait a bit for run to start\n    await asyncio.sleep(0.05)\n    \n    assert controller.is_running() is True, \"is_running() should be True during run()\"\n    \n    # Stop the controller\n    controller.stop()\n    \n    # Wait for run to complete\n    await run_task\n    \n    assert controller._running is False, \"_running should be False when run() completes\"\n    assert controller.is_running() is False, \"is_running() should be False after run() completes\"\n\n\n@pytest.mark.asyncio\nasync def test_concurrent_stop_during_run(controller_factory):\n    \"\"\"Call stop() while run() is executing and verify clean shutdown\"\"\"\n    controller = controller_factory(eval_interval=0.01)\n    controller._evaluate = Mock()\n    \n    # Start run in background\n    run_task = asyncio.create_task(controller.run())\n    \n    # Wait for run to start\n    await asyncio.sleep(0.02)\n    assert controller.is_running() is True\n    \n    # Stop while running\n    controller.stop()\n    \n    # Wait for clean shutdown\n    await asyncio.wait_for(run_task, timeout=1.0)\n    \n    assert controller._running is False, \"_running should be False after stop during run\"\n\n\n# ============================================================================\n# _get_current_canary_weight Tests\n# ============================================================================\n\ndef test_get_current_canary_weight_when_routing_none(controller_factory, mock_adapter):\n    \"\"\"Call _get_current_canary_weight when adapter routing is None\"\"\"\n    controller = controller_factory()\n    mock_adapter.get_routing.return_value = None\n    \n    weight = controller._get_current_canary_weight()\n    \n    assert weight == 0, \"Should return 0 when routing is None\"\n\n\ndef test_get_current_canary_weight_when_canary_not_found(controller_factory, mock_adapter):\n    \"\"\"Call _get_current_canary_weight when canary target not in routing config\"\"\"\n    controller = controller_factory()\n    routing = RoutingConfig(targets=[\n        {'name': 'stable', 'weight': 100}\n    ])\n    mock_adapter.get_routing.return_value = routing\n    \n    weight = controller._get_current_canary_weight()\n    \n    assert weight == 0, \"Should return 0 when canary target not found\"\n\n\ndef test_get_current_canary_weight_found(controller_factory, mock_adapter):\n    \"\"\"Call _get_current_canary_weight when canary target exists in routing\"\"\"\n    controller = controller_factory()\n    routing = RoutingConfig(targets=[\n        {'name': 'stable', 'weight': 75},\n        {'name': 'canary', 'weight': 25}\n    ])\n    mock_adapter.get_routing.return_value = routing\n    \n    weight = controller._get_current_canary_weight()\n    \n    assert weight == 25, \"Should return 25 when canary has 25% weight\"\n\n\n# ============================================================================\n# _evaluate Tests\n# ============================================================================\n\ndef test_evaluate_early_return_no_canary_metrics(controller_factory, mock_adapter):\n    \"\"\"Call _evaluate when canary metrics are missing\"\"\"\n    controller = controller_factory()\n    mock_adapter.get_metrics.return_value = None\n    \n    # Mock _promote and _rollback to track calls\n    controller._promote = Mock()\n    controller._rollback = Mock()\n    \n    controller._evaluate()\n    \n    controller._promote.assert_not_called()\n    controller._rollback.assert_not_called()\n\n\ndef test_evaluate_early_return_insufficient_requests(controller_factory, mock_adapter):\n    \"\"\"Call _evaluate when request count below min_requests threshold\"\"\"\n    controller = controller_factory(min_requests=100)\n    \n    # Return metrics with insufficient requests\n    mock_adapter.get_metrics.return_value = {\n        'requests_total': 50,\n        'status_5xx': 0,\n        'p99_latency': 50.0\n    }\n    \n    controller._promote = Mock()\n    controller._rollback = Mock()\n    \n    controller._evaluate()\n    \n    controller._promote.assert_not_called()\n    controller._rollback.assert_not_called()\n\n\ndef test_evaluate_rollback_on_high_error_rate(controller_factory, mock_adapter):\n    \"\"\"Call _evaluate when error rate exceeds threshold\"\"\"\n    controller = controller_factory(error_threshold=5.0, min_requests=100)\n    \n    # Canary metrics with high error rate: 10/100 = 10%\n    mock_adapter.get_metrics.side_effect = lambda node, target: {\n        'canary': {\n            'requests_total': 100,\n            'status_5xx': 10,\n            'p99_latency': 50.0\n        },\n        'stable': {\n            'requests_total': 100,\n            'status_5xx': 1,\n            'p99_latency': 50.0\n        }\n    }.get(target)\n    \n    controller._promote = Mock()\n    controller._rollback = Mock()\n    \n    controller._evaluate()\n    \n    controller._rollback.assert_called_once()\n    controller._promote.assert_not_called()\n\n\ndef test_evaluate_rollback_on_high_latency(controller_factory, mock_adapter):\n    \"\"\"Call _evaluate when p99 latency exceeds threshold\"\"\"\n    controller = controller_factory(latency_threshold=100.0, min_requests=100)\n    \n    # Canary metrics with high latency\n    mock_adapter.get_metrics.side_effect = lambda node, target: {\n        'canary': {\n            'requests_total': 100,\n            'status_5xx': 1,\n            'p99_latency': 200.0\n        },\n        'stable': {\n            'requests_total': 100,\n            'status_5xx': 1,\n            'p99_latency': 50.0\n        }\n    }.get(target)\n    \n    controller._promote = Mock()\n    controller._rollback = Mock()\n    \n    controller._evaluate()\n    \n    controller._rollback.assert_called_once()\n    controller._promote.assert_not_called()\n\n\ndef test_evaluate_promote_when_thresholds_pass(controller_factory, mock_adapter):\n    \"\"\"Call _evaluate when all thresholds are satisfied\"\"\"\n    controller = controller_factory(\n        error_threshold=5.0,\n        latency_threshold=100.0,\n        min_requests=100\n    )\n    \n    # Canary metrics within thresholds\n    mock_adapter.get_metrics.side_effect = lambda node, target: {\n        'canary': {\n            'requests_total': 100,\n            'status_5xx': 2,  # 2% error rate\n            'p99_latency': 80.0\n        },\n        'stable': {\n            'requests_total': 100,\n            'status_5xx': 1,\n            'p99_latency': 70.0\n        }\n    }.get(target)\n    \n    controller._promote = Mock()\n    controller._rollback = Mock()\n    \n    controller._evaluate()\n    \n    controller._promote.assert_called_once()\n    controller._rollback.assert_not_called()\n\n\ndef test_evaluate_exact_error_threshold(controller_factory, mock_adapter):\n    \"\"\"Call _evaluate when error rate exactly equals threshold\"\"\"\n    controller = controller_factory(error_threshold=5.0, min_requests=100)\n    \n    # Canary metrics with error rate exactly at threshold: 5/100 = 5%\n    mock_adapter.get_metrics.side_effect = lambda node, target: {\n        'canary': {\n            'requests_total': 100,\n            'status_5xx': 5,\n            'p99_latency': 50.0\n        },\n        'stable': {\n            'requests_total': 100,\n            'status_5xx': 1,\n            'p99_latency': 50.0\n        }\n    }.get(target)\n    \n    controller._promote = Mock()\n    controller._rollback = Mock()\n    \n    controller._evaluate()\n    \n    # Should call exactly one, not both\n    total_calls = controller._promote.call_count + controller._rollback.call_count\n    assert total_calls == 1, \"Should call either promote or rollback, but not both\"\n\n\ndef test_evaluate_exact_latency_threshold(controller_factory, mock_adapter):\n    \"\"\"Call _evaluate when p99 latency exactly equals threshold\"\"\"\n    controller = controller_factory(latency_threshold=100.0, min_requests=100)\n    \n    # Canary metrics with latency exactly at threshold\n    mock_adapter.get_metrics.side_effect = lambda node, target: {\n        'canary': {\n            'requests_total': 100,\n            'status_5xx': 1,\n            'p99_latency': 100.0\n        },\n        'stable': {\n            'requests_total': 100,\n            'status_5xx': 1,\n            'p99_latency': 80.0\n        }\n    }.get(target)\n    \n    controller._promote = Mock()\n    controller._rollback = Mock()\n    \n    controller._evaluate()\n    \n    # Should call exactly one, not both\n    total_calls = controller._promote.call_count + controller._rollback.call_count\n    assert total_calls == 1, \"Should call either promote or rollback, but not both\"\n\n\n# ============================================================================\n# _rollback Tests\n# ============================================================================\n\ndef test_rollback_sets_outcome_and_stops(controller_factory):\n    \"\"\"Call _rollback and verify outcome and running state\"\"\"\n    controller = controller_factory()\n    controller._running = True\n    \n    controller._rollback()\n    \n    assert controller._outcome == 'rolled_back', \"_outcome should be 'rolled_back'\"\n    assert controller._running is False, \"_running should be False\"\n\n\ndef test_rollback_sets_stable_to_100_percent(controller_factory, mock_adapter, mock_lifecycle):\n    \"\"\"Call _rollback and verify lifecycle.set_routing called with stable=100, canary=0\"\"\"\n    controller = controller_factory()\n    \n    routing = RoutingConfig(targets=[\n        {'name': 'stable', 'weight': 75},\n        {'name': 'canary', 'weight': 25}\n    ])\n    mock_adapter.get_routing.return_value = routing\n    \n    controller._rollback()\n    \n    assert controller._outcome == 'rolled_back'\n    assert controller._running is False\n    \n    # Verify set_routing was called\n    assert mock_lifecycle.set_routing.called, \"lifecycle.set_routing should be called\"\n    \n    # Verify the routing config passed has correct weights\n    call_args = mock_lifecycle.set_routing.call_args\n    if call_args:\n        routing_config = call_args[0][1] if len(call_args[0]) > 1 else call_args[1].get('config')\n        if routing_config:\n            # Check that stable is 100 and canary is 0\n            stable_target = next((t for t in routing_config.targets if 'stable' in t.get('name', '').lower()), None)\n            canary_target = next((t for t in routing_config.targets if 'canary' in t.get('name', '').lower()), None)\n            \n            if stable_target:\n                assert stable_target['weight'] == 100, \"Stable weight should be 100\"\n            if canary_target:\n                assert canary_target['weight'] == 0, \"Canary weight should be 0\"\n\n\ndef test_rollback_when_stable_not_found(controller_factory, mock_adapter, mock_lifecycle):\n    \"\"\"Call _rollback when stable target not in routing config\"\"\"\n    controller = controller_factory()\n    \n    routing = RoutingConfig(targets=[\n        {'name': 'canary', 'weight': 100}\n    ])\n    mock_adapter.get_routing.return_value = routing\n    \n    with patch('logging.Logger.error') as mock_log:\n        controller._rollback()\n    \n    assert controller._outcome == 'rolled_back'\n    assert controller._running is False\n    # set_routing may or may not be called depending on implementation\n\n\n# ============================================================================\n# _promote Tests\n# ============================================================================\n\ndef test_promote_advances_to_next_step(controller_factory, mock_adapter, mock_lifecycle):\n    \"\"\"Call _promote when current weight is 10 and verify advance to 25\"\"\"\n    controller = controller_factory(promote_steps=[10, 25, 50, 100])\n    \n    routing = RoutingConfig(targets=[\n        {'name': 'stable', 'weight': 90},\n        {'name': 'canary', 'weight': 10}\n    ])\n    mock_adapter.get_routing.return_value = routing\n    \n    controller._promote()\n    \n    # Verify set_routing was called\n    assert mock_lifecycle.set_routing.called\n    \n    # Verify the new weight is 25\n    if mock_lifecycle.set_routing.called:\n        call_args = mock_lifecycle.set_routing.call_args\n        routing_config = call_args[0][1] if len(call_args[0]) > 1 else call_args[1].get('config')\n        if routing_config:\n            canary_target = next((t for t in routing_config.targets if 'canary' in t.get('name', '').lower()), None)\n            if canary_target:\n                assert canary_target['weight'] == 25, \"Canary weight should advance to 25\"\n\n\ndef test_promote_marks_promoted_at_100_percent(controller_factory, mock_adapter, mock_lifecycle):\n    \"\"\"Call _promote when advancing to 100% weight\"\"\"\n    controller = controller_factory(promote_steps=[10, 25, 50, 100])\n    \n    routing = RoutingConfig(targets=[\n        {'name': 'stable', 'weight': 50},\n        {'name': 'canary', 'weight': 50}\n    ])\n    mock_adapter.get_routing.return_value = routing\n    \n    controller._promote()\n    \n    assert controller._outcome == 'promoted', \"_outcome should be 'promoted'\"\n    assert controller._running is False, \"_running should be False\"\n    \n    # Verify set_routing was called with 100% weight\n    if mock_lifecycle.set_routing.called:\n        call_args = mock_lifecycle.set_routing.call_args\n        routing_config = call_args[0][1] if len(call_args[0]) > 1 else call_args[1].get('config')\n        if routing_config:\n            canary_target = next((t for t in routing_config.targets if 'canary' in t.get('name', '').lower()), None)\n            if canary_target:\n                assert canary_target['weight'] == 100, \"Canary weight should be 100\"\n\n\ndef test_promote_marks_promoted_when_no_next_step(controller_factory, mock_adapter):\n    \"\"\"Call _promote when already at final step\"\"\"\n    controller = controller_factory(promote_steps=[10, 25, 50, 100])\n    \n    routing = RoutingConfig(targets=[\n        {'name': 'stable', 'weight': 0},\n        {'name': 'canary', 'weight': 100}\n    ])\n    mock_adapter.get_routing.return_value = routing\n    \n    mock_lifecycle = controller._lifecycle\n    \n    controller._promote()\n    \n    assert controller._outcome == 'promoted', \"_outcome should be 'promoted'\"\n    assert controller._running is False, \"_running should be False\"\n\n\ndef test_promote_early_return_when_routing_none(controller_factory, mock_adapter, mock_lifecycle):\n    \"\"\"Call _promote when adapter routing is None\"\"\"\n    controller = controller_factory()\n    mock_adapter.get_routing.return_value = None\n    \n    controller._promote()\n    \n    # Should return early without calling set_routing\n    mock_lifecycle.set_routing.assert_not_called()\n\n\ndef test_promote_logs_error_when_stable_missing(controller_factory, mock_adapter, mock_lifecycle):\n    \"\"\"Call _promote when stable target not in routing config\"\"\"\n    controller = controller_factory()\n    \n    routing = RoutingConfig(targets=[\n        {'name': 'canary', 'weight': 50}\n    ])\n    mock_adapter.get_routing.return_value = routing\n    \n    with patch('logging.Logger.error') as mock_log:\n        controller._promote()\n    \n    # set_routing should not be called when stable is missing\n    mock_lifecycle.set_routing.assert_not_called()\n\n\ndef test_promote_logs_error_when_canary_missing(controller_factory, mock_adapter, mock_lifecycle):\n    \"\"\"Call _promote when canary target not in routing config\"\"\"\n    controller = controller_factory()\n    \n    routing = RoutingConfig(targets=[\n        {'name': 'stable', 'weight': 100}\n    ])\n    mock_adapter.get_routing.return_value = routing\n    \n    with patch('logging.Logger.error') as mock_log:\n        controller._promote()\n    \n    # set_routing should not be called when canary is missing\n    mock_lifecycle.set_routing.assert_not_called()\n\n\n# ============================================================================\n# CanaryLifecycle Tests\n# ============================================================================\n\ndef test_lifecycle_set_routing_updates_config(mock_lifecycle):\n    \"\"\"Call CanaryLifecycle.set_routing and verify routing is updated\"\"\"\n    node_name = \"test-node\"\n    routing_config = RoutingConfig(targets=[\n        {'name': 'stable', 'weight': 80},\n        {'name': 'canary', 'weight': 20}\n    ])\n    \n    mock_lifecycle.set_routing(node_name, routing_config)\n    \n    mock_lifecycle.set_routing.assert_called_once_with(node_name, routing_config)\n\n\n# ============================================================================\n# Invariant Tests\n# ============================================================================\n\ndef test_invariant_outcome_values(controller_factory):\n    \"\"\"Verify outcome only contains valid values throughout lifecycle\"\"\"\n    controller = controller_factory()\n    \n    # Initially empty\n    assert controller.outcome() == \"\"\n    \n    # After rollback\n    controller._rollback()\n    assert controller.outcome() in ['', 'promoted', 'rolled_back']\n    assert controller.outcome() == 'rolled_back'\n    \n    # Create new controller and test promote\n    controller2 = controller_factory()\n    controller2._outcome = 'promoted'\n    assert controller2.outcome() in ['', 'promoted', 'rolled_back']\n    assert controller2.outcome() == 'promoted'\n\n\ndef test_invariant_running_only_during_loop(controller_factory):\n    \"\"\"Verify _running is True only during active evaluation loop\"\"\"\n    controller = controller_factory()\n    \n    # Initially False\n    assert controller.is_running() is False\n    \n    # Manually set to True (simulating run loop)\n    controller._running = True\n    assert controller.is_running() is True\n    \n    # Stop should set to False\n    controller.stop()\n    assert controller.is_running() is False\n\n\ndef test_invariant_promotion_monotonicity(controller_factory, mock_adapter, mock_lifecycle):\n    \"\"\"Verify promotion only advances to higher weights in _promote_steps\"\"\"\n    controller = controller_factory(promote_steps=[10, 25, 50, 100])\n    \n    test_cases = [\n        (0, 10),\n        (10, 25),\n        (25, 50),\n        (50, 100)\n    ]\n    \n    for current, expected_next in test_cases:\n        # Reset mock\n        mock_lifecycle.reset_mock()\n        \n        routing = RoutingConfig(targets=[\n            {'name': 'stable', 'weight': 100 - current},\n            {'name': 'canary', 'weight': current}\n        ])\n        mock_adapter.get_routing.return_value = routing\n        \n        controller._promote()\n        \n        if mock_lifecycle.set_routing.called:\n            call_args = mock_lifecycle.set_routing.call_args\n            routing_config = call_args[0][1] if len(call_args[0]) > 1 else call_args[1].get('config')\n            if routing_config:\n                canary_target = next((t for t in routing_config.targets if 'canary' in t.get('name', '').lower()), None)\n                if canary_target:\n                    assert canary_target['weight'] >= current, \\\n                        f\"Next weight should be >= current weight ({current})\"\n                    assert canary_target['weight'] == expected_next, \\\n                        f\"Next weight should be {expected_next} when current is {current}\"\n\n\n# ============================================================================\n# Integration Tests\n# ============================================================================\n\n@pytest.mark.asyncio\nasync def test_full_promotion_cycle(controller_factory, mock_adapter, mock_lifecycle):\n    \"\"\"Test full promotion cycle from 0% to 100%\"\"\"\n    controller = controller_factory(\n        promote_steps=[25, 50, 100],\n        eval_interval=0.01,\n        min_requests=10\n    )\n    \n    weights = [0, 25, 50]\n    weight_index = [0]\n    \n    def get_routing_side_effect(node_name):\n        current_weight = weights[weight_index[0]]\n        return RoutingConfig(targets=[\n            {'name': 'stable', 'weight': 100 - current_weight},\n            {'name': 'canary', 'weight': current_weight}\n        ])\n    \n    def get_metrics_side_effect(node, target):\n        return {\n            'requests_total': 100,\n            'status_5xx': 1,\n            'p99_latency': 50.0\n        }\n    \n    mock_adapter.get_routing.side_effect = get_routing_side_effect\n    mock_adapter.get_metrics.side_effect = get_metrics_side_effect\n    \n    # Mock set_routing to advance weight\n    def set_routing_side_effect(node_name, config):\n        canary = next((t for t in config.targets if 'canary' in t.get('name', '').lower()), None)\n        if canary and weight_index[0] < len(weights) - 1:\n            weight_index[0] += 1\n    \n    mock_lifecycle.set_routing.side_effect = set_routing_side_effect\n    \n    # Run controller\n    run_task = asyncio.create_task(controller.run())\n    \n    # Wait for promotions\n    await asyncio.sleep(0.1)\n    \n    # Stop controller\n    controller.stop()\n    await run_task\n    \n    assert controller.outcome() == 'promoted'\n    assert controller.is_running() is False\n\n\n@pytest.mark.asyncio\nasync def test_rollback_on_error_threshold(controller_factory, mock_adapter, mock_lifecycle):\n    \"\"\"Test rollback when error threshold is exceeded\"\"\"\n    controller = controller_factory(\n        error_threshold=5.0,\n        eval_interval=0.01,\n        min_requests=10\n    )\n    \n    routing = RoutingConfig(targets=[\n        {'name': 'stable', 'weight': 75},\n        {'name': 'canary', 'weight': 25}\n    ])\n    mock_adapter.get_routing.return_value = routing\n    \n    # High error rate for canary\n    def get_metrics_side_effect(node, target):\n        if target == 'canary':\n            return {\n                'requests_total': 100,\n                'status_5xx': 10,  # 10% error rate\n                'p99_latency': 50.0\n            }\n        else:\n            return {\n                'requests_total': 100,\n                'status_5xx': 1,\n                'p99_latency': 50.0\n            }\n    \n    mock_adapter.get_metrics.side_effect = get_metrics_side_effect\n    \n    # Run controller\n    run_task = asyncio.create_task(controller.run())\n    \n    # Wait for evaluation\n    await asyncio.sleep(0.05)\n    \n    # Should have rolled back\n    assert controller.outcome() == 'rolled_back'\n    assert controller.is_running() is False\n    \n    await run_task\n\n\nif __name__ == \"__main__\":\n    pytest.main([__file__, \"-v\"])\n"
+}

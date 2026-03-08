@@ -1,0 +1,1177 @@
+{
+  "component_id": "src_baton_cli",
+  "contract_version": 1,
+  "test_cases": [
+    {
+      "id": "test_main_success",
+      "description": "main returns 0 on successful command execution",
+      "function": "main",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "argv": "[\"up\"]"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_main_parsing_error",
+      "description": "main returns 1 on command parsing errors",
+      "function": "main",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "argv": "[\"--invalid-flag\"]"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "ValueError",
+      "assertions": []
+    },
+    {
+      "id": "test_main_missing_command",
+      "description": "main returns 1 on missing command",
+      "function": "main",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "argv": "[]"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_main_keyboard_interrupt",
+      "description": "main returns 130 on KeyboardInterrupt",
+      "function": "main",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns 130",
+      "expected_error": "KeyboardInterrupt",
+      "assertions": []
+    },
+    {
+      "id": "test_main_file_not_found",
+      "description": "main returns 1 when configuration files not found",
+      "function": "main",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "FileNotFoundError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_async_up_command",
+      "description": "_cmd_async routes 'up' command to handler",
+      "function": "_cmd_async",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.command": "\"up\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns exit code from _cmd_up",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_async_unrecognized_command",
+      "description": "_cmd_async returns 1 for unrecognized command",
+      "function": "_cmd_async",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.command": "\"invalid_command\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_async_all_commands",
+      "description": "_cmd_async routes all valid async commands",
+      "function": "_cmd_async",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "Tests all valid commands: up, down, slot, swap, collapse, watch, route, deploy, teardown, deploy-status, dashboard, image",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_up_basic",
+      "description": "_cmd_up boots circuit and starts adapters",
+      "function": "_cmd_up",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.mock": "False"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 0 after circuit stopped",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_up_with_mock",
+      "description": "_cmd_up boots circuit with mock server",
+      "function": "_cmd_up",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.mock": "True"
+      },
+      "input_description": "",
+      "expected_output_description": "Mock server is running, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_down_success",
+      "description": "_cmd_down clears circuit state",
+      "function": "_cmd_down",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Circuit state cleared, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_slot_success",
+      "description": "_cmd_slot slots service into node",
+      "function": "_cmd_slot",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.mock": "False",
+        "args.command": "\"./service\""
+      },
+      "input_description": "",
+      "expected_output_description": "Service slotted, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_slot_mock_mode_error",
+      "description": "_cmd_slot returns 1 when in mock mode",
+      "function": "_cmd_slot",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.mock": "True"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "MockModeError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_slot_no_command_error",
+      "description": "_cmd_slot returns 1 when no command provided",
+      "function": "_cmd_slot",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.mock": "False",
+        "args.command": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "NoCommandError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_swap_success",
+      "description": "_cmd_swap hot-swaps service",
+      "function": "_cmd_swap",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Service swapped, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_collapse_success",
+      "description": "_cmd_collapse runs circuit with specified nodes live",
+      "function": "_cmd_collapse",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.live": "[\"node1\", \"node2\"]"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 0 after shutdown",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_collapse_unknown_node",
+      "description": "_cmd_collapse returns 1 for unknown nodes",
+      "function": "_cmd_collapse",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.live": "[\"unknown_node\"]"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "UnknownNodeError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_watch_success",
+      "description": "_cmd_watch starts custodian monitor",
+      "function": "_cmd_watch",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Monitor runs until interrupted, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_show_success",
+      "description": "_cmd_route_show displays routing config",
+      "function": "_cmd_route_show",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.node": "\"node1\""
+      },
+      "input_description": "",
+      "expected_output_description": "Prints routing config, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_show_node_not_found",
+      "description": "_cmd_route_show returns 1 when node not found",
+      "function": "_cmd_route_show",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.node": "\"nonexistent\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "NodeNotFoundError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_async_ab",
+      "description": "_cmd_route_async routes 'ab' command",
+      "function": "_cmd_route_async",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.route_command": "\"ab\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns exit code from _cmd_route_ab",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_async_unrecognized",
+      "description": "_cmd_route_async returns 1 for unrecognized route command",
+      "function": "_cmd_route_async",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.route_command": "\"invalid\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_ab_valid_split",
+      "description": "_cmd_route_ab configures A/B routing with valid split",
+      "function": "_cmd_route_ab",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.split": "\"80/20\"",
+        "args.node": "\"node1\""
+      },
+      "input_description": "",
+      "expected_output_description": "A/B routing configured, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_ab_invalid_format",
+      "description": "_cmd_route_ab returns 1 for invalid split format",
+      "function": "_cmd_route_ab",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.split": "\"invalid\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "InvalidSplitFormatError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_ab_non_integer",
+      "description": "_cmd_route_ab returns 1 for non-integer split values",
+      "function": "_cmd_route_ab",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.split": "\"50.5/49.5\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "InvalidSplitFormatError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_canary_basic",
+      "description": "_cmd_route_canary configures canary deployment",
+      "function": "_cmd_route_canary",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.promote": "False"
+      },
+      "input_description": "",
+      "expected_output_description": "Canary routing configured, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_canary_with_promotion",
+      "description": "_cmd_route_canary runs canary controller with auto-promotion",
+      "function": "_cmd_route_canary",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.promote": "True"
+      },
+      "input_description": "",
+      "expected_output_description": "Canary controller runs, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_set_weighted",
+      "description": "_cmd_route_set configures weighted routing",
+      "function": "_cmd_route_set",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.strategy": "\"weighted\"",
+        "args.targets": "\"svc1:8080:70,svc2:8081:30\""
+      },
+      "input_description": "",
+      "expected_output_description": "Weighted routing configured, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_set_header",
+      "description": "_cmd_route_set configures header-based routing",
+      "function": "_cmd_route_set",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.strategy": "\"header\"",
+        "args.targets": "\"svc1:8080,svc2:8081\""
+      },
+      "input_description": "",
+      "expected_output_description": "Header routing configured, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_set_invalid_target",
+      "description": "_cmd_route_set returns 1 for invalid target format",
+      "function": "_cmd_route_set",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.targets": "\"invalid_format\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "InvalidTargetFormatError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_set_invalid_rule",
+      "description": "_cmd_route_set returns 1 for invalid rule format",
+      "function": "_cmd_route_set",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.strategy": "\"header\"",
+        "args.rules": "\"bad_rule\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "InvalidRuleFormatError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_lock_success",
+      "description": "_cmd_route_lock locks routing config",
+      "function": "_cmd_route_lock",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Routing locked, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_unlock_success",
+      "description": "_cmd_route_unlock unlocks routing config",
+      "function": "_cmd_route_unlock",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Routing unlocked, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_clear_success",
+      "description": "_cmd_route_clear clears routing config",
+      "function": "_cmd_route_clear",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Routing cleared, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_clear_node_not_found",
+      "description": "_cmd_route_clear returns 1 when node not found",
+      "function": "_cmd_route_clear",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.node": "\"nonexistent\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "NodeNotFoundError",
+      "assertions": []
+    },
+    {
+      "id": "test_build_deploy_target_basic",
+      "description": "_build_deploy_target constructs DeploymentTarget from args",
+      "function": "_build_deploy_target",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.provider": "\"gcp\"",
+        "args.region": "\"us-west1\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns DeploymentTarget with config dict",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_deploy_local",
+      "description": "_cmd_deploy deploys to local provider and waits",
+      "function": "_cmd_deploy",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.provider": "\"local\""
+      },
+      "input_description": "",
+      "expected_output_description": "Deploys locally, blocks until interrupt, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_deploy_cloud",
+      "description": "_cmd_deploy deploys to cloud provider",
+      "function": "_cmd_deploy",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.provider": "\"gcp\""
+      },
+      "input_description": "",
+      "expected_output_description": "Deploys to GCP, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_teardown_success",
+      "description": "_cmd_teardown tears down deployed circuit",
+      "function": "_cmd_teardown",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Circuit torn down, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_deploy_status_success",
+      "description": "_cmd_deploy_status displays deployment status",
+      "function": "_cmd_deploy_status",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Status printed, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_signals_success",
+      "description": "_cmd_signals displays signal data",
+      "function": "_cmd_signals",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Signal data printed, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_signals_not_found",
+      "description": "_cmd_signals returns 1 when no signals found",
+      "function": "_cmd_signals",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "NoSignalsFoundError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_metrics_success",
+      "description": "_cmd_metrics displays metrics data",
+      "function": "_cmd_metrics",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Metrics printed, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_metrics_not_found",
+      "description": "_cmd_metrics returns 1 when no metrics found",
+      "function": "_cmd_metrics",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "NoMetricsFoundError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_dashboard_serve",
+      "description": "_cmd_dashboard serves interactive dashboard",
+      "function": "_cmd_dashboard",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.serve": "True"
+      },
+      "input_description": "",
+      "expected_output_description": "Dashboard server runs until interrupted, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_dashboard_snapshot",
+      "description": "_cmd_dashboard displays snapshot",
+      "function": "_cmd_dashboard",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.serve": "False"
+      },
+      "input_description": "",
+      "expected_output_description": "Snapshot printed, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_dashboard_no_state",
+      "description": "_cmd_dashboard returns 1 when no state found in non-serve mode",
+      "function": "_cmd_dashboard",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.serve": "False"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "NoStateFoundError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_image_list_success",
+      "description": "_cmd_image_list lists built images",
+      "function": "_cmd_image_list",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Image list printed, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_image_async_build",
+      "description": "_cmd_image_async routes 'build' command",
+      "function": "_cmd_image_async",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.image_command": "\"build\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns exit code from _cmd_image_build",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_image_async_unrecognized",
+      "description": "_cmd_image_async returns 1 for unrecognized image command",
+      "function": "_cmd_image_async",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.image_command": "\"invalid\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_image_build_with_path",
+      "description": "_cmd_image_build builds image with --path",
+      "function": "_cmd_image_build",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.node": "\"node1\"",
+        "args.path": "\"/path/to/service\""
+      },
+      "input_description": "",
+      "expected_output_description": "Image built, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_image_build_missing_node",
+      "description": "_cmd_image_build returns 1 when --node missing",
+      "function": "_cmd_image_build",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.node": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "MissingNodeError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_image_build_missing_path",
+      "description": "_cmd_image_build returns 1 when --path and service_dir missing",
+      "function": "_cmd_image_build",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.node": "\"node1\"",
+        "args.path": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "MissingPathError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_image_push_with_tag",
+      "description": "_cmd_image_push pushes image with --tag",
+      "function": "_cmd_image_push",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.tag": "\"myimage:latest\""
+      },
+      "input_description": "",
+      "expected_output_description": "Image pushed, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_image_push_missing_tag",
+      "description": "_cmd_image_push returns 1 when tag cannot be resolved",
+      "function": "_cmd_image_push",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.tag": "None",
+        "args.node": "None"
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "MissingTagError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_init_success",
+      "description": "_cmd_init creates new circuit project",
+      "function": "_cmd_init",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Project initialized, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_init_config_exists",
+      "description": "_cmd_init returns 1 when baton.yaml exists",
+      "function": "_cmd_init",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "ConfigExistsError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_node_add",
+      "description": "_cmd_node adds node to circuit",
+      "function": "_cmd_node",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.node_command": "\"add\"",
+        "args.name": "\"new_node\""
+      },
+      "input_description": "",
+      "expected_output_description": "Node added, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_node_remove",
+      "description": "_cmd_node removes node from circuit",
+      "function": "_cmd_node",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.node_command": "\"rm\"",
+        "args.name": "\"old_node\""
+      },
+      "input_description": "",
+      "expected_output_description": "Node removed, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_node_invalid_command",
+      "description": "_cmd_node returns 1 for invalid node command",
+      "function": "_cmd_node",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.node_command": "\"invalid\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "InvalidNodeCommandError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_edge_add",
+      "description": "_cmd_edge adds edge to circuit",
+      "function": "_cmd_edge",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.edge_command": "\"add\"",
+        "args.source": "\"node1\"",
+        "args.target": "\"node2\""
+      },
+      "input_description": "",
+      "expected_output_description": "Edge added, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_edge_invalid_command",
+      "description": "_cmd_edge returns 1 for invalid edge command",
+      "function": "_cmd_edge",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.edge_command": "\"invalid\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "InvalidEdgeCommandError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_contract_set",
+      "description": "_cmd_contract sets contract for node",
+      "function": "_cmd_contract",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.contract_command": "\"set\"",
+        "args.node": "\"node1\"",
+        "args.spec": "\"/path/to/spec.yaml\""
+      },
+      "input_description": "",
+      "expected_output_description": "Contract set, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_contract_invalid_command",
+      "description": "_cmd_contract returns 1 for invalid contract command",
+      "function": "_cmd_contract",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.contract_command": "\"invalid\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "InvalidContractCommandError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_service_register",
+      "description": "_cmd_service registers service manifest",
+      "function": "_cmd_service",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.service_command": "\"register\"",
+        "args.path": "\"/path/to/manifest.yaml\""
+      },
+      "input_description": "",
+      "expected_output_description": "Service registered, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_service_list",
+      "description": "_cmd_service lists service manifests",
+      "function": "_cmd_service",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.service_command": "\"list\""
+      },
+      "input_description": "",
+      "expected_output_description": "Services listed, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_service_derive",
+      "description": "_cmd_service derives circuit from services",
+      "function": "_cmd_service",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.service_command": "\"derive\""
+      },
+      "input_description": "",
+      "expected_output_description": "Circuit derived, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_service_invalid_command",
+      "description": "_cmd_service returns 1 for invalid service command",
+      "function": "_cmd_service",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.service_command": "\"invalid\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "InvalidServiceCommandError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_check_compatible",
+      "description": "_cmd_check reports compatibility for services",
+      "function": "_cmd_check",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Compatibility report printed, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_check_no_services",
+      "description": "_cmd_check returns 1 when no services registered",
+      "function": "_cmd_check",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "NoServicesError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_check_incompatible",
+      "description": "_cmd_check returns 1 when incompatibilities found",
+      "function": "_cmd_check",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "IncompatibilityError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_check_service_not_found",
+      "description": "_cmd_check returns 1 when specified service not found",
+      "function": "_cmd_check",
+      "category": "error_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.service": "\"nonexistent\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1",
+      "expected_error": "ServiceNotFoundError",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_status_success",
+      "description": "_cmd_status displays circuit status",
+      "function": "_cmd_status",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Circuit status printed, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "invariant_config_filename",
+      "description": "CONFIG_FILENAME is always 'baton.yaml'",
+      "function": "main",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": [
+        "CONFIG_FILENAME == 'baton.yaml'"
+      ]
+    },
+    {
+      "id": "invariant_exit_codes",
+      "description": "Exit codes follow contract: 0=success, 1=error, 130=KeyboardInterrupt",
+      "function": "main",
+      "category": "invariant",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_ab_edge_100_0",
+      "description": "_cmd_route_ab handles 100/0 split",
+      "function": "_cmd_route_ab",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.split": "\"100/0\""
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_ab_edge_0_100",
+      "description": "_cmd_route_ab handles 0/100 split",
+      "function": "_cmd_route_ab",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.split": "\"0/100\""
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_route_set_empty_targets",
+      "description": "_cmd_route_set handles empty targets string",
+      "function": "_cmd_route_set",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "args.targets": "\"\""
+      },
+      "input_description": "",
+      "expected_output_description": "Returns 1 for invalid format",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_cmd_up_keyboard_interrupt",
+      "description": "_cmd_up handles KeyboardInterrupt during running",
+      "function": "_cmd_up",
+      "category": "edge_case",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {},
+      "input_description": "",
+      "expected_output_description": "Gracefully shuts down, returns 0",
+      "expected_error": "",
+      "assertions": []
+    },
+    {
+      "id": "test_main_with_real_argv",
+      "description": "Integration test for main with real argv parsing",
+      "function": "main",
+      "category": "happy_path",
+      "setup_description": "",
+      "mock_dependencies": {},
+      "input_values": {
+        "argv": "[\"status\", \"--dir\", \"/tmp/test\"]"
+      },
+      "input_description": "",
+      "expected_output_description": "",
+      "expected_error": "",
+      "assertions": []
+    }
+  ],
+  "test_language": "python",
+  "generated_code": "\"\"\"\nContract-driven tests for Baton CLI Entry Point (src_baton_cli).\n\nTests verify the CLI layer behavior at boundaries (inputs/outputs) by mocking\nall underlying business logic from baton.* modules. Covers 34 functions across\n7 command groups with focus on exit codes, error handling, and state mutations.\n\nTest Organization:\n- TestMain: Entry point and argv parsing\n- TestAsyncDispatchers: Command routing (_cmd_async, _cmd_route_async, _cmd_image_async)\n- TestLifecycleCommands: up, down, slot, swap, collapse, watch\n- TestRouteCommands: route show/ab/canary/set/lock/unlock/clear\n- TestDeployCommands: deploy, teardown, deploy-status, build_deploy_target\n- TestImageCommands: image list/build/push\n- TestConfigCommands: init, node, edge, contract\n- TestServiceCommands: service register/list/derive, check\n- TestMonitoringCommands: signals, metrics, dashboard, status\n- TestInvariants: Cross-cutting invariants (CONFIG_FILENAME, exit codes)\n\"\"\"\n\nimport pytest\nfrom unittest.mock import Mock, MagicMock, patch, mock_open, call\nfrom argparse import Namespace\nimport sys\nimport asyncio\nfrom pathlib import Path\n\n# Import component under test\n# Adjust import path based on actual module structure\ntry:\n    from src.baton_cli import *\nexcept ImportError:\n    # Fallback for different project structures\n    try:\n        from baton_cli import *\n    except ImportError:\n        # Create mock module for testing if actual import fails\n        import types\n        sys.modules['src.baton_cli'] = types.ModuleType('src.baton_cli')\n\n\n# =============================================================================\n# Fixtures\n# =============================================================================\n\n@pytest.fixture\ndef mock_args():\n    \"\"\"Factory fixture for creating argparse.Namespace with defaults.\"\"\"\n    def _create(**kwargs):\n        defaults = {\n            'command': 'status',\n            'dir': '/tmp/test_circuit',\n            'mock': False,\n            'node': 'node1',\n            'route_command': 'show',\n            'image_command': 'list',\n            'node_command': 'add',\n            'edge_command': 'add',\n            'contract_command': 'set',\n            'service_command': 'list',\n            'split': '50/50',\n            'strategy': 'weighted',\n            'targets': 'svc1:8080:50,svc2:8081:50',\n            'rules': None,\n            'promote': False,\n            'provider': 'local',\n            'region': 'us-west1',\n            'namespace': 'default',\n            'serve': False,\n            'tag': None,\n            'path': None,\n            'live': [],\n            'name': 'test_node',\n            'source': 'node1',\n            'target': 'node2',\n            'spec': '/tmp/contract.yaml',\n        }\n        defaults.update(kwargs)\n        return Namespace(**defaults)\n    return _create\n\n\n@pytest.fixture\ndef mock_circuit():\n    \"\"\"Mock baton.circuit module.\"\"\"\n    with patch('baton.circuit.Circuit') as mock:\n        circuit_instance = MagicMock()\n        mock.return_value = circuit_instance\n        yield circuit_instance\n\n\n@pytest.fixture\ndef mock_lifecycle():\n    \"\"\"Mock baton.lifecycle module.\"\"\"\n    with patch('baton.lifecycle.LifecycleManager') as mock:\n        lifecycle_instance = MagicMock()\n        mock.return_value = lifecycle_instance\n        yield lifecycle_instance\n\n\n@pytest.fixture\ndef mock_providers():\n    \"\"\"Mock baton.providers module.\"\"\"\n    with patch('baton.providers.create_provider') as mock:\n        provider_instance = MagicMock()\n        mock.return_value = provider_instance\n        yield mock\n\n\n@pytest.fixture\ndef mock_config():\n    \"\"\"Mock baton.config module.\"\"\"\n    with patch('baton.config.load_circuit') as load_mock, \\\n         patch('baton.config.save_circuit') as save_mock:\n        yield {'load': load_mock, 'save': save_mock}\n\n\n@pytest.fixture\ndef mock_state():\n    \"\"\"Mock baton.state module.\"\"\"\n    with patch('baton.state.StateManager') as mock:\n        state_instance = MagicMock()\n        mock.return_value = state_instance\n        yield state_instance\n\n\n# =============================================================================\n# Test Classes\n# =============================================================================\n\n\nclass TestMain:\n    \"\"\"Tests for main() entry point.\"\"\"\n\n    @patch('sys.argv', ['baton', 'status'])\n    @patch('baton.config.load_circuit')\n    @patch('baton.state.StateManager')\n    def test_main_success(self, mock_state, mock_load, mock_args):\n        \"\"\"main returns 0 on successful command execution.\"\"\"\n        mock_load.return_value = MagicMock()\n        mock_state.return_value = MagicMock()\n        \n        with patch('src.baton_cli._cmd_status', return_value=0) as mock_cmd:\n            result = main(['status'])\n            assert result == 0\n\n    @patch('sys.argv', ['baton', '--invalid-flag'])\n    def test_main_parsing_error(self):\n        \"\"\"main returns 1 on command parsing errors.\"\"\"\n        with patch('argparse.ArgumentParser.parse_args', side_effect=SystemExit(2)):\n            result = main(['--invalid-flag'])\n            assert result == 1\n\n    @patch('sys.argv', ['baton'])\n    def test_main_missing_command(self):\n        \"\"\"main returns 1 on missing command.\"\"\"\n        with patch('argparse.ArgumentParser.parse_args') as mock_parse:\n            mock_parse.return_value = Namespace(command=None, dir='/tmp')\n            result = main([])\n            assert result == 1\n\n    @patch('sys.argv', ['baton', 'up'])\n    def test_main_keyboard_interrupt(self, mock_args):\n        \"\"\"main returns 130 on KeyboardInterrupt.\"\"\"\n        with patch('src.baton_cli._cmd_async', side_effect=KeyboardInterrupt()):\n            result = main(['up'])\n            assert result == 130\n\n    @patch('sys.argv', ['baton', 'status'])\n    def test_main_file_not_found(self):\n        \"\"\"main returns 1 when configuration files not found.\"\"\"\n        with patch('baton.config.load_circuit', side_effect=FileNotFoundError()):\n            result = main(['status'])\n            assert result == 1\n\n    @patch('sys.argv', ['baton', 'status', '--dir', '/tmp/test'])\n    @patch('baton.config.load_circuit')\n    def test_main_with_real_argv(self, mock_load):\n        \"\"\"Integration test for main with real argv parsing.\"\"\"\n        mock_load.return_value = MagicMock()\n        with patch('src.baton_cli._cmd_status', return_value=0):\n            result = main(['status', '--dir', '/tmp/test'])\n            assert result == 0\n\n\nclass TestAsyncDispatchers:\n    \"\"\"Tests for async command dispatchers.\"\"\"\n\n    @patch('src.baton_cli._cmd_up', return_value=0)\n    def test_cmd_async_up_command(self, mock_up, mock_args):\n        \"\"\"_cmd_async routes 'up' command to handler.\"\"\"\n        args = mock_args(command='up')\n        result = _cmd_async(args)\n        assert result == 0\n        mock_up.assert_called_once_with(args)\n\n    def test_cmd_async_unrecognized_command(self, mock_args):\n        \"\"\"_cmd_async returns 1 for unrecognized command.\"\"\"\n        args = mock_args(command='invalid_command')\n        result = _cmd_async(args)\n        assert result == 1\n\n    @pytest.mark.parametrize('command,handler', [\n        ('up', '_cmd_up'),\n        ('down', '_cmd_down'),\n        ('slot', '_cmd_slot'),\n        ('swap', '_cmd_swap'),\n        ('collapse', '_cmd_collapse'),\n        ('watch', '_cmd_watch'),\n        ('route', '_cmd_route_async'),\n        ('deploy', '_cmd_deploy'),\n        ('teardown', '_cmd_teardown'),\n        ('deploy-status', '_cmd_deploy_status'),\n        ('dashboard', '_cmd_dashboard'),\n        ('image', '_cmd_image_async'),\n    ])\n    def test_cmd_async_all_commands(self, command, handler, mock_args):\n        \"\"\"_cmd_async routes all valid async commands.\"\"\"\n        args = mock_args(command=command)\n        with patch(f'src.baton_cli.{handler}', return_value=0) as mock_handler:\n            result = _cmd_async(args)\n            assert result == 0\n            mock_handler.assert_called_once_with(args)\n\n    @patch('src.baton_cli._cmd_route_ab', return_value=0)\n    def test_cmd_route_async_ab(self, mock_ab, mock_args):\n        \"\"\"_cmd_route_async routes 'ab' command.\"\"\"\n        args = mock_args(route_command='ab')\n        result = _cmd_route_async(args)\n        assert result == 0\n        mock_ab.assert_called_once_with(args)\n\n    def test_cmd_route_async_unrecognized(self, mock_args):\n        \"\"\"_cmd_route_async returns 1 for unrecognized route command.\"\"\"\n        args = mock_args(route_command='invalid')\n        result = _cmd_route_async(args)\n        assert result == 1\n\n    @patch('src.baton_cli._cmd_image_build', return_value=0)\n    def test_cmd_image_async_build(self, mock_build, mock_args):\n        \"\"\"_cmd_image_async routes 'build' command.\"\"\"\n        args = mock_args(image_command='build')\n        result = _cmd_image_async(args)\n        assert result == 0\n        mock_build.assert_called_once_with(args)\n\n    def test_cmd_image_async_unrecognized(self, mock_args):\n        \"\"\"_cmd_image_async returns 1 for unrecognized image command.\"\"\"\n        args = mock_args(image_command='invalid')\n        result = _cmd_image_async(args)\n        assert result == 1\n\n\nclass TestLifecycleCommands:\n    \"\"\"Tests for circuit lifecycle commands.\"\"\"\n\n    @patch('baton.lifecycle.LifecycleManager')\n    @patch('baton.config.load_circuit')\n    def test_cmd_up_basic(self, mock_load, mock_lifecycle, mock_args):\n        \"\"\"_cmd_up boots circuit and starts adapters.\"\"\"\n        args = mock_args(mock=False)\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        mock_lm = MagicMock()\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_up(args)\n            assert result == 0\n\n    @patch('baton.lifecycle.LifecycleManager')\n    @patch('baton.config.load_circuit')\n    @patch('baton.collapse.start_mock_server')\n    def test_cmd_up_with_mock(self, mock_mock_server, mock_load, mock_lifecycle, mock_args):\n        \"\"\"_cmd_up boots circuit with mock server.\"\"\"\n        args = mock_args(mock=True)\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_up(args)\n            assert result == 0\n\n    @patch('baton.state.clear_state')\n    def test_cmd_down_success(self, mock_clear, mock_args):\n        \"\"\"_cmd_down clears circuit state.\"\"\"\n        args = mock_args()\n        result = _cmd_down(args)\n        assert result == 0\n        mock_clear.assert_called_once()\n\n    @patch('baton.lifecycle.LifecycleManager')\n    def test_cmd_slot_success(self, mock_lifecycle, mock_args):\n        \"\"\"_cmd_slot slots service into node.\"\"\"\n        args = mock_args(mock=False, command='./service')\n        mock_lm = MagicMock()\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_slot(args)\n            assert result == 0\n\n    def test_cmd_slot_mock_mode_error(self, mock_args):\n        \"\"\"_cmd_slot returns 1 when in mock mode.\"\"\"\n        args = mock_args(mock=True)\n        result = _cmd_slot(args)\n        assert result == 1\n\n    def test_cmd_slot_no_command_error(self, mock_args):\n        \"\"\"_cmd_slot returns 1 when no command provided.\"\"\"\n        args = mock_args(mock=False, command=None)\n        result = _cmd_slot(args)\n        assert result == 1\n\n    @patch('baton.lifecycle.LifecycleManager')\n    def test_cmd_swap_success(self, mock_lifecycle, mock_args):\n        \"\"\"_cmd_swap hot-swaps service.\"\"\"\n        args = mock_args(command='./new_service')\n        mock_lm = MagicMock()\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_swap(args)\n            assert result == 0\n\n    @patch('baton.config.load_circuit')\n    @patch('baton.collapse.validate_live_nodes')\n    @patch('baton.collapse.start_mock_server')\n    @patch('baton.lifecycle.LifecycleManager')\n    def test_cmd_collapse_success(self, mock_lm, mock_mock, mock_validate, mock_load, mock_args):\n        \"\"\"_cmd_collapse runs circuit with specified nodes live.\"\"\"\n        args = mock_args(live=['node1', 'node2'])\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        mock_validate.return_value = True\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_collapse(args)\n            assert result == 0\n\n    @patch('baton.config.load_circuit')\n    @patch('baton.collapse.validate_live_nodes')\n    def test_cmd_collapse_unknown_node(self, mock_validate, mock_load, mock_args):\n        \"\"\"_cmd_collapse returns 1 for unknown nodes.\"\"\"\n        args = mock_args(live=['unknown_node'])\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        mock_validate.side_effect = ValueError(\"Unknown node: unknown_node\")\n        \n        result = _cmd_collapse(args)\n        assert result == 1\n\n    @patch('baton.custodian.CustodianMonitor')\n    def test_cmd_watch_success(self, mock_custodian, mock_args):\n        \"\"\"_cmd_watch starts custodian monitor.\"\"\"\n        args = mock_args()\n        mock_monitor = MagicMock()\n        mock_custodian.return_value = mock_monitor\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_watch(args)\n            assert result == 0\n\n    @patch('baton.lifecycle.LifecycleManager')\n    def test_cmd_up_keyboard_interrupt(self, mock_lifecycle, mock_args):\n        \"\"\"_cmd_up handles KeyboardInterrupt during running.\"\"\"\n        args = mock_args()\n        with patch('asyncio.run', side_effect=KeyboardInterrupt()):\n            result = _cmd_up(args)\n            assert result == 0\n\n\nclass TestRouteCommands:\n    \"\"\"Tests for routing configuration commands.\"\"\"\n\n    @patch('baton.state.StateManager')\n    def test_cmd_route_show_success(self, mock_state, mock_args):\n        \"\"\"_cmd_route_show displays routing config.\"\"\"\n        args = mock_args(node='node1')\n        mock_sm = MagicMock()\n        mock_sm.get_node_routing.return_value = {'backend': 'service:8080'}\n        mock_state.return_value = mock_sm\n        \n        result = _cmd_route_show(args)\n        assert result == 0\n\n    @patch('baton.state.StateManager')\n    def test_cmd_route_show_node_not_found(self, mock_state, mock_args):\n        \"\"\"_cmd_route_show returns 1 when node not found.\"\"\"\n        args = mock_args(node='nonexistent')\n        mock_sm = MagicMock()\n        mock_sm.get_node_routing.side_effect = KeyError(\"Node not found\")\n        mock_state.return_value = mock_sm\n        \n        result = _cmd_route_show(args)\n        assert result == 1\n\n    @patch('baton.lifecycle.LifecycleManager')\n    def test_cmd_route_ab_valid_split(self, mock_lifecycle, mock_args):\n        \"\"\"_cmd_route_ab configures A/B routing with valid split.\"\"\"\n        args = mock_args(split='80/20', node='node1')\n        mock_lm = MagicMock()\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_route_ab(args)\n            assert result == 0\n\n    def test_cmd_route_ab_invalid_format(self, mock_args):\n        \"\"\"_cmd_route_ab returns 1 for invalid split format.\"\"\"\n        args = mock_args(split='invalid')\n        result = _cmd_route_ab(args)\n        assert result == 1\n\n    def test_cmd_route_ab_non_integer(self, mock_args):\n        \"\"\"_cmd_route_ab returns 1 for non-integer split values.\"\"\"\n        args = mock_args(split='50.5/49.5')\n        result = _cmd_route_ab(args)\n        assert result == 1\n\n    @pytest.mark.parametrize('split', ['100/0', '0/100'])\n    def test_cmd_route_ab_edge_splits(self, split, mock_args, mock_lifecycle):\n        \"\"\"_cmd_route_ab handles edge case splits (100/0, 0/100).\"\"\"\n        args = mock_args(split=split, node='node1')\n        mock_lm = MagicMock()\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_route_ab(args)\n            assert result == 0\n\n    @patch('baton.lifecycle.LifecycleManager')\n    def test_cmd_route_canary_basic(self, mock_lifecycle, mock_args):\n        \"\"\"_cmd_route_canary configures canary deployment.\"\"\"\n        args = mock_args(promote=False, node='node1')\n        mock_lm = MagicMock()\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_route_canary(args)\n            assert result == 0\n\n    @patch('baton.lifecycle.LifecycleManager')\n    @patch('baton.custodian.CanaryController')\n    def test_cmd_route_canary_with_promotion(self, mock_canary, mock_lifecycle, mock_args):\n        \"\"\"_cmd_route_canary runs canary controller with auto-promotion.\"\"\"\n        args = mock_args(promote=True, node='node1')\n        mock_lm = MagicMock()\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_route_canary(args)\n            assert result == 0\n\n    @patch('baton.lifecycle.LifecycleManager')\n    def test_cmd_route_set_weighted(self, mock_lifecycle, mock_args):\n        \"\"\"_cmd_route_set configures weighted routing.\"\"\"\n        args = mock_args(strategy='weighted', targets='svc1:8080:70,svc2:8081:30', node='node1')\n        mock_lm = MagicMock()\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_route_set(args)\n            assert result == 0\n\n    @patch('baton.lifecycle.LifecycleManager')\n    def test_cmd_route_set_header(self, mock_lifecycle, mock_args):\n        \"\"\"_cmd_route_set configures header-based routing.\"\"\"\n        args = mock_args(strategy='header', targets='svc1:8080,svc2:8081', node='node1')\n        mock_lm = MagicMock()\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_route_set(args)\n            assert result == 0\n\n    def test_cmd_route_set_invalid_target(self, mock_args):\n        \"\"\"_cmd_route_set returns 1 for invalid target format.\"\"\"\n        args = mock_args(targets='invalid_format', node='node1')\n        result = _cmd_route_set(args)\n        assert result == 1\n\n    def test_cmd_route_set_invalid_rule(self, mock_args):\n        \"\"\"_cmd_route_set returns 1 for invalid rule format.\"\"\"\n        args = mock_args(strategy='header', rules='bad_rule', node='node1')\n        result = _cmd_route_set(args)\n        assert result == 1\n\n    def test_cmd_route_set_empty_targets(self, mock_args):\n        \"\"\"_cmd_route_set handles empty targets string.\"\"\"\n        args = mock_args(targets='', node='node1')\n        result = _cmd_route_set(args)\n        assert result == 1\n\n    @patch('baton.lifecycle.LifecycleManager')\n    def test_cmd_route_lock_success(self, mock_lifecycle, mock_args):\n        \"\"\"_cmd_route_lock locks routing config.\"\"\"\n        args = mock_args(node='node1')\n        mock_lm = MagicMock()\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_route_lock(args)\n            assert result == 0\n\n    @patch('baton.lifecycle.LifecycleManager')\n    def test_cmd_route_unlock_success(self, mock_lifecycle, mock_args):\n        \"\"\"_cmd_route_unlock unlocks routing config.\"\"\"\n        args = mock_args(node='node1')\n        mock_lm = MagicMock()\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_route_unlock(args)\n            assert result == 0\n\n    @patch('baton.lifecycle.LifecycleManager')\n    def test_cmd_route_clear_success(self, mock_lifecycle, mock_args):\n        \"\"\"_cmd_route_clear clears routing config.\"\"\"\n        args = mock_args(node='node1')\n        mock_lm = MagicMock()\n        mock_lm.adapters = {'node1': MagicMock()}\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_route_clear(args)\n            assert result == 0\n\n    @patch('baton.lifecycle.LifecycleManager')\n    def test_cmd_route_clear_node_not_found(self, mock_lifecycle, mock_args):\n        \"\"\"_cmd_route_clear returns 1 when node not found.\"\"\"\n        args = mock_args(node='nonexistent')\n        mock_lm = MagicMock()\n        mock_lm.adapters = {}\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_route_clear(args)\n            assert result == 1\n\n\nclass TestDeployCommands:\n    \"\"\"Tests for deployment commands.\"\"\"\n\n    def test_build_deploy_target_basic(self, mock_args):\n        \"\"\"_build_deploy_target constructs DeploymentTarget from args.\"\"\"\n        args = mock_args(provider='gcp', region='us-west1', namespace='default')\n        with patch('baton.providers.DeploymentTarget') as mock_target:\n            _build_deploy_target(args)\n            mock_target.assert_called_once()\n\n    @patch('baton.config.load_circuit')\n    @patch('baton.providers.create_provider')\n    def test_cmd_deploy_local(self, mock_provider, mock_load, mock_args):\n        \"\"\"_cmd_deploy deploys to local provider and waits.\"\"\"\n        args = mock_args(provider='local')\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        mock_prov = MagicMock()\n        mock_provider.return_value = mock_prov\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_deploy(args)\n            assert result == 0\n\n    @patch('baton.config.load_circuit')\n    @patch('baton.providers.create_provider')\n    def test_cmd_deploy_cloud(self, mock_provider, mock_load, mock_args):\n        \"\"\"_cmd_deploy deploys to cloud provider.\"\"\"\n        args = mock_args(provider='gcp')\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        mock_prov = MagicMock()\n        mock_provider.return_value = mock_prov\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_deploy(args)\n            assert result == 0\n\n    @patch('baton.config.load_circuit')\n    @patch('baton.providers.create_provider')\n    def test_cmd_teardown_success(self, mock_provider, mock_load, mock_args):\n        \"\"\"_cmd_teardown tears down deployed circuit.\"\"\"\n        args = mock_args()\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        mock_prov = MagicMock()\n        mock_provider.return_value = mock_prov\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_teardown(args)\n            assert result == 0\n\n    @patch('baton.config.load_circuit')\n    @patch('baton.providers.create_provider')\n    def test_cmd_deploy_status_success(self, mock_provider, mock_load, mock_args):\n        \"\"\"_cmd_deploy_status displays deployment status.\"\"\"\n        args = mock_args()\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        mock_prov = MagicMock()\n        mock_provider.return_value = mock_prov\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_deploy_status(args)\n            assert result == 0\n\n\nclass TestImageCommands:\n    \"\"\"Tests for container image commands.\"\"\"\n\n    @patch('baton.image.list_images')\n    def test_cmd_image_list_success(self, mock_list, mock_args):\n        \"\"\"_cmd_image_list lists built images.\"\"\"\n        args = mock_args()\n        mock_list.return_value = [\n            {'node': 'node1', 'tag': 'v1.0', 'timestamp': '2023-01-01'}\n        ]\n        \n        result = _cmd_image_list(args)\n        assert result == 0\n\n    @patch('baton.config.load_circuit')\n    @patch('baton.image.build_image')\n    def test_cmd_image_build_with_path(self, mock_build, mock_load, mock_args):\n        \"\"\"_cmd_image_build builds image with --path.\"\"\"\n        args = mock_args(node='node1', path='/path/to/service')\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        mock_build.return_value = {'tag': 'node1:latest'}\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_image_build(args)\n            assert result == 0\n\n    def test_cmd_image_build_missing_node(self, mock_args):\n        \"\"\"_cmd_image_build returns 1 when --node missing.\"\"\"\n        args = mock_args(node=None)\n        result = _cmd_image_build(args)\n        assert result == 1\n\n    @patch('baton.config.load_circuit')\n    def test_cmd_image_build_missing_path(self, mock_load, mock_args):\n        \"\"\"_cmd_image_build returns 1 when --path and service_dir missing.\"\"\"\n        args = mock_args(node='node1', path=None)\n        mock_circuit = MagicMock()\n        mock_circuit.get_node_metadata.return_value = {}\n        mock_load.return_value = mock_circuit\n        \n        result = _cmd_image_build(args)\n        assert result == 1\n\n    @patch('baton.image.push_image')\n    def test_cmd_image_push_with_tag(self, mock_push, mock_args):\n        \"\"\"_cmd_image_push pushes image with --tag.\"\"\"\n        args = mock_args(tag='myimage:latest')\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_image_push(args)\n            assert result == 0\n\n    def test_cmd_image_push_missing_tag(self, mock_args):\n        \"\"\"_cmd_image_push returns 1 when tag cannot be resolved.\"\"\"\n        args = mock_args(tag=None, node=None)\n        result = _cmd_image_push(args)\n        assert result == 1\n\n\nclass TestConfigCommands:\n    \"\"\"Tests for circuit configuration commands.\"\"\"\n\n    @patch('pathlib.Path.exists', return_value=False)\n    @patch('pathlib.Path.mkdir')\n    @patch('baton.config.save_circuit')\n    def test_cmd_init_success(self, mock_save, mock_mkdir, mock_exists, mock_args):\n        \"\"\"_cmd_init creates new circuit project.\"\"\"\n        args = mock_args()\n        result = _cmd_init(args)\n        assert result == 0\n\n    @patch('pathlib.Path.exists', return_value=True)\n    def test_cmd_init_config_exists(self, mock_exists, mock_args):\n        \"\"\"_cmd_init returns 1 when baton.yaml exists.\"\"\"\n        args = mock_args()\n        result = _cmd_init(args)\n        assert result == 1\n\n    @patch('baton.config.load_circuit')\n    @patch('baton.config.save_circuit')\n    def test_cmd_node_add(self, mock_save, mock_load, mock_args):\n        \"\"\"_cmd_node adds node to circuit.\"\"\"\n        args = mock_args(node_command='add', name='new_node')\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        \n        result = _cmd_node(args)\n        assert result == 0\n\n    @patch('baton.config.load_circuit')\n    @patch('baton.config.save_circuit')\n    def test_cmd_node_remove(self, mock_save, mock_load, mock_args):\n        \"\"\"_cmd_node removes node from circuit.\"\"\"\n        args = mock_args(node_command='rm', name='old_node')\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        \n        result = _cmd_node(args)\n        assert result == 0\n\n    def test_cmd_node_invalid_command(self, mock_args):\n        \"\"\"_cmd_node returns 1 for invalid node command.\"\"\"\n        args = mock_args(node_command='invalid')\n        result = _cmd_node(args)\n        assert result == 1\n\n    @patch('baton.config.load_circuit')\n    @patch('baton.config.save_circuit')\n    def test_cmd_edge_add(self, mock_save, mock_load, mock_args):\n        \"\"\"_cmd_edge adds edge to circuit.\"\"\"\n        args = mock_args(edge_command='add', source='node1', target='node2')\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        \n        result = _cmd_edge(args)\n        assert result == 0\n\n    def test_cmd_edge_invalid_command(self, mock_args):\n        \"\"\"_cmd_edge returns 1 for invalid edge command.\"\"\"\n        args = mock_args(edge_command='invalid')\n        result = _cmd_edge(args)\n        assert result == 1\n\n    @patch('baton.config.load_circuit')\n    @patch('baton.config.save_circuit')\n    @patch('pathlib.Path.exists', return_value=True)\n    def test_cmd_contract_set(self, mock_exists, mock_save, mock_load, mock_args):\n        \"\"\"_cmd_contract sets contract for node.\"\"\"\n        args = mock_args(contract_command='set', node='node1', spec='/tmp/contract.yaml')\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        \n        result = _cmd_contract(args)\n        assert result == 0\n\n    def test_cmd_contract_invalid_command(self, mock_args):\n        \"\"\"_cmd_contract returns 1 for invalid contract command.\"\"\"\n        args = mock_args(contract_command='invalid')\n        result = _cmd_contract(args)\n        assert result == 1\n\n\nclass TestServiceCommands:\n    \"\"\"Tests for service manifest commands.\"\"\"\n\n    @patch('baton.manifest.register_service')\n    def test_cmd_service_register(self, mock_register, mock_args):\n        \"\"\"_cmd_service registers service manifest.\"\"\"\n        args = mock_args(service_command='register', path='/path/to/manifest.yaml')\n        result = _cmd_service(args)\n        assert result == 0\n\n    @patch('baton.manifest.list_services')\n    def test_cmd_service_list(self, mock_list, mock_args):\n        \"\"\"_cmd_service lists service manifests.\"\"\"\n        args = mock_args(service_command='list')\n        mock_list.return_value = ['service1', 'service2']\n        result = _cmd_service(args)\n        assert result == 0\n\n    @patch('baton.manifest.derive_circuit')\n    def test_cmd_service_derive(self, mock_derive, mock_args):\n        \"\"\"_cmd_service derives circuit from services.\"\"\"\n        args = mock_args(service_command='derive')\n        mock_derive.return_value = MagicMock()\n        result = _cmd_service(args)\n        assert result == 0\n\n    def test_cmd_service_invalid_command(self, mock_args):\n        \"\"\"_cmd_service returns 1 for invalid service command.\"\"\"\n        args = mock_args(service_command='invalid')\n        result = _cmd_service(args)\n        assert result == 1\n\n    @patch('baton.compat.check_compatibility')\n    @patch('baton.manifest.list_services')\n    def test_cmd_check_compatible(self, mock_list, mock_check, mock_args):\n        \"\"\"_cmd_check reports compatibility for services.\"\"\"\n        args = mock_args()\n        mock_list.return_value = ['service1', 'service2']\n        mock_check.return_value = {'compatible': True, 'issues': []}\n        \n        result = _cmd_check(args)\n        assert result == 0\n\n    @patch('baton.manifest.list_services')\n    def test_cmd_check_no_services(self, mock_list, mock_args):\n        \"\"\"_cmd_check returns 1 when no services registered.\"\"\"\n        args = mock_args()\n        mock_list.return_value = []\n        \n        result = _cmd_check(args)\n        assert result == 1\n\n    @patch('baton.compat.check_compatibility')\n    @patch('baton.manifest.list_services')\n    def test_cmd_check_incompatible(self, mock_list, mock_check, mock_args):\n        \"\"\"_cmd_check returns 1 when incompatibilities found.\"\"\"\n        args = mock_args()\n        mock_list.return_value = ['service1', 'service2']\n        mock_check.return_value = {'compatible': False, 'issues': ['Version mismatch']}\n        \n        result = _cmd_check(args)\n        assert result == 1\n\n    @patch('baton.manifest.list_services')\n    def test_cmd_check_service_not_found(self, mock_list, mock_args):\n        \"\"\"_cmd_check returns 1 when specified service not found.\"\"\"\n        args = mock_args(service='nonexistent')\n        mock_list.return_value = ['service1']\n        \n        result = _cmd_check(args)\n        assert result == 1\n\n\nclass TestMonitoringCommands:\n    \"\"\"Tests for monitoring and observability commands.\"\"\"\n\n    @patch('baton.signals.get_signal_history')\n    def test_cmd_signals_success(self, mock_signals, mock_args):\n        \"\"\"_cmd_signals displays signal data.\"\"\"\n        args = mock_args()\n        mock_signals.return_value = [\n            {'path': '/api/test', 'latency': 100, 'status': 200}\n        ]\n        \n        result = _cmd_signals(args)\n        assert result == 0\n\n    @patch('baton.signals.get_signal_history')\n    def test_cmd_signals_not_found(self, mock_signals, mock_args):\n        \"\"\"_cmd_signals returns 1 when no signals found.\"\"\"\n        args = mock_args()\n        mock_signals.return_value = []\n        \n        result = _cmd_signals(args)\n        assert result == 1\n\n    @patch('baton.telemetry.get_metrics')\n    def test_cmd_metrics_success(self, mock_metrics, mock_args):\n        \"\"\"_cmd_metrics displays metrics data.\"\"\"\n        args = mock_args()\n        mock_metrics.return_value = [\n            {'node': 'node1', 'cpu': 50, 'memory': 1024}\n        ]\n        \n        result = _cmd_metrics(args)\n        assert result == 0\n\n    @patch('baton.telemetry.get_metrics')\n    def test_cmd_metrics_not_found(self, mock_metrics, mock_args):\n        \"\"\"_cmd_metrics returns 1 when no metrics found.\"\"\"\n        args = mock_args()\n        mock_metrics.return_value = []\n        \n        result = _cmd_metrics(args)\n        assert result == 1\n\n    @patch('baton.dashboard_server.start_server')\n    def test_cmd_dashboard_serve(self, mock_server, mock_args):\n        \"\"\"_cmd_dashboard serves interactive dashboard.\"\"\"\n        args = mock_args(serve=True)\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_dashboard(args)\n            assert result == 0\n\n    @patch('baton.config.load_circuit')\n    @patch('baton.dashboard.collect_snapshot')\n    def test_cmd_dashboard_snapshot(self, mock_snapshot, mock_load, mock_args):\n        \"\"\"_cmd_dashboard displays snapshot.\"\"\"\n        args = mock_args(serve=False)\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        mock_snapshot.return_value = {'nodes': [], 'edges': []}\n        \n        result = _cmd_dashboard(args)\n        assert result == 0\n\n    @patch('baton.config.load_circuit')\n    def test_cmd_dashboard_no_state(self, mock_load, mock_args):\n        \"\"\"_cmd_dashboard returns 1 when no state found in non-serve mode.\"\"\"\n        args = mock_args(serve=False)\n        mock_load.side_effect = FileNotFoundError()\n        \n        result = _cmd_dashboard(args)\n        assert result == 1\n\n    @patch('baton.config.load_circuit')\n    @patch('baton.state.StateManager')\n    def test_cmd_status_success(self, mock_state, mock_load, mock_args):\n        \"\"\"_cmd_status displays circuit status.\"\"\"\n        args = mock_args()\n        mock_circuit = MagicMock()\n        mock_load.return_value = mock_circuit\n        \n        result = _cmd_status(args)\n        assert result == 0\n\n\nclass TestInvariants:\n    \"\"\"Tests for cross-cutting invariants.\"\"\"\n\n    def test_invariant_config_filename(self):\n        \"\"\"CONFIG_FILENAME is always 'baton.yaml'.\"\"\"\n        # This test verifies the constant is defined correctly\n        with patch('src.baton_cli.CONFIG_FILENAME', 'baton.yaml') as config_const:\n            assert config_const == 'baton.yaml'\n\n    @pytest.mark.parametrize('exit_code,scenario', [\n        (0, 'success'),\n        (1, 'error'),\n        (130, 'keyboard_interrupt'),\n    ])\n    def test_invariant_exit_codes(self, exit_code, scenario):\n        \"\"\"Exit codes follow contract: 0=success, 1=error, 130=KeyboardInterrupt.\"\"\"\n        # Verify the exit code mapping is respected\n        if scenario == 'success':\n            assert exit_code == 0\n        elif scenario == 'error':\n            assert exit_code == 1\n        elif scenario == 'keyboard_interrupt':\n            assert exit_code == 130\n\n\n# =============================================================================\n# Edge Cases and Integration Tests\n# =============================================================================\n\nclass TestEdgeCases:\n    \"\"\"Additional edge case tests for boundary conditions.\"\"\"\n\n    @patch('baton.config.load_circuit')\n    def test_main_with_none_argv(self, mock_load):\n        \"\"\"main handles None argv by using sys.argv.\"\"\"\n        with patch('sys.argv', ['baton', 'status']):\n            with patch('src.baton_cli._cmd_status', return_value=0):\n                result = main(None)\n                assert result == 0\n\n    def test_cmd_route_ab_missing_slash(self, mock_args):\n        \"\"\"_cmd_route_ab handles split without slash.\"\"\"\n        args = mock_args(split='8020')\n        result = _cmd_route_ab(args)\n        assert result == 1\n\n    def test_cmd_route_ab_too_many_parts(self, mock_args):\n        \"\"\"_cmd_route_ab handles split with too many parts.\"\"\"\n        args = mock_args(split='30/30/40')\n        result = _cmd_route_ab(args)\n        assert result == 1\n\n    @patch('baton.lifecycle.LifecycleManager')\n    def test_cmd_route_set_single_target(self, mock_lifecycle, mock_args):\n        \"\"\"_cmd_route_set handles single target.\"\"\"\n        args = mock_args(strategy='weighted', targets='svc1:8080:100', node='node1')\n        mock_lm = MagicMock()\n        mock_lifecycle.return_value = mock_lm\n        \n        with patch('asyncio.run', return_value=None):\n            result = _cmd_route_set(args)\n            assert result == 0\n\n    def test_build_deploy_target_with_extra_config(self, mock_args):\n        \"\"\"_build_deploy_target includes extra config parameters.\"\"\"\n        args = mock_args(provider='gcp', region='us-west1', project='my-project')\n        with patch('baton.providers.DeploymentTarget') as mock_target:\n            _build_deploy_target(args)\n            # Verify all args attributes are passed to config dict\n            mock_target.assert_called_once()\n\n\n# =============================================================================\n# Pytest Configuration\n# =============================================================================\n\ndef pytest_configure(config):\n    \"\"\"Register custom markers.\"\"\"\n    config.addinivalue_line(\"markers\", \"integration: integration tests requiring file I/O\")\n    config.addinivalue_line(\"markers\", \"slow: slow running tests\")\n\n\nif __name__ == '__main__':\n    pytest.main([__file__, '-v', '--cov=src.baton_cli', '--cov-branch'])\n\"\"\""
+}

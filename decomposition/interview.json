@@ -1,0 +1,15 @@
+{
+  "risks": [
+    "Adopted codebase with 9 security findings"
+  ],
+  "ambiguities": [],
+  "questions": [],
+  "assumptions": [
+    "Existing code is the specification",
+    "Contracts describe actual behavior"
+  ],
+  "user_answers": {},
+  "approved": true,
+  "audited_answers": [],
+  "processing_register": ""
+}
