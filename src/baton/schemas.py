@@ -331,6 +331,7 @@ class CircuitState(BaseModel):
     adapters: dict[str, AdapterState] = Field(default_factory=dict)
     mock_pid: int = 0
     custodian_pid: int = 0
+    owner_pid: int = 0
     started_at: str = ""
     updated_at: str = ""
 

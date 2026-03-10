@@ -267,6 +267,12 @@ def main(argv: list[str] | None = None) -> int:
     p_certs_rotate = certs_sub.add_parser("rotate", help="Force certificate rotation")
     p_certs_rotate.add_argument("--dir", default=".", help="Project directory")
 
+    # baton dora
+    p_dora = sub.add_parser("dora", help="Show DORA metrics (deployment frequency, lead time, CFR, MTTR)")
+    p_dora.add_argument("--window", type=int, default=168, help="Time window in hours (default: 168 = 1 week)")
+    p_dora.add_argument("--json", action="store_true", dest="json_output", help="Output as JSON")
+    p_dora.add_argument("--dir", default=".", help="Project directory")
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -318,6 +324,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_federation(args)
         elif args.command == "certs":
             return _cmd_certs(args)
+        elif args.command == "dora":
+            return _cmd_dora(args)
         elif args.command in ("up", "down", "slot", "swap", "collapse", "watch", "deploy", "teardown", "deploy-status", "dashboard"):
             return asyncio.run(_cmd_async(args))
         else:
@@ -421,8 +429,35 @@ async def _cmd_up(args: argparse.Namespace) -> int:
 
 
 async def _cmd_down(args: argparse.Namespace) -> int:
-    # For explicit down, we just clear state
-    from baton.state import clear_state
+    import os
+
+    from baton.state import clear_state, load_state
+
+    state = load_state(args.dir)
+    if state and state.owner_pid:
+        # Signal the owning process (baton up / baton apply) to shut down gracefully.
+        # Its finally block will drain adapters, stop control servers, and kill processes.
+        pid = state.owner_pid
+        try:
+            os.kill(pid, signal.SIGTERM)
+            # Wait briefly for the owner to clean up
+            for _ in range(20):
+                await asyncio.sleep(0.25)
+                try:
+                    os.kill(pid, 0)  # check if still alive
+                except OSError:
+                    break  # process exited
+            else:
+                # Still alive after 5s -- force kill
+                try:
+                    os.kill(pid, signal.SIGKILL)
+                except OSError:
+                    pass
+            print(f"Stopped circuit owner process (pid {pid})")
+        except OSError:
+            # Process already gone -- fall through to clear stale state
+            pass
+
     clear_state(args.dir)
     print("Circuit state cleared")
     return 0
@@ -891,6 +926,19 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_dora(args: argparse.Namespace) -> int:
+    import json as json_mod
+    from baton.dora import compute_dora, format_dora
+
+    metrics = compute_dora(args.dir, window_hours=args.window)
+
+    if getattr(args, "json_output", False):
+        print(json_mod.dumps(metrics.to_dict(), indent=2))
+    else:
+        print(format_dora(metrics))
+    return 0
+
+
 async def _cmd_dashboard(args: argparse.Namespace) -> int:
     import json as json_mod
     from baton.dashboard import collect, format_table
@@ -1290,6 +1338,7 @@ def _cmd_apply_dry_run(args: argparse.Namespace) -> int:
 
 async def _cmd_apply(args: argparse.Namespace) -> int:
     """Apply declarative config -- converge desired vs running state."""
+    from baton.collapse import build_mock_server, compute_mock_backends
     from baton.lifecycle import LifecycleManager
 
     project_dir = Path(args.dir)
@@ -1300,6 +1349,26 @@ async def _cmd_apply(args: argparse.Namespace) -> int:
 
     mgr = LifecycleManager(project_dir)
     state = await mgr.apply(config)
+
+    # Wire mock backends for nodes without live services
+    mock_server = None
+    circuit = config.to_circuit_spec()
+    live_nodes = set(state.live_nodes)
+    unmocked = {
+        name for name, a in state.adapters.items()
+        if name not in live_nodes and a.status == NodeStatus.LISTENING
+    }
+    if unmocked:
+        mock_server = build_mock_server(circuit, live_nodes=live_nodes, project_dir=str(project_dir))
+        backends = compute_mock_backends(circuit, live_nodes=live_nodes)
+
+        await mock_server.start()
+        for node_name, target in backends.items():
+            adapter = mgr._adapters.get(node_name)
+            if adapter:
+                adapter.set_backend(target)
+                if state.adapters.get(node_name):
+                    state.adapters[node_name].status = NodeStatus.ACTIVE
 
     print(f"Circuit '{config.name}' applied ({len(state.adapters)} nodes)")
 
@@ -1315,6 +1384,8 @@ async def _cmd_apply(args: argparse.Namespace) -> int:
         except asyncio.CancelledError:
             pass
         finally:
+            if mock_server:
+                await mock_server.stop()
             await mgr.down()
             print("\nCircuit torn down.")
 

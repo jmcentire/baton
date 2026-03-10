@@ -243,6 +243,7 @@ class Adapter:
             handler, self._node.host, self._node.port,
             ssl=self._ssl_context,
             limit=self.MAX_HEADER_SIZE,
+            reuse_address=True,
         )
         logger.info(
             f"Adapter [{self._node.name}] listening on "

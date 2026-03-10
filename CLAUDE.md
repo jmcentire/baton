@@ -45,6 +45,7 @@ src/baton/
   lifecycle.py        # Circuit lifecycle orchestration (slot, swap, slot_ab, route_ab, lock/unlock)
   collapse.py         # Collapse algorithm (egress nodes always mocked)
   dashboard.py        # Aggregated metrics snapshot across all nodes
+  dora.py             # DORA metrics derivation from lifecycle events
   telemetry.py        # Persistent JSONL metrics collection + Prometheus export
   signals.py          # Cross-node signal aggregation + per-path statistics
   providers/          # Cloud deployment plugins
@@ -116,6 +117,9 @@ baton deploy-status [--provider ...]   # check deployment status
 - Egress nodes cannot have live services slotted in (auto-mocked only)
 - Routing: when RoutingConfig is None, adapter behaves as single-backend (backwards compatible)
 - Lock guards: locked routing prevents set_backend, set_routing, clear_routing, slot, swap
+- Process ownership: `CircuitState.owner_pid` tracks the PID of the `baton up`/`baton apply` process. `baton down` sends SIGTERM to the owner so it cleans up via its `finally` block (drain adapters, stop control servers, kill child processes).
+- Mock wiring: both `baton up --mock` and `baton apply` wire mock backends for nodes without live services via `build_mock_server()`/`compute_mock_backends()`. The mock server is stopped in the owning process's cleanup path.
+- DORA metrics: `dora.py` derives deployment frequency, lead time, change failure rate, and MTTR from lifecycle events recorded in `.baton/events.jsonl`.
 
 ## Research-Backed Features
 

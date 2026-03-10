@@ -13,6 +13,7 @@ from pathlib import Path
 from baton.adapter import Adapter, BackendTarget
 from baton.adapter_control import AdapterControlServer
 from baton.config import load_circuit, load_circuit_config, save_circuit
+from baton.dora import EventType, record_event
 from baton.process import ProcessManager
 from baton.schemas import (
     AdapterState,
@@ -105,9 +106,11 @@ class LifecycleManager:
         self._circuit = load_circuit(self.project_dir)
         ensure_baton_dir(self.project_dir)
 
+        import os
         self._state = CircuitState(
             circuit_name=self._circuit.name,
             collapse_level=CollapseLevel.FULL_MOCK if mock else CollapseLevel.FULL_LIVE,
+            owner_pid=os.getpid(),
             started_at=_now_iso(),
             updated_at=_now_iso(),
         )
@@ -229,6 +232,10 @@ class LifecycleManager:
             save_state(self._state, self.project_dir)
 
         logger.info(f"Slotted service into [{node_name}] (pid={info.pid}, port={service_port})")
+        record_event(
+            self.project_dir, EventType.DEPLOY, node_name,
+            detail=f"slot command={command} port={service_port} pid={info.pid}",
+        )
 
     async def swap(self, node_name: str, command: str, env: dict[str, str] | None = None) -> None:
         """Hot-swap a service: start new, drain, switch, stop old.
@@ -287,6 +294,10 @@ class LifecycleManager:
             save_state(self._state, self.project_dir)
 
         logger.info(f"Swapped service in [{node_name}] (new pid={info.pid})")
+        record_event(
+            self.project_dir, EventType.SWAP, node_name,
+            detail=f"hot-swap command={command} pid={info.pid}",
+        )
 
     async def slot_mock(self, node_name: str) -> None:
         """Replace a live service with nothing (adapter returns 503)."""
@@ -557,8 +568,14 @@ class LifecycleManager:
             self._state.updated_at = _now_iso()
             save_state(self._state, self.project_dir)
 
+        record_event(
+            self.project_dir, EventType.CANARY_START, node_name,
+            detail=f"canary_pct={canary_pct} command={command}",
+        )
+
         controller = CanaryController(
-            adapter, node_name, self, **controller_opts
+            adapter, node_name, self, project_dir=self.project_dir,
+            **controller_opts,
         )
         return controller
 
@@ -612,11 +629,13 @@ class LifecycleManager:
         for action_type, data in actions:
             if action_type == "boot":
                 # Full boot from scratch
+                import os
                 self._circuit = desired_spec
                 ensure_baton_dir(self.project_dir)
                 self._state = CircuitState(
                     circuit_name=desired_spec.name,
                     collapse_level=CollapseLevel.FULL_MOCK,
+                    owner_pid=os.getpid(),
                     started_at=_now_iso(),
                     updated_at=_now_iso(),
                 )

@@ -16,3 +16,5 @@ build/
 htmlcov/
 .coverage
 .tox/
+.envrc
+.direnv/

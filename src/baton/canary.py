@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from pathlib import Path
 from typing import Protocol
 
 from baton.adapter import Adapter, AdapterMetrics
+from baton.dora import EventType, record_event
 from baton.schemas import RoutingConfig, RoutingStrategy, RoutingTarget
 
 logger = logging.getLogger(__name__)
@@ -91,6 +93,7 @@ class CanaryController:
         node_name: str,
         lifecycle: CanaryLifecycle,
         *,
+        project_dir: str | Path | None = None,
         error_threshold: float = 5.0,
         latency_threshold: float = 500.0,
         promote_steps: list[int] | None = None,
@@ -100,6 +103,7 @@ class CanaryController:
         self._adapter = adapter
         self._node_name = node_name
         self._lifecycle = lifecycle
+        self._project_dir = project_dir
         self._error_threshold = error_threshold
         self._latency_threshold = latency_threshold
         self._promote_steps = list(promote_steps or DEFAULT_PROMOTE_STEPS)
@@ -160,6 +164,11 @@ class CanaryController:
                     f"[{self._node_name}] Canary error rate {error_rate:.1f}% "
                     f"> threshold {self._error_threshold}%, rolling back"
                 )
+                if self._project_dir:
+                    record_event(
+                        self._project_dir, EventType.FAILURE_DETECTED, self._node_name,
+                        detail=f"canary error_rate={error_rate:.1f}% threshold={self._error_threshold}%",
+                    )
                 self._rollback()
                 return
 
@@ -170,6 +179,11 @@ class CanaryController:
                 f"[{self._node_name}] Canary p99 {p99:.0f}ms "
                 f"> threshold {self._latency_threshold}ms, rolling back"
             )
+            if self._project_dir:
+                record_event(
+                    self._project_dir, EventType.FAILURE_DETECTED, self._node_name,
+                    detail=f"canary p99={p99:.0f}ms threshold={self._latency_threshold}ms",
+                )
             self._rollback()
             return
 
@@ -202,6 +216,11 @@ class CanaryController:
             logger.info(f"[{self._node_name}] Canary promotion complete (at {current}%)")
             self._outcome = "promoted"
             self._running = False
+            if self._project_dir:
+                record_event(
+                    self._project_dir, EventType.CANARY_PROMOTE, self._node_name,
+                    detail=f"promotion complete at {current}%",
+                )
             return
 
         # Get current routing targets to preserve host/port info
@@ -240,6 +259,11 @@ class CanaryController:
         )
         self._lifecycle.set_routing(self._node_name, config)
         logger.info(f"[{self._node_name}] Canary promoted to {next_weight}%")
+        if self._project_dir:
+            record_event(
+                self._project_dir, EventType.CANARY_PROMOTE, self._node_name,
+                detail=f"promoted to {next_weight}%",
+            )
 
         if next_weight >= 100:
             self._outcome = "promoted"
@@ -251,6 +275,11 @@ class CanaryController:
         if routing is None:
             self._outcome = "rolled_back"
             self._running = False
+            if self._project_dir:
+                record_event(
+                    self._project_dir, EventType.CANARY_ROLLBACK, self._node_name,
+                    detail="rolled back (no routing config)",
+                )
             return
 
         stable_target = None
@@ -265,6 +294,11 @@ class CanaryController:
             logger.error(f"[{self._node_name}] No stable target found for rollback")
             self._outcome = "rolled_back"
             self._running = False
+            if self._project_dir:
+                record_event(
+                    self._project_dir, EventType.CANARY_ROLLBACK, self._node_name,
+                    detail="rolled back (no stable target)",
+                )
             return
 
         # Set 100% stable, 0% canary
@@ -294,3 +328,8 @@ class CanaryController:
         logger.info(f"[{self._node_name}] Canary rolled back to 100% stable")
         self._outcome = "rolled_back"
         self._running = False
+        if self._project_dir:
+            record_event(
+                self._project_dir, EventType.CANARY_ROLLBACK, self._node_name,
+                detail="rolled back to 100% stable",
+            )
