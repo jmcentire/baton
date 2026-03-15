@@ -40,6 +40,9 @@ class EventType:
     CANARY_ROLLBACK = "canary_rollback"
     FAILURE_DETECTED = "failure_detected"
     RECOVERY = "recovery"
+    VALIDATION_FAILED = "validation_failed"
+    TAINT_VIOLATION = "taint_violation"
+    SERVICE_EVENT = "service_event"
 
 
 def record_event(

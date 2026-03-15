@@ -277,7 +277,7 @@
   <div class="container">
     <h1>Circuit Orchestration</h1>
     <p class="subtitle">
-      Pre-wired topologies with smart adapters, mock collapse, A/B routing, multi-protocol support, federation, and self-healing. Define the board. Slot services in.
+      Pre-wired topologies with smart adapters, mock collapse, A/B routing, taint analysis, trust-aware validation, and self-healing. Define the board. Slot services in.
     </p>
     <div class="cta">
       <a href="https://github.com/jmcentire/baton#quickstart" class="primary">Get Started</a>
@@ -370,9 +370,29 @@
       <p>Command injection prevention, header injection guards, path traversal protection, fail-closed auth, bounded header parsing.</p>
     </div>
     <div class="feature">
+      <span class="icon">@#!</span>
+      <h3>Taint Analysis</h3>
+      <p>Seed PII-shaped canary data with traceable fingerprints. Detect when data crosses boundaries it shouldn't -- in traffic, logs, and spans.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">?=?</span>
+      <h3>Interface Validation</h3>
+      <p>Services are validated against OpenAPI contracts at slot time. Incompatible services are rejected before receiving traffic.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">ARB</span>
+      <h3>Arbiter Integration</h3>
+      <p>Trust scoring, declaration gap analysis, classification tagging on spans, fire-and-forget OTLP forwarding. All optional, gracefully degrading.</p>
+    </div>
+    <div class="feature">
+      <span class="icon">LOG</span>
+      <h3>System Logging</h3>
+      <p>Captures service stdout/stderr with automatic severity parsing. Structured logs with node attribution, persisted for audit trails.</p>
+    </div>
+    <div class="feature">
       <span class="icon">///</span>
-      <h3>804 Tests</h3>
-      <p>701 hand-written tests plus 103 pact-generated smoke tests covering all 36 source modules. Every public function verified callable.</p>
+      <h3>887 Tests</h3>
+      <p>Hand-written unit tests, integration tests, functional assertions, plus pact-generated smoke tests covering all source modules.</p>
     </div>
   </div>
 </section>
@@ -408,6 +428,14 @@
 
 <span class="comment"># Monitor certificates</span>
 <span class="cmd">baton certs</span> <span class="arg">status</span>
+
+<span class="comment"># Taint analysis</span>
+<span class="cmd">baton taint</span> <span class="arg">seed</span>
+<span class="cmd">baton test</span> <span class="flag">--canary</span> <span class="flag">--tiers</span> <span class="arg">PII</span> <span class="flag">--duration</span> <span class="arg">5m</span>
+
+<span class="comment"># Service logs and Arbiter trust</span>
+<span class="cmd">baton logs</span> <span class="flag">--node</span> <span class="arg">api</span> <span class="flag">--level</span> <span class="arg">error</span>
+<span class="cmd">baton trust</span> <span class="arg">api</span>
 
 <span class="comment"># Build images and deploy to GCP Cloud Run</span>
 <span class="cmd">baton deploy</span> <span class="flag">--provider</span> <span class="arg">gcp</span> <span class="flag">--build</span> <span class="flag">--project</span> <span class="arg">my-project</span>
@@ -531,6 +559,22 @@
       <div class="concept">
         <h4>MCP</h4>
         <p>AI integration. Exposes circuit state to Claude Code and other assistants.</p>
+      </div>
+      <div class="concept">
+        <h4>Taint</h4>
+        <p>Canary data with fingerprints. Detects boundary violations in traffic and logs.</p>
+      </div>
+      <div class="concept">
+        <h4>Arbiter</h4>
+        <p>Trust scores, declaration gaps, classification tagging. Optional integration.</p>
+      </div>
+      <div class="concept">
+        <h4>Constrain</h4>
+        <p>Generate baton.yaml from component_map.yaml. Data access declarations.</p>
+      </div>
+      <div class="concept">
+        <h4>Ledger</h4>
+        <p>Egress node sync, field masking at adapter, Ledger-sourced mock records.</p>
       </div>
     </div>
   </div>

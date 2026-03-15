@@ -25,6 +25,7 @@ def main(argv: list[str] | None = None) -> int:
     p_init = sub.add_parser("init", help="Initialize a new circuit")
     p_init.add_argument("dir", nargs="?", default=".", help="Project directory")
     p_init.add_argument("--name", default="default", help="Circuit name")
+    p_init.add_argument("--constrain-dir", default="", help="Generate from Constrain component_map.yaml")
 
     # baton node
     p_node = sub.add_parser("node", help="Manage nodes")
@@ -83,12 +84,15 @@ def main(argv: list[str] | None = None) -> int:
     p_slot.add_argument("node", help="Node name")
     p_slot.add_argument("command", nargs="?", help="Command to run (omit for --mock)")
     p_slot.add_argument("--mock", action="store_true", help="Slot a mock instead")
+    p_slot.add_argument("--skip-validate", action="store_true", help="Skip runtime interface validation")
+    p_slot.add_argument("--force", action="store_true", help="Force slot even with low Arbiter trust")
     p_slot.add_argument("--dir", default=".", help="Project directory")
 
     # baton swap
     p_swap = sub.add_parser("swap", help="Hot-swap a service in a node")
     p_swap.add_argument("node", help="Node name")
     p_swap.add_argument("command", help="Command to run")
+    p_swap.add_argument("--skip-validate", action="store_true", help="Skip runtime interface validation")
     p_swap.add_argument("--dir", default=".", help="Project directory")
 
     # baton collapse
@@ -273,6 +277,60 @@ def main(argv: list[str] | None = None) -> int:
     p_dora.add_argument("--json", action="store_true", dest="json_output", help="Output as JSON")
     p_dora.add_argument("--dir", default=".", help="Project directory")
 
+    # baton logs
+    p_logs = sub.add_parser("logs", help="Show service logs")
+    p_logs.add_argument("--node", default="", help="Filter by node")
+    p_logs.add_argument("--level", default="", help="Minimum severity level (debug/info/warning/error/critical)")
+    p_logs.add_argument("--last", type=int, default=50, help="Number of entries (default: 50)")
+    p_logs.add_argument("--dir", default=".", help="Project directory")
+
+    # baton taint
+    p_taint = sub.add_parser("taint", help="Taint analysis / canary data boundary verification")
+    taint_sub = p_taint.add_subparsers(dest="taint_command")
+
+    p_taint_seed = taint_sub.add_parser("seed", help="Seed canary data into services")
+    p_taint_seed.add_argument("--node", default="", help="Seed only this node (default: all)")
+    p_taint_seed.add_argument("--dir", default=".", help="Project directory")
+
+    p_taint_status = taint_sub.add_parser("status", help="Show active canary data and violations")
+    p_taint_status.add_argument("--dir", default=".", help="Project directory")
+
+    p_taint_violations = taint_sub.add_parser("violations", help="List all taint violations")
+    p_taint_violations.add_argument("--dir", default=".", help="Project directory")
+
+    p_taint_clear = taint_sub.add_parser("clear", help="Remove all canary data")
+    p_taint_clear.add_argument("--dir", default=".", help="Project directory")
+
+    # baton trust
+    p_trust = sub.add_parser("trust", help="Show Arbiter trust score for a node")
+    p_trust.add_argument("node", help="Node name")
+    p_trust.add_argument("--dir", default=".", help="Project directory")
+
+    # baton audit
+    p_audit = sub.add_parser("audit", help="Show recent audit events for a node")
+    p_audit.add_argument("node", help="Node name")
+    p_audit.add_argument("--last", type=int, default=20, help="Number of entries")
+    p_audit.add_argument("--dir", default=".", help="Project directory")
+
+    # baton arbiter
+    p_arbiter = sub.add_parser("arbiter", help="Arbiter integration")
+    arbiter_sub = p_arbiter.add_subparsers(dest="arbiter_command")
+    p_arb_status = arbiter_sub.add_parser("status", help="Show Arbiter connectivity")
+    p_arb_status.add_argument("--dir", default=".", help="Project directory")
+
+    # baton test
+    p_test = sub.add_parser("test", help="Run circuit tests")
+    p_test.add_argument("--canary", action="store_true", help="Run canary injection test")
+    p_test.add_argument("--tiers", default="", help="Comma-separated tiers (e.g. PII,FINANCIAL)")
+    p_test.add_argument("--duration", default="60", help="Soak duration (e.g. 60s, 5m, 1h)")
+    p_test.add_argument("--run-id", default="", help="Run identifier")
+    p_test.add_argument("--ledger-mocks", action="store_true", help="Use Ledger for mock data")
+    p_test.add_argument("--dir", default=".", help="Project directory")
+
+    # baton sync-ledger
+    p_sync_ledger = sub.add_parser("sync-ledger", help="Sync egress nodes from Ledger")
+    p_sync_ledger.add_argument("--dir", default=".", help="Project directory")
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -326,6 +384,20 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_certs(args)
         elif args.command == "dora":
             return _cmd_dora(args)
+        elif args.command == "logs":
+            return _cmd_logs(args)
+        elif args.command == "taint":
+            return _cmd_taint(args)
+        elif args.command == "trust":
+            return asyncio.run(_cmd_trust(args))
+        elif args.command == "audit":
+            return _cmd_audit(args)
+        elif args.command == "arbiter":
+            return asyncio.run(_cmd_arbiter(args))
+        elif args.command == "test":
+            return asyncio.run(_cmd_test(args))
+        elif args.command == "sync-ledger":
+            return asyncio.run(_cmd_sync_ledger(args))
         elif args.command in ("up", "down", "slot", "swap", "collapse", "watch", "deploy", "teardown", "deploy-status", "dashboard"):
             return asyncio.run(_cmd_async(args))
         else:
@@ -474,7 +546,9 @@ async def _cmd_slot(args: argparse.Namespace) -> int:
     from baton.lifecycle import LifecycleManager
     mgr = LifecycleManager(args.dir)
     state = await mgr.up(mock=False)
-    await mgr.slot(args.node, args.command)
+    skip = getattr(args, "skip_validate", False)
+    force = getattr(args, "force", False)
+    await mgr.slot(args.node, args.command, validate=not skip, force=force)
     print(f"Slotted service into '{args.node}'")
     return 0
 
@@ -483,7 +557,8 @@ async def _cmd_swap(args: argparse.Namespace) -> int:
     from baton.lifecycle import LifecycleManager
     mgr = LifecycleManager(args.dir)
     state = await mgr.up(mock=False)
-    await mgr.swap(args.node, args.command)
+    skip = getattr(args, "skip_validate", False)
+    await mgr.swap(args.node, args.command, validate=not skip)
     print(f"Swapped service in '{args.node}'")
     return 0
 
@@ -939,6 +1014,30 @@ def _cmd_dora(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_logs(args: argparse.Namespace) -> int:
+    from baton.service_log import ServiceLogCollector
+
+    records = ServiceLogCollector.load_history(
+        args.dir,
+        node=args.node or None,
+        severity=args.level or None,
+        last_n=args.last,
+    )
+    if not records:
+        print("No service logs found")
+        return 0
+
+    for r in records:
+        sev = r.get("severity", "info").upper()
+        node = r.get("node_name", "?")
+        ts = r.get("timestamp", "")[:19]  # Trim to seconds
+        stream = r.get("stream", "")
+        msg = r.get("message", "")
+        print(f"[{ts}] [{sev:<8}] [{node}:{stream}] {msg}")
+
+    return 0
+
+
 async def _cmd_dashboard(args: argparse.Namespace) -> int:
     import json as json_mod
     from baton.dashboard import collect, format_table
@@ -1088,6 +1187,14 @@ async def _cmd_image_push(args: argparse.Namespace) -> int:
 def _cmd_init(args: argparse.Namespace) -> int:
     project_dir = Path(args.dir)
     project_dir.mkdir(parents=True, exist_ok=True)
+    if args.constrain_dir:
+        from baton.constrain import generate_and_save
+        output = generate_and_save(
+            args.constrain_dir, args.dir,
+            circuit_name=args.name,
+        )
+        print(f"Generated {output} from Constrain component_map")
+        return 0
     config_path = project_dir / CONFIG_FILENAME
     if config_path.exists():
         print(f"{CONFIG_FILENAME} already exists in {project_dir}")
@@ -1612,3 +1719,216 @@ def _cmd_certs(args: argparse.Namespace) -> int:
             return 1
 
     return 1
+
+
+def _cmd_taint(args: argparse.Namespace) -> int:
+    import json as _json
+    from baton.state import read_jsonl
+    from baton.taint import TAINT_FILE, VIOLATIONS_FILE
+
+    if args.taint_command == "status":
+        canaries = read_jsonl(args.dir, TAINT_FILE)
+        violations = read_jsonl(args.dir, VIOLATIONS_FILE)
+        print(f"Active canary data:  {len(canaries)}")
+        print(f"Violations detected: {len(violations)}")
+        if canaries:
+            print()
+            print(f"  {'Category':<15} {'Fingerprint':<12} {'Seed Node':<15} {'Value'}")
+            print(f"  {'─'*15} {'─'*12} {'─'*15} {'─'*30}")
+            for c in canaries:
+                print(f"  {c.get('category',''):<15} {c.get('fingerprint',''):<12} "
+                      f"{c.get('seed_node',''):<15} {c.get('value','')}")
+        return 0
+
+    elif args.taint_command == "violations":
+        violations = read_jsonl(args.dir, VIOLATIONS_FILE)
+        if not violations:
+            print("No taint violations detected")
+            return 0
+        print(f"Taint violations: {len(violations)}")
+        print()
+        for v in violations:
+            print(f"  [{v.get('severity', 'critical').upper()}] "
+                  f"Fingerprint {v.get('fingerprint', '')} ({v.get('category', '')})")
+            print(f"    Seeded in:    {v.get('seed_node', '')}")
+            print(f"    Observed at:  {v.get('observed_node', '')} ({v.get('observed_in', '')})")
+            print(f"    Allowed:      {v.get('allowed_nodes', [])}")
+            print(f"    Timestamp:    {v.get('timestamp', '')}")
+            print()
+        return 0
+
+    elif args.taint_command == "seed":
+        from baton.taint import CanaryGenerator
+        from baton.state import append_jsonl, ensure_baton_dir
+
+        ensure_baton_dir(args.dir)
+        circuit = load_circuit(args.dir)
+        generator = CanaryGenerator()
+
+        nodes = circuit.nodes
+        if args.node:
+            nodes = [n for n in nodes if n.name == args.node]
+            if not nodes:
+                print(f"Error: node '{args.node}' not found", file=sys.stderr)
+                return 1
+
+        count = 0
+        for node in nodes:
+            canaries = generator.generate_set(node.name)
+            neighbors = set(circuit.neighbors(node.name))
+            dependents = set(circuit.dependents(node.name))
+            allowed = {node.name} | neighbors | dependents
+            for datum in canaries:
+                entry = datum.to_dict()
+                entry["allowed_nodes"] = sorted(allowed)
+                append_jsonl(args.dir, TAINT_FILE, entry)
+                count += 1
+
+        print(f"Seeded {count} canary data points across {len(nodes)} node(s)")
+        return 0
+
+    elif args.taint_command == "clear":
+        baton_dir = Path(args.dir) / ".baton"
+        for f in (TAINT_FILE, VIOLATIONS_FILE):
+            p = baton_dir / f
+            if p.exists():
+                p.unlink()
+        print("Cleared all canary data and violations")
+        return 0
+
+    else:
+        print("Usage: baton taint {seed|status|violations|clear}", file=sys.stderr)
+        return 1
+
+
+async def _cmd_trust(args: argparse.Namespace) -> int:
+    from baton.arbiter import ArbiterClient
+    config = load_circuit_config(args.dir)
+    if not config.arbiter.api_endpoint:
+        print("Arbiter not configured (no arbiter.api_endpoint in baton.yaml)")
+        return 1
+    client = ArbiterClient(config.arbiter.api_endpoint)
+    trust = await client.get_trust_score(args.node)
+    if trust is None:
+        print(f"Could not reach Arbiter at {config.arbiter.api_endpoint}")
+        return 1
+    auth_str = " (authoritative)" if trust.authoritative else ""
+    print(f"Node:    {trust.node_name}")
+    print(f"Score:   {trust.score:.2f}")
+    print(f"Level:   {trust.level}{auth_str}")
+    return 0
+
+
+def _cmd_audit(args: argparse.Namespace) -> int:
+    from baton.state import read_jsonl
+    records = read_jsonl(args.dir, "service_events.jsonl", last_n=args.last)
+    node_records = [r for r in records if r.get("node_name") == args.node]
+    if not node_records:
+        print(f"No audit events for '{args.node}'")
+        return 0
+    for r in node_records:
+        ts = r.get("timestamp", "")[:19]
+        event_type = r.get("type", "")
+        msg = r.get("message", "")
+        print(f"[{ts}] {event_type}: {msg}")
+    return 0
+
+
+async def _cmd_arbiter(args: argparse.Namespace) -> int:
+    if args.arbiter_command == "status":
+        from baton.arbiter import ArbiterClient
+        config = load_circuit_config(args.dir)
+        if not config.arbiter.api_endpoint:
+            print("Arbiter not configured")
+            return 0
+        client = ArbiterClient(config.arbiter.api_endpoint)
+        reachable = await client.is_reachable()
+        print(f"Endpoint:    {config.arbiter.api_endpoint}")
+        print(f"OTLP:        {config.arbiter.endpoint or 'not configured'}")
+        print(f"Reachable:   {'yes' if reachable else 'no'}")
+        print(f"Forward:     {'enabled' if config.arbiter.forward_spans else 'disabled'}")
+        print(f"Classify:    {'enabled' if config.arbiter.classification_tagging else 'disabled'}")
+        return 0
+    else:
+        print("Usage: baton arbiter {status}", file=sys.stderr)
+        return 1
+
+
+async def _cmd_sync_ledger(args: argparse.Namespace) -> int:
+    config = load_circuit_config(args.dir)
+    if not config.ledger.api_endpoint:
+        print("Ledger not configured (no ledger.api_endpoint in baton.yaml)")
+        return 1
+    from baton.ledger import LedgerClient
+    client = LedgerClient(config.ledger.api_endpoint)
+    egress_nodes = await client.get_egress_export()
+    if not egress_nodes:
+        print("No egress nodes from Ledger (or Ledger unreachable)")
+        return 1
+    # Add egress nodes to circuit
+    from baton.circuit import add_node
+    circuit = load_circuit(args.dir)
+    added = 0
+    for en in egress_nodes:
+        if not en.name:
+            continue
+        # Check if already exists
+        if circuit.node_by_name(en.name):
+            continue
+        port = en.port or (max(n.port for n in circuit.nodes) + 1 if circuit.nodes else 8001)
+        circuit = add_node(circuit, en.name, port=port, role="egress")
+        added += 1
+    if added:
+        save_circuit(circuit, args.dir)
+    print(f"Synced {len(egress_nodes)} egress nodes from Ledger ({added} new)")
+    return 0
+
+
+async def _cmd_test(args: argparse.Namespace) -> int:
+    if not args.canary:
+        print("Usage: baton test --canary [--tiers PII,FINANCIAL] [--duration 60s]")
+        return 1
+
+    from baton.canary_test import run_canary_test
+    circuit = load_circuit(args.dir)
+
+    # Parse duration
+    duration_str = args.duration.strip()
+    if duration_str.endswith("h"):
+        duration_s = float(duration_str[:-1]) * 3600
+    elif duration_str.endswith("m"):
+        duration_s = float(duration_str[:-1]) * 60
+    elif duration_str.endswith("s"):
+        duration_s = float(duration_str[:-1])
+    else:
+        duration_s = float(duration_str)
+
+    tiers = [t.strip() for t in args.tiers.split(",") if t.strip()] if args.tiers else None
+    node_names = [n.name for n in circuit.nodes]
+    neighbors = {
+        n.name: set(circuit.neighbors(n.name)) | set(circuit.dependents(n.name))
+        for n in circuit.nodes
+    }
+
+    # Arbiter client if configured
+    arbiter_client = None
+    try:
+        config = load_circuit_config(args.dir)
+        if config.arbiter.api_endpoint:
+            from baton.arbiter import ArbiterClient
+            arbiter_client = ArbiterClient(config.arbiter.api_endpoint)
+    except FileNotFoundError:
+        pass
+
+    print(f"Starting canary soak test ({duration_s:.0f}s)...")
+    result = await run_canary_test(
+        project_dir=Path(args.dir),
+        circuit_nodes=node_names,
+        circuit_neighbors=neighbors,
+        duration_s=duration_s,
+        tiers=tiers,
+        run_id=args.run_id,
+        arbiter_client=arbiter_client,
+    )
+    print(result.format_report())
+    return 0 if result.violations_found == 0 else 1

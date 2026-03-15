@@ -67,6 +67,48 @@ class RoutingStrategy(StrEnum):
     CANARY = "canary"
 
 
+# -- Data Access & Integration (frozen) --
+
+
+class DataAccessSpec(BaseModel):
+    """Declared data access tiers for a node."""
+
+    model_config = ConfigDict(frozen=True)
+
+    reads: list[str] = Field(default_factory=list)
+    writes: list[str] = Field(default_factory=list)
+
+
+class ArbiterConfig(BaseModel):
+    """Arbiter integration configuration."""
+
+    model_config = ConfigDict(frozen=True)
+
+    endpoint: str = ""  # OTLP gRPC endpoint
+    http_endpoint: str = ""  # OTLP HTTP fallback
+    api_endpoint: str = ""  # REST API endpoint
+    forward_spans: bool = False
+    classification_tagging: bool = False
+
+
+class AuditChannelConfig(BaseModel):
+    """Audit event sidecar configuration."""
+
+    model_config = ConfigDict(frozen=True)
+
+    port: int = Field(default=9000, ge=1024, le=65535)
+    protocol: str = "http"  # http or unix_socket
+
+
+class LedgerConfig(BaseModel):
+    """Ledger integration configuration."""
+
+    model_config = ConfigDict(frozen=True)
+
+    api_endpoint: str = ""  # http://localhost:7701
+    mock_from_ledger: bool = True  # use Ledger for mock data in test mode
+
+
 # -- Circuit Definition (frozen) --
 
 
@@ -83,6 +125,9 @@ class NodeSpec(BaseModel):
     role: NodeRole = NodeRole.SERVICE
     management_port: int = 0
     metadata: dict[str, str] = Field(default_factory=dict)
+    data_access: DataAccessSpec | None = None
+    authority: list[str] = Field(default_factory=list)
+    openapi_spec: str = ""
 
     @model_validator(mode="after")
     def auto_management_port(self) -> NodeSpec:
@@ -110,6 +155,7 @@ class EdgeSpec(BaseModel):
     label: str = ""
 
     policy: "EdgePolicy | None" = None
+    data_tiers_in_flight: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def no_self_loop(self) -> EdgeSpec:
@@ -368,6 +414,22 @@ class SignalRecord(BaseModel):
     span_id: str = ""
 
 
+# -- Service Events --
+
+
+class ServiceEvent(BaseModel):
+    """An event emitted by a service through the control API."""
+
+    model_config = ConfigDict(frozen=True)
+
+    node_name: str = ""
+    type: str = Field(min_length=1)  # e.g. "ready", "error", "warning", "metric", "custom"
+    message: str = ""
+    severity: str = "info"  # debug, info, warning, error, critical
+    data: dict[str, str] = Field(default_factory=dict)
+    timestamp: str = ""
+
+
 # -- Custodian Events --
 
 
@@ -481,6 +543,19 @@ class ObservabilityConfig(BaseModel):
     trace_sample_rate: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
+class TaintConfig(BaseModel):
+    """Taint analysis configuration for canary data boundary verification."""
+
+    model_config = ConfigDict(frozen=True)
+
+    enabled: bool = False
+    scan_requests: bool = True
+    scan_responses: bool = True
+    categories: list[str] = Field(
+        default_factory=lambda: ["ssn", "email", "credit_card", "phone", "name"]
+    )
+
+
 class DeployConfig(BaseModel):
     """Deployment configuration from baton.yaml."""
 
@@ -561,6 +636,10 @@ class CircuitConfig(BaseModel):
     observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
     node_telemetry: dict[str, NodeTelemetryConfig] = Field(default_factory=dict)
     federation: FederationConfig = Field(default_factory=FederationConfig)
+    taint: TaintConfig = Field(default_factory=TaintConfig)
+    arbiter: ArbiterConfig = Field(default_factory=ArbiterConfig)
+    audit_channel: AuditChannelConfig = Field(default_factory=AuditChannelConfig)
+    ledger: LedgerConfig = Field(default_factory=LedgerConfig)
 
     @model_validator(mode="after")
     def unique_node_names(self) -> CircuitConfig:

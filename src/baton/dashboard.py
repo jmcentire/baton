@@ -28,6 +28,8 @@ class NodeSnapshot:
     active_connections: int = 0
     routing_strategy: str | None = None
     routing_locked: bool = False
+    trust_score: float | None = None
+    trust_level: str | None = None
 
 
 @dataclass
@@ -42,6 +44,7 @@ async def collect(
     adapters: dict[str, Adapter],
     state: CircuitState,
     circuit: CircuitSpec,
+    arbiter_client=None,
 ) -> DashboardSnapshot:
     """Collect metrics from all adapters into a snapshot."""
     snapshot = DashboardSnapshot(
@@ -71,7 +74,7 @@ async def collect(
         else:
             routing_strategy = "single"
 
-        snapshot.nodes[name] = NodeSnapshot(
+        node_snap = NodeSnapshot(
             name=name,
             role=str(role),
             status=status_str,
@@ -86,6 +89,18 @@ async def collect(
             routing_locked=routing_locked,
         )
 
+        # Fetch trust score from Arbiter if available
+        if arbiter_client is not None:
+            try:
+                trust = await arbiter_client.get_trust_score(name)
+                if trust is not None:
+                    node_snap.trust_score = trust.score
+                    node_snap.trust_level = trust.level
+            except Exception:
+                pass  # Arbiter unavailable -- degrade gracefully
+
+        snapshot.nodes[name] = node_snap
+
     return snapshot
 
 
@@ -94,7 +109,14 @@ def format_table(snapshot: DashboardSnapshot) -> str:
     if not snapshot.nodes:
         return "No nodes in snapshot."
 
-    header = f"{'Node':<14} {'Role':<10} {'Status':<10} {'Health':<10} {'Reqs':>6} {'Err%':>6} {'p50':>8} {'p95':>8} {'Routing'}"
+    # Check if any node has trust data
+    has_trust = any(n.trust_score is not None for n in snapshot.nodes.values())
+
+    header = f"{'Node':<14} {'Role':<10} {'Status':<10} {'Health':<10} {'Reqs':>6} {'Err%':>6} {'p50':>8} {'p95':>8}"
+    if has_trust:
+        header += f" {'Trust':>7} {'Routing'}"
+    else:
+        header += f" {'Routing'}"
     lines = [header, "-" * len(header)]
 
     for node in snapshot.nodes.values():
@@ -105,9 +127,16 @@ def format_table(snapshot: DashboardSnapshot) -> str:
         if node.routing_locked:
             routing += " (locked)"
 
-        lines.append(
+        line = (
             f"{node.name:<14} {node.role:<10} {node.status:<10} {node.health:<10} "
-            f"{node.requests_total:>6} {err_pct:>6} {p50:>8} {p95:>8} {routing}"
+            f"{node.requests_total:>6} {err_pct:>6} {p50:>8} {p95:>8}"
         )
+        if has_trust:
+            trust_str = f"{node.trust_score:.2f}" if node.trust_score is not None else "—"
+            line += f" {trust_str:>7} {routing}"
+        else:
+            line += f" {routing}"
+
+        lines.append(line)
 
     return "\n".join(lines)

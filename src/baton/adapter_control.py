@@ -26,6 +26,7 @@ class AdapterControlServer:
         self._security = security
         self._auth_required = False
         self._auth_token: str | None = None
+        self._service_events: list[dict] = []
         if security and security.control.auth:
             self._auth_required = True
             if security.control.token_env:
@@ -92,6 +93,13 @@ class AdapterControlServer:
                     key, val = decoded.split(":", 1)
                     headers[key.strip().lower()] = val.strip()
 
+            content_length = int(headers.get("content-length", "0"))
+            request_body = b""
+            if content_length > 0:
+                request_body = await asyncio.wait_for(
+                    reader.readexactly(content_length), timeout=5.0
+                )
+
             parts = request_line.decode("ascii", errors="replace").strip().split()
             method = parts[0] if parts else ""
             path = parts[1] if len(parts) > 1 else ""
@@ -118,6 +126,14 @@ class AdapterControlServer:
                 body = self._handle_status()
             elif method == "GET" and path == "/routing":
                 body = self._handle_routing()
+            elif method == "GET" and path == "/taint":
+                body = self._handle_taint()
+            elif method == "POST" and path == "/events":
+                body = self._handle_event(request_body)
+                self._write_response(writer, 201, body)
+                await writer.drain()
+                writer.close()
+                return
             else:
                 body = json.dumps({"error": "not found"})
                 self._write_response(writer, 404, body)
@@ -184,9 +200,49 @@ class AdapterControlServer:
             })
         return json.dumps(routing.model_dump())
 
+    def _handle_taint(self) -> str:
+        violations = self._adapter.drain_taint_violations()
+        return json.dumps({
+            "violations": [v.to_dict() for v in violations],
+            "count": len(violations),
+        })
+
+    def _handle_event(self, request_body: bytes) -> str:
+        """Handle POST /events: accept a service event and buffer it."""
+        from datetime import datetime, timezone
+
+        try:
+            data = json.loads(request_body)
+        except (json.JSONDecodeError, ValueError):
+            return json.dumps({"error": "invalid JSON"})
+
+        event_type = data.get("type", "")
+        message = data.get("message", "")
+        if not isinstance(event_type, str) or not event_type:
+            return json.dumps({"error": "missing required field: type"})
+        if not isinstance(message, str):
+            return json.dumps({"error": "missing required field: message"})
+
+        event = {
+            "node_name": self._adapter.node.name,
+            "type": event_type,
+            "message": message,
+            "severity": data.get("severity", "info"),
+            "data": data.get("data", {}),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        self._service_events.append(event)
+        return json.dumps(event)
+
+    def drain_service_events(self) -> list[dict]:
+        """Return and clear all buffered service events."""
+        events = list(self._service_events)
+        self._service_events.clear()
+        return events
+
     @staticmethod
     def _write_response(writer: asyncio.StreamWriter, status: int, body: str) -> None:
-        reason = {200: "OK", 401: "Unauthorized", 404: "Not Found", 500: "Internal Server Error", 503: "Service Unavailable"}.get(
+        reason = {200: "OK", 201: "Created", 401: "Unauthorized", 404: "Not Found", 500: "Internal Server Error", 503: "Service Unavailable"}.get(
             status, "Unknown"
         )
         body_bytes = body.encode("utf-8")

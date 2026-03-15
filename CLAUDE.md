@@ -32,15 +32,23 @@ src/baton/
   circuit.py          # Graph operations
   manifest.py         # Service manifest loading (baton-service.yaml)
   registry.py         # Circuit derivation from service manifests
-  compat.py           # Static compatibility analysis
-  adapter.py          # Async reverse proxy with A/B routing, HTTP health checks, latency percentiles
-  adapter_control.py  # Adapter management API (/health, /metrics, /status, /routing)
+  compat.py           # Static + runtime compatibility analysis (validate_service_runtime)
+  taint.py            # Taint analysis: canary data generation, boundary tracking, fingerprint scanning
+  adapter.py          # Async reverse proxy with A/B routing, HTTP health checks, latency percentiles, taint scanning
+  adapter_control.py  # Adapter management API (/health, /metrics, /status, /routing, /taint, POST /events)
+  service_log.py      # System-controlled service log capture, severity parsing, JSONL persistence
+  constrain.py        # Constrain component_map.yaml -> baton.yaml generation
+  arbiter.py          # Arbiter REST API client (trust scores, declaration gaps)
+  arbiter_exporter.py # Fire-and-forget span forwarding to Arbiter OTLP
+  audit_sidecar.py    # Local audit event receiver (127.0.0.1 only)
+  canary_test.py      # Canary soak test orchestration
+  ledger.py           # Ledger client: egress node sync, field masking, mock records
   routing.py          # Pre-baked routing patterns (ab_split, canary, header_route, weighted_split)
   canary.py           # CanaryController: auto-promotion/rollback with per-target metrics
   image.py            # ImageBuilder: runtime detection, Dockerfile generation, build/push
   mock.py             # Mock server generation
   custodian.py        # Health monitoring + repair
-  process.py          # Subprocess management
+  process.py          # Subprocess management with log capture (stdout/stderr -> ServiceLogCollector)
   state.py            # .baton/ persistence + JSONL utilities
   lifecycle.py        # Circuit lifecycle orchestration (slot, swap, slot_ab, route_ab, lock/unlock)
   collapse.py         # Collapse algorithm (egress nodes always mocked)
@@ -70,12 +78,28 @@ baton check [--service <name>]         # static compatibility analysis
 
 # Runtime
 baton up [--mock] [--services]         # boot circuit (--services for service-first)
-baton slot <node> <command>            # slot live service
-baton swap <node> <command>            # hot-swap service
+baton slot <node> <command>            # slot live service (validates contract if set)
+baton slot <node> <cmd> --skip-validate # skip runtime interface validation
+baton swap <node> <command>            # hot-swap service (validates contract if set)
 baton collapse [--live n1,n2]          # collapse circuit to partial mock
 baton status                           # show health
 baton watch                            # start custodian
 baton down                             # tear down
+
+# Taint Analysis
+baton taint seed [--node N]            # seed canary data into services
+baton taint status                     # show active canary data and violations
+baton taint violations                 # list all taint violations
+baton taint clear                      # remove all canary data
+
+# Arbiter Integration
+baton trust <node>                    # show Arbiter trust score
+baton audit <node>                    # show recent audit events
+baton arbiter status                  # Arbiter connectivity check
+baton test --canary [--tiers T]       # canary soak test
+baton test --canary --ledger-mocks    # canary test with Ledger mock data
+baton init --constrain-dir <path>     # generate from Constrain component_map
+baton sync-ledger                     # sync egress nodes from Ledger
 
 # A/B Routing
 baton route show <node>                # show routing config
@@ -91,6 +115,7 @@ baton route clear <node>               # remove routing config
 baton dashboard [--json]              # aggregated metrics table for all nodes
 baton metrics [--node N] [--last N]   # persistent metrics from JSONL
 baton metrics --prometheus            # Prometheus text exposition format
+baton logs [--node N] [--level L]     # service logs (system-captured stdout/stderr)
 baton signals [--node N] [--path P]   # recent request signals
 baton signals --stats                 # per-path statistics (count, avg latency, error rate)
 
@@ -120,6 +145,15 @@ baton deploy-status [--provider ...]   # check deployment status
 - Process ownership: `CircuitState.owner_pid` tracks the PID of the `baton up`/`baton apply` process. `baton down` sends SIGTERM to the owner so it cleans up via its `finally` block (drain adapters, stop control servers, kill child processes).
 - Mock wiring: both `baton up --mock` and `baton apply` wire mock backends for nodes without live services via `build_mock_server()`/`compute_mock_backends()`. The mock server is stopped in the owning process's cleanup path.
 - DORA metrics: `dora.py` derives deployment frequency, lead time, change failure rate, and MTTR from lifecycle events recorded in `.baton/events.jsonl`.
+- Runtime validation: `slot()` and `swap()` probe live services against their OpenAPI contract before accepting them. Skippable with `validate=False` or `--skip-validate`. Only active for HTTP-mode nodes with a `contract` field.
+- Arbiter integration: optional via `arbiter` section in `CircuitConfig`. All Arbiter calls use 2s timeout and degrade gracefully (return None/empty). Slot validation checks trust score and declaration gaps when configured. Classification tagging reads `x-data-classification` from OpenAPI specs.
+- Audit sidecar: `AuditSidecar` binds to 127.0.0.1 only. Services POST to `POST /audit-event` on the configured port (default 9000). Events buffered in memory, queryable by node.
+- Constrain integration: `baton init --constrain-dir` reads `component_map.yaml` and generates baton.yaml v2 skeleton with data_access, authority, and edge tiers.
+- Ledger integration: optional via `ledger` section in `CircuitConfig`. `baton sync-ledger` fetches egress node configs from Ledger. Adapter applies field masks (`_apply_field_masks`) to JSON response bodies before forwarding — encrypted-at-rest fields are replaced with `[ENCRYPTED]`. `--ledger-mocks` on canary test uses Ledger-generated mock records.
+- Taint analysis: `taint.py` seeds PII-shaped canary data with 8-char hex fingerprints (SSN, email, credit card, phone, name). `TaintScanner` hooks into adapter proxy and service logs to detect fingerprints crossing boundary violations. Opt-in via `taint.enabled: true` in `CircuitConfig`. Data stored in `.baton/taint_canaries.jsonl` and `.baton/taint_violations.jsonl`.
+- Service event channel: Services POST structured events to `POST /events` on their adapter's control port (`BATON_CONTROL_PORT` env var). Events buffered on `AdapterControlServer`, drainable via `drain_service_events()`. Persisted to `.baton/events.jsonl` as `service_event` type.
+- System-controlled logging: `ServiceLogCollector` captures service stdout/stderr via `ProcessManager` line-reader callbacks. Each line is structured with node attribution, stream source, severity (auto-parsed from common patterns: ERROR, WARNING, DEBUG, etc.), and timestamp. Persisted to `.baton/service_logs.jsonl`. Taint scanner also scans log output for canary fingerprints.
+- Environment: Services receive `BATON_SERVICE_PORT`, `BATON_NODE_NAME`, and `BATON_CONTROL_PORT` env vars at startup.
 
 ## Research-Backed Features
 

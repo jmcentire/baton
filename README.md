@@ -25,6 +25,13 @@ Start fully mocked. Slot in real services one at a time. Run A/B tests. Collapse
 - **Image building** -- auto-detect runtime (Python/Node), generate Dockerfiles, build and push container images
 - **Cloud deployment** -- local processes or GCP Cloud Run with `--build` for automatic image building; provider protocol for extensibility
 - **Security hardened** -- command injection prevention, header injection protection, path traversal guards, fail-closed auth, bounded header parsing
+- **Interface validation** -- services are validated against their OpenAPI contract at slot time; incompatible services are rejected before they receive traffic
+- **Taint analysis** -- seed PII-shaped canary data with traceable fingerprints, detect when data crosses boundaries it shouldn't. Scans adapter traffic and service logs
+- **Service event channel** -- services POST structured events to the adapter control API via `BATON_CONTROL_PORT`
+- **System-controlled logging** -- captures service stdout/stderr with automatic severity parsing (syslog-compatible), persisted to JSONL for audit trails
+- **Arbiter integration** -- trust scoring, declaration gap analysis, classification tagging on spans, fire-and-forget span forwarding. All optional and gracefully degrading
+- **Constrain integration** -- generate `baton.yaml` from Constrain's `component_map.yaml` with data access declarations and authority domains
+- **Ledger integration** -- sync egress nodes, field masking at the adapter layer, Ledger-sourced mock records for canary testing
 
 ## Quickstart
 
@@ -43,7 +50,7 @@ baton edge add api stripe
 # Boot with mocks
 baton up --mock
 
-# Slot in a real service
+# Slot in a real service (validates against contract if set)
 baton slot api "python -m http.server 8002"
 
 # Check health
@@ -94,6 +101,11 @@ Each adapter is an async reverse proxy that:
 - Supports weighted, header-based, and canary routing
 - Drains connections gracefully during hot-swaps
 - Reports metrics: request count, latency, bytes forwarded, error rate
+- Validates service interfaces against OpenAPI contracts before accepting them
+- Scans traffic for taint fingerprints (canary data boundary detection)
+- Tags spans with field classifications from OpenAPI `x-data-classification` extensions
+- Masks sensitive fields per Ledger export before forwarding responses
+- Accepts service events via POST /events on the management port
 
 ## Commands
 
@@ -189,6 +201,33 @@ baton deploy-status [--provider ...]      # check deployment status
 ```bash
 baton apply [--dry-run]                   # converge running state to match baton.yaml
 baton export [--output file.yaml]         # export running state as YAML config
+```
+
+### Taint Analysis
+
+```bash
+baton taint seed [--node N]              # seed canary data into services
+baton taint status                       # show active canary data and violations
+baton taint violations                   # list detected boundary violations
+baton taint clear                        # remove all canary data
+```
+
+### Service Logs
+
+```bash
+baton logs [--node N] [--level L]        # show captured service logs
+```
+
+### Arbiter & Constrain
+
+```bash
+baton init --constrain-dir <path>        # generate from Constrain component_map
+baton trust <node>                       # show Arbiter trust score for node
+baton audit <node>                       # show recent audit events
+baton arbiter status                     # Arbiter connectivity check
+baton test --canary [--tiers T]          # canary soak test
+baton test --canary --ledger-mocks       # canary test with Ledger mock data
+baton sync-ledger                        # sync egress nodes from Ledger
 ```
 
 ## Protocol Support
@@ -320,6 +359,38 @@ Baton auto-generates mock servers from OpenAPI specs. This means you can:
 
 Collapse levels: `full_mock` -> `partial` -> `full_live`
 
+## Taint Analysis
+
+Baton can seed PII-shaped synthetic data with embedded fingerprints across the circuit and detect when that data crosses boundaries it shouldn't:
+
+```bash
+baton taint seed                         # seed canary SSNs, emails, cards, phones, names
+baton taint status                       # show active canaries and any violations
+baton test --canary --tiers PII --duration 5m  # full soak test
+```
+
+Each canary datum is scoped to a node and its topological neighbors. The taint scanner inspects adapter traffic and service logs in real time. If a canary SSN seeded into `user-api` appears in a response from `analytics`, that's a `TaintViolation`.
+
+## Arbiter Integration
+
+When Arbiter is configured, Baton adds trust-aware slot validation, classification tagging, and span forwarding:
+
+```yaml
+# baton.yaml
+arbiter:
+  api_endpoint: "http://localhost:7700"
+  endpoint: "http://localhost:4317"
+  forward_spans: true
+  classification_tagging: true
+```
+
+- **Trust validation** -- `baton slot` checks trust score before accepting. Low-trust authoritative nodes require `--force`
+- **Declaration gaps** -- compares declared data access against Arbiter's observations
+- **Classification tagging** -- reads `x-data-classification` from OpenAPI specs, adds `baton.request.classifications` span attributes
+- **Span forwarding** -- fire-and-forget forwarding to Arbiter's OTLP endpoint with drop rate tracking
+
+All Arbiter features degrade gracefully. If Arbiter is unreachable, the circuit runs normally.
+
 ## Self-Healing
 
 The custodian monitors adapter health via TCP probes every 5 seconds:
@@ -391,6 +462,41 @@ federation:
       api_endpoint: 10.0.1.1:9090
 ```
 
+### v2 Schema (with Arbiter/Ledger)
+
+```yaml
+name: myproject
+version: 2
+nodes:
+  - name: api
+    port: 8001
+    data_access:
+      reads: [PII, PUBLIC]
+      writes: [PII]
+    authority: ["user.*"]
+    openapi_spec: specs/api.yaml
+  - name: stripe
+    port: 8002
+    role: egress
+
+edges:
+  - source: api
+    target: stripe
+    data_tiers_in_flight: [FINANCIAL]
+
+arbiter:
+  api_endpoint: "http://localhost:7700"
+  forward_spans: true
+
+ledger:
+  api_endpoint: "http://localhost:7701"
+
+taint:
+  enabled: true
+```
+
+Version 1 configs load without modification -- all new fields are optional with empty defaults.
+
 ### Node Roles
 
 | Role | Description |
@@ -414,7 +520,7 @@ pip install baton-orchestrator[certs]     # Certificate parsing and monitoring
 git clone https://github.com/jmcentire/baton.git
 cd baton
 pip install -e ".[dev]"
-pytest                    # 804 tests (701 hand-written + 103 smoke)
+pytest                    # 887 tests
 ```
 
 ### Smoke Tests

@@ -15,10 +15,14 @@ from pathlib import Path
 import yaml
 
 from baton.schemas import (
+    ArbiterConfig,
+    AuditChannelConfig,
     CircuitConfig,
+    LedgerConfig,
     CircuitSpec,
     ClusterIdentity,
     ControlAuthConfig,
+    DataAccessSpec,
     DeployConfig,
     EdgePolicy,
     EdgeSpec,
@@ -196,6 +200,9 @@ def _parse_circuit_config(raw: dict) -> CircuitConfig:
             tel = _parse_node_telemetry(n["telemetry"])
             if tel:
                 node_telemetry[n["name"]] = tel
+        # Parse data_access nested model
+        if "data_access" in n and isinstance(n["data_access"], dict):
+            n["data_access"] = DataAccessSpec(**n["data_access"])
         clean = {k: v for k, v in n.items() if k in _NODE_SPEC_KEYS}
         nodes.append(NodeSpec(**clean))
 
@@ -218,6 +225,9 @@ def _parse_circuit_config(raw: dict) -> CircuitConfig:
     security = _parse_security(raw.get("security", {}))
     observability = _parse_observability(raw.get("observability", {}))
     federation = _parse_federation(raw.get("federation", {}))
+    arbiter = _parse_arbiter(raw.get("arbiter", {}))
+    audit_channel = _parse_audit_channel(raw.get("audit_channel", {}))
+    ledger = _parse_ledger(raw.get("ledger", {}))
 
     return CircuitConfig(
         name=raw.get("name", "default"),
@@ -230,6 +240,9 @@ def _parse_circuit_config(raw: dict) -> CircuitConfig:
         observability=observability,
         node_telemetry=node_telemetry,
         federation=federation,
+        arbiter=arbiter,
+        audit_channel=audit_channel,
+        ledger=ledger,
     )
 
 
@@ -312,6 +325,26 @@ def _parse_federation(raw: dict) -> FederationConfig:
     )
 
 
+def _parse_arbiter(raw: dict) -> ArbiterConfig:
+    """Parse arbiter section."""
+    if not raw:
+        return ArbiterConfig()
+    return ArbiterConfig(**raw)
+
+
+def _parse_audit_channel(raw: dict) -> AuditChannelConfig:
+    """Parse audit_channel section."""
+    if not raw:
+        return AuditChannelConfig()
+    return AuditChannelConfig(**raw)
+
+
+def _parse_ledger(raw: dict) -> LedgerConfig:
+    if not raw:
+        return LedgerConfig()
+    return LedgerConfig(**raw)
+
+
 # -- Internal serializers --
 
 
@@ -335,6 +368,12 @@ def _serialize_circuit(circuit: CircuitSpec) -> dict:
                 nd["role"] = str(n.role)
             if n.metadata:
                 nd["metadata"] = dict(n.metadata)
+            if n.data_access:
+                nd["data_access"] = {"reads": list(n.data_access.reads), "writes": list(n.data_access.writes)}
+            if n.authority:
+                nd["authority"] = list(n.authority)
+            if n.openapi_spec:
+                nd["openapi_spec"] = n.openapi_spec
             data["nodes"].append(nd)
     if circuit.edges:
         data["edges"] = []
@@ -344,6 +383,8 @@ def _serialize_circuit(circuit: CircuitSpec) -> dict:
                 ed["label"] = e.label
             if e.policy:
                 ed["policy"] = _serialize_edge_policy(e.policy)
+            if e.data_tiers_in_flight:
+                ed["data_tiers_in_flight"] = list(e.data_tiers_in_flight)
             data["edges"].append(ed)
     return data
 
@@ -372,6 +413,12 @@ def _serialize_circuit_config(config: CircuitConfig) -> dict:
                 nd["role"] = str(n.role)
             if n.metadata:
                 nd["metadata"] = dict(n.metadata)
+            if n.data_access:
+                nd["data_access"] = {"reads": list(n.data_access.reads), "writes": list(n.data_access.writes)}
+            if n.authority:
+                nd["authority"] = list(n.authority)
+            if n.openapi_spec:
+                nd["openapi_spec"] = n.openapi_spec
             # Inject routing into node dict
             if n.name in config.routing:
                 nd["routing"] = _serialize_routing(config.routing[n.name])
@@ -388,6 +435,8 @@ def _serialize_circuit_config(config: CircuitConfig) -> dict:
                 ed["label"] = e.label
             if e.policy:
                 ed["policy"] = _serialize_edge_policy(e.policy)
+            if e.data_tiers_in_flight:
+                ed["data_tiers_in_flight"] = list(e.data_tiers_in_flight)
             data["edges"].append(ed)
 
     # Deploy section (omit defaults)
@@ -409,6 +458,21 @@ def _serialize_circuit_config(config: CircuitConfig) -> dict:
     federation = _serialize_federation(config.federation)
     if federation:
         data["federation"] = federation
+
+    # Arbiter section (omit if not configured)
+    arbiter = _serialize_arbiter(config.arbiter)
+    if arbiter:
+        data["arbiter"] = arbiter
+
+    # Audit channel section (omit if default)
+    audit_channel = _serialize_audit_channel(config.audit_channel)
+    if audit_channel:
+        data["audit_channel"] = audit_channel
+
+    # Ledger section (omit if not configured)
+    ledger = _serialize_ledger(config.ledger)
+    if ledger:
+        data["ledger"] = ledger
 
     return data
 
@@ -571,4 +635,39 @@ def _serialize_federation(federation: FederationConfig) -> dict:
         d["heartbeat_timeout_s"] = federation.heartbeat_timeout_s
     if federation.failover_threshold != 3:
         d["failover_threshold"] = federation.failover_threshold
+    return d
+
+
+def _serialize_arbiter(arbiter: ArbiterConfig) -> dict:
+    """Serialize ArbiterConfig, omitting defaults."""
+    d: dict = {}
+    if arbiter.endpoint:
+        d["endpoint"] = arbiter.endpoint
+    if arbiter.http_endpoint:
+        d["http_endpoint"] = arbiter.http_endpoint
+    if arbiter.api_endpoint:
+        d["api_endpoint"] = arbiter.api_endpoint
+    if arbiter.forward_spans:
+        d["forward_spans"] = arbiter.forward_spans
+    if arbiter.classification_tagging:
+        d["classification_tagging"] = arbiter.classification_tagging
+    return d
+
+
+def _serialize_audit_channel(audit_channel: AuditChannelConfig) -> dict:
+    """Serialize AuditChannelConfig, omitting defaults."""
+    d: dict = {}
+    if audit_channel.port != 9000:
+        d["port"] = audit_channel.port
+    if audit_channel.protocol != "http":
+        d["protocol"] = audit_channel.protocol
+    return d
+
+
+def _serialize_ledger(ledger: LedgerConfig) -> dict:
+    d: dict = {}
+    if ledger.api_endpoint:
+        d["api_endpoint"] = ledger.api_endpoint
+    if not ledger.mock_from_ledger:
+        d["mock_from_ledger"] = ledger.mock_from_ledger
     return d

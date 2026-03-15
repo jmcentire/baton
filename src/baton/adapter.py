@@ -12,6 +12,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 
 import random
 
@@ -140,6 +141,10 @@ class Adapter:
         self._span_exporter: SpanExporter | None = None
         self._telemetry_rules: list[TelemetryClassRule] = []
         self._span_buffer: list[SpanData] = []
+        self._classification_mapping: dict[str, list[str]] | None = None
+        self._taint_scanner = None  # Optional TaintScanner
+        self._taint_violations: list = []
+        self._field_masks: list[tuple[str, str]] | None = None  # (field, replacement) pairs
 
     @property
     def node(self) -> NodeSpec:
@@ -212,10 +217,31 @@ class Adapter:
         """Set telemetry class rules for this adapter."""
         self._telemetry_rules = list(rules)
 
+    def set_classification_mapping(self, mapping: dict[str, list[str]] | None) -> None:
+        """Set field-to-classification mapping for span enrichment.
+
+        Built from the node's OpenAPI spec at slot time. Invalidated on swap.
+        """
+        self._classification_mapping = mapping
+
+    def set_field_masks(self, masks: list[tuple[str, str]] | None) -> None:
+        """Set field masks from Ledger. Applied to responses before forwarding."""
+        self._field_masks = masks
+
     def drain_spans(self) -> list[SpanData]:
         """Return and clear the span buffer."""
         drained = self._span_buffer[:]
         self._span_buffer.clear()
+        return drained
+
+    def set_taint_scanner(self, scanner) -> None:
+        """Set the taint scanner for data boundary verification."""
+        self._taint_scanner = scanner
+
+    def drain_taint_violations(self) -> list:
+        """Return and clear the taint violation buffer."""
+        drained = self._taint_violations[:]
+        self._taint_violations.clear()
         return drained
 
     async def start(self) -> None:
@@ -567,6 +593,9 @@ class Adapter:
                         # Connected but got no response -- treat as failure
                         raise OSError("Empty response from backend")
 
+                    # Apply field masks before forwarding
+                    if self._field_masks and response_data:
+                        response_data = _apply_field_masks(response_data, self._field_masks)
                     client_writer.write(response_data)
                     await client_writer.drain()
 
@@ -597,6 +626,16 @@ class Adapter:
                 self._metrics.requests_failed += 1
                 return
 
+            # Taint scanning: check for canary fingerprints in traffic
+            if self._taint_scanner:
+                violations = self._taint_scanner.scan(
+                    response_data or b"", self._node.name, "response", trace_id,
+                )
+                violations.extend(self._taint_scanner.scan(
+                    request_data, self._node.name, "request", trace_id,
+                ))
+                self._taint_violations.extend(violations)
+
             latency = (time.monotonic() - start) * 1000
             self._metrics.requests_total += 1
             self._metrics.last_latency_ms = latency
@@ -626,6 +665,19 @@ class Adapter:
                 tel_class = resolve_telemetry_class(
                     method, path, self._node.name, self._telemetry_rules,
                 )
+                span_attrs = {
+                    "http.method": method,
+                    "http.path": path,
+                    "http.status_code": str(status_code),
+                    "target": target_key,
+                }
+                if self._classification_mapping:
+                    req_cls = _classify_body(request_data, self._classification_mapping)
+                    resp_cls = _classify_body(response_data, self._classification_mapping)
+                    if req_cls:
+                        span_attrs["baton.request.classifications"] = ",".join(sorted(req_cls))
+                    if resp_cls:
+                        span_attrs["baton.response.classifications"] = ",".join(sorted(resp_cls))
                 span = SpanData(
                     name=tel_class,
                     trace_id=trace_id,
@@ -633,12 +685,7 @@ class Adapter:
                     parent_span_id=parent_ctx.span_id if parent_ctx else "",
                     start_time_ns=int(start * 1e9),
                     end_time_ns=int(time.monotonic() * 1e9),
-                    attributes={
-                        "http.method": method,
-                        "http.path": path,
-                        "http.status_code": str(status_code),
-                        "target": target_key,
-                    },
+                    attributes=span_attrs,
                     status="ok" if 200 <= status_code < 400 else "error",
                     node_name=self._node.name,
                 )
@@ -743,3 +790,130 @@ def _inject_traceparent(request_data: bytes, traceparent: str) -> bytes:
     if len(parts) == 2:
         return parts[0] + b"\r\n" + header_line + b"\r\n" + parts[1]
     return request_data
+
+
+def _classify_body(data: bytes | None, mapping: dict[str, list[str]]) -> set[str]:
+    """Scan request/response body for field names and return their classifications.
+
+    Best-effort: scans for JSON field names in the body bytes.
+    Cannot see into opaque fields (base64, encrypted blobs).
+    """
+    if not data or not mapping:
+        return set()
+    classifications = set()
+    try:
+        text = data.decode("utf-8", errors="replace")
+        for field_name, tiers in mapping.items():
+            if f'"{field_name}"' in text:
+                classifications.update(tiers)
+    except Exception:
+        pass
+    return classifications
+
+
+def _apply_field_masks(response_data: bytes, masks: list[tuple[str, str]]) -> bytes:
+    """Apply field masks to JSON response body.
+
+    Replaces field values in JSON responses before forwarding.
+    Only operates on the body portion (after \\r\\n\\r\\n).
+    """
+    parts = response_data.split(b"\r\n\r\n", 1)
+    if len(parts) != 2:
+        return response_data
+    headers, body = parts
+    try:
+        import json as _json
+        data = _json.loads(body)
+        if isinstance(data, dict):
+            changed = False
+            for field_name, replacement in masks:
+                if field_name in data:
+                    data[field_name] = replacement
+                    changed = True
+            if changed:
+                new_body = _json.dumps(data).encode("utf-8")
+                # Update Content-Length header
+                header_lines = headers.split(b"\r\n")
+                updated_headers = []
+                for line in header_lines:
+                    if line.lower().startswith(b"content-length:"):
+                        updated_headers.append(f"Content-Length: {len(new_body)}".encode("ascii"))
+                    else:
+                        updated_headers.append(line)
+                return b"\r\n".join(updated_headers) + b"\r\n\r\n" + new_body
+    except (ValueError, UnicodeDecodeError):
+        pass
+    return response_data
+
+
+def load_openapi_classifications(spec_path: str | Path, base_dir: str | Path = ".") -> dict[str, list[str]]:
+    """Build field-to-classification mapping from an OpenAPI spec.
+
+    Looks for x-data-classification extensions on schema properties.
+    Falls back to field name heuristics for common PII fields.
+
+    Returns: {field_name: [tier1, tier2, ...]}
+    """
+    import json as _json
+    full_path = Path(base_dir) / spec_path
+    if not full_path.exists():
+        return {}
+
+    with open(full_path) as f:
+        if full_path.suffix in (".yaml", ".yml"):
+            import yaml
+            spec = yaml.safe_load(f)
+        else:
+            spec = _json.load(f)
+
+    if not spec:
+        return {}
+
+    mapping: dict[str, list[str]] = {}
+
+    # Walk all schema properties looking for x-data-classification
+    components = spec.get("components", {}).get("schemas", {})
+    for schema_name, schema in components.items():
+        _extract_classifications(schema, mapping)
+
+    # Also walk path response/request schemas
+    for path_str, methods in spec.get("paths", {}).items():
+        for method, operation in methods.items():
+            if method.startswith("x-") or method == "parameters":
+                continue
+            # Request body
+            req_body = operation.get("requestBody", {})
+            req_schema = req_body.get("content", {}).get("application/json", {}).get("schema", {})
+            _extract_classifications(req_schema, mapping, components)
+            # Response schemas
+            for status, resp in operation.get("responses", {}).items():
+                resp_schema = resp.get("content", {}).get("application/json", {}).get("schema", {})
+                _extract_classifications(resp_schema, mapping, components)
+
+    return mapping
+
+
+def _extract_classifications(
+    schema: dict, mapping: dict[str, list[str]], components: dict | None = None,
+) -> None:
+    """Recursively extract x-data-classification from schema properties."""
+    if not schema:
+        return
+
+    # Resolve $ref
+    if "$ref" in schema and components:
+        ref_name = schema["$ref"].split("/")[-1]
+        schema = components.get(ref_name, {})
+
+    for prop_name, prop_schema in schema.get("properties", {}).items():
+        classification = prop_schema.get("x-data-classification")
+        if classification:
+            if isinstance(classification, str):
+                mapping[prop_name] = [classification]
+            elif isinstance(classification, list):
+                mapping[prop_name] = classification
+
+    # Recurse into array items
+    items = schema.get("items", {})
+    if items:
+        _extract_classifications(items, mapping, components)

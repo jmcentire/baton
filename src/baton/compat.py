@@ -5,6 +5,7 @@ Compares expected dependency interfaces against exposed service APIs.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -194,3 +195,198 @@ def _compare_schemas(
                 consumer, provider, path, method,
                 exp_items, act_items, report,
             )
+
+
+@dataclass(frozen=True)
+class RuntimeProbeResult:
+    """Result of probing a single endpoint."""
+    path: str
+    method: str
+    reachable: bool
+    status_code: int = 0
+    detail: str = ""
+
+
+@dataclass
+class RuntimeValidationResult:
+    """Result of runtime interface validation."""
+    compatible: bool = True
+    issues: list[CompatIssue] = field(default_factory=list)
+    probed_endpoints: int = 0
+    reachable: bool = False
+
+    def add(self, issue: CompatIssue) -> None:
+        self.issues.append(issue)
+        if issue.severity == "error":
+            self.compatible = False
+
+
+async def validate_service_runtime(
+    host: str,
+    port: int,
+    contract_path: str | Path,
+    base_dir: str | Path = ".",
+    timeout: float = 5.0,
+) -> RuntimeValidationResult:
+    """Probe a running service to verify it implements the expected API contract.
+
+    For each path/method in the contract's OpenAPI spec:
+    1. Send an HTTP request to verify the endpoint exists
+    2. Verify the endpoint doesn't return 404 or 405
+
+    Args:
+        host: Service host
+        port: Service port
+        contract_path: Path to the OpenAPI spec file (relative to base_dir)
+        base_dir: Base directory for resolving spec paths
+        timeout: Timeout per probe request in seconds
+
+    Returns:
+        RuntimeValidationResult with compatibility assessment
+    """
+    result = RuntimeValidationResult()
+    base = Path(base_dir)
+
+    # Load the contract spec
+    api_paths = _load_api_paths(base, str(contract_path))
+    if not api_paths:
+        # No paths in contract — nothing to validate
+        result.reachable = True
+        return result
+
+    # Check reachability first (with retries for startup race)
+    reachable = False
+    for attempt in range(3):
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port),
+                timeout=2.0,
+            )
+            writer.close()
+            await writer.wait_closed()
+            reachable = True
+            break
+        except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
+            if attempt < 2:
+                await asyncio.sleep(0.5)
+
+    result.reachable = reachable
+    if not reachable:
+        result.compatible = False
+        result.issues.append(CompatIssue(
+            consumer="runtime",
+            provider="service",
+            path="*",
+            method="*",
+            severity="error",
+            detail=f"Service unreachable at {host}:{port}",
+        ))
+        return result
+
+    # Probe each endpoint
+    probes = []
+    for path_str, methods in api_paths.items():
+        for method in methods:
+            probes.append((path_str, method))
+
+    result.probed_endpoints = len(probes)
+
+    # Probe concurrently
+    probe_tasks = [
+        _probe_endpoint(host, port, path_str, method, timeout)
+        for path_str, method in probes
+    ]
+    probe_results = await asyncio.gather(*probe_tasks, return_exceptions=True)
+
+    for (path_str, method), probe in zip(probes, probe_results):
+        if isinstance(probe, Exception):
+            result.add(CompatIssue(
+                consumer="runtime",
+                provider="service",
+                path=path_str,
+                method=method,
+                severity="error",
+                detail=f"Probe failed: {probe}",
+            ))
+            continue
+        if not probe.reachable:
+            result.add(CompatIssue(
+                consumer="runtime",
+                provider="service",
+                path=path_str,
+                method=method,
+                severity="error",
+                detail=probe.detail or "Endpoint unreachable",
+            ))
+        elif probe.status_code in (404, 405):
+            result.add(CompatIssue(
+                consumer="runtime",
+                provider="service",
+                path=path_str,
+                method=method,
+                severity="error",
+                detail=f"Endpoint returned {probe.status_code} — not implemented",
+            ))
+
+    return result
+
+
+async def _probe_endpoint(
+    host: str,
+    port: int,
+    path: str,
+    method: str,
+    timeout: float,
+) -> RuntimeProbeResult:
+    """Send an HTTP request to probe a single endpoint.
+
+    Uses HEAD for safe methods (GET), OPTIONS for others.
+    Falls back to the actual method if HEAD/OPTIONS returns 405.
+    """
+    # Use the actual method for the probe — we just care about 404 vs not-404
+    probe_method = method.upper()
+    try:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, port),
+            timeout=timeout,
+        )
+        request = (
+            f"{probe_method} {path} HTTP/1.1\r\n"
+            f"Host: {host}:{port}\r\n"
+            f"Connection: close\r\n"
+            f"Content-Length: 0\r\n"
+            f"\r\n"
+        ).encode("ascii")
+        writer.write(request)
+        await writer.drain()
+
+        response = await asyncio.wait_for(reader.read(4096), timeout=timeout)
+        writer.close()
+        await writer.wait_closed()
+
+        status_code = _parse_probe_status(response)
+        return RuntimeProbeResult(
+            path=path,
+            method=probe_method,
+            reachable=True,
+            status_code=status_code,
+        )
+    except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as e:
+        return RuntimeProbeResult(
+            path=path,
+            method=probe_method,
+            reachable=False,
+            detail=str(e),
+        )
+
+
+def _parse_probe_status(response: bytes) -> int:
+    """Parse HTTP status code from response bytes."""
+    try:
+        first_line = response.split(b"\r\n", 1)[0].decode("ascii", errors="replace")
+        parts = first_line.split(" ")
+        if len(parts) >= 2:
+            return int(parts[1])
+    except (ValueError, IndexError):
+        pass
+    return 0

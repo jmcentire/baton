@@ -24,6 +24,7 @@ class ProcessInfo:
     pid: int
     process: asyncio.subprocess.Process
     node_name: str = ""
+    _log_tasks: list = field(default_factory=list, repr=False)
 
 
 _ENV_VAR_RE = re.compile(r"\$([A-Z_][A-Z0-9_]*)")
@@ -65,6 +66,7 @@ class ProcessManager:
         node_name: str,
         command: str,
         env: dict[str, str] | None = None,
+        log_handler: "Callable[[str, str, str], None] | None" = None,
     ) -> ProcessInfo:
         """Start a subprocess for a node.
 
@@ -72,6 +74,7 @@ class ProcessManager:
             node_name: The node this process serves.
             command: Shell command to run.
             env: Additional environment variables.
+            log_handler: Optional callback(node_name, stream_name, line) for log capture.
         """
         if node_name in self._processes:
             await self.stop(node_name)
@@ -95,6 +98,18 @@ class ProcessManager:
             node_name=node_name,
         )
         self._processes[node_name] = info
+
+        if log_handler and proc.stdout:
+            task_out = asyncio.create_task(
+                self._stream_lines(proc.stdout, node_name, "stdout", log_handler)
+            )
+            info._log_tasks.append(task_out)
+        if log_handler and proc.stderr:
+            task_err = asyncio.create_task(
+                self._stream_lines(proc.stderr, node_name, "stderr", log_handler)
+            )
+            info._log_tasks.append(task_err)
+
         logger.info(f"Started process for [{node_name}]: pid={proc.pid} cmd={command}")
         return info
 
@@ -103,6 +118,9 @@ class ProcessManager:
         info = self._processes.pop(node_name, None)
         if info is None:
             return
+        # Cancel log reading tasks
+        for task in info._log_tasks:
+            task.cancel()
         proc = info.process
         if proc.returncode is not None:
             return  # already exited
@@ -138,3 +156,22 @@ class ProcessManager:
         if info is None:
             return None
         return info.pid
+
+    @staticmethod
+    async def _stream_lines(
+        stream: asyncio.StreamReader,
+        node_name: str,
+        stream_name: str,
+        handler: "Callable[[str, str, str], None]",
+    ) -> None:
+        """Read lines from a stream and pass to handler."""
+        try:
+            while True:
+                line = await stream.readline()
+                if not line:
+                    break
+                text = line.decode("utf-8", errors="replace").rstrip("\n\r")
+                if text:
+                    handler(node_name, stream_name, text)
+        except (asyncio.CancelledError, Exception):
+            pass

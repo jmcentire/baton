@@ -87,6 +87,13 @@ class LifecycleManager:
         self._federation_server = None  # FederationServer
         self._federation_manager = None  # FederationManager
         self._federation_task: asyncio.Task | None = None
+        self._taint_registry = None   # TaintRegistry
+        self._taint_scanner = None    # TaintScanner
+        self._log_collector = None    # ServiceLogCollector
+        self._arbiter_client = None       # ArbiterClient
+        self._audit_sidecar = None        # AuditSidecar
+        self._arbiter_forwarder = None    # ArbiterSpanForwarder
+        self._arbiter_forwarder_task: asyncio.Task | None = None
 
     @property
     def adapters(self) -> dict[str, Adapter]:
@@ -105,6 +112,9 @@ class LifecycleManager:
         """
         self._circuit = load_circuit(self.project_dir)
         ensure_baton_dir(self.project_dir)
+
+        from baton.service_log import ServiceLogCollector
+        self._log_collector = ServiceLogCollector(self.project_dir)
 
         import os
         self._state = CircuitState(
@@ -139,6 +149,24 @@ class LifecycleManager:
 
     async def down(self) -> None:
         """Tear down the circuit: stop all adapters and processes."""
+        # Stop audit sidecar
+        if self._audit_sidecar:
+            await self._audit_sidecar.stop()
+            self._audit_sidecar = None
+
+        # Stop Arbiter span forwarder
+        if self._arbiter_forwarder:
+            self._arbiter_forwarder.stop()
+        if self._arbiter_forwarder_task and not self._arbiter_forwarder_task.done():
+            self._arbiter_forwarder_task.cancel()
+            try:
+                await self._arbiter_forwarder_task
+            except asyncio.CancelledError:
+                pass
+            self._arbiter_forwarder_task = None
+        self._arbiter_forwarder = None
+        self._arbiter_client = None
+
         # Stop federation
         if self._federation_manager:
             self._federation_manager.stop()
@@ -177,11 +205,14 @@ class LifecycleManager:
 
         logger.info("Circuit is down")
 
-    async def slot(self, node_name: str, command: str, env: dict[str, str] | None = None) -> None:
+    async def slot(self, node_name: str, command: str, env: dict[str, str] | None = None, validate: bool = True, force: bool = False) -> None:
         """Slot a live service into a node's adapter.
 
         Starts the service process, waits for it to be ready,
         then points the adapter at it.
+
+        Args:
+            validate: If True, run runtime interface validation against the node's contract.
         """
         adapter = self._adapters.get(node_name)
         if adapter is None:
@@ -197,6 +228,29 @@ class LifecycleManager:
                 "Egress nodes represent external services and should use mock configuration."
             )
 
+        # Arbiter trust validation (if configured)
+        if self._arbiter_client and node.data_access and not force:
+            from baton.arbiter import DeclarationGapResult
+            trust = await self._arbiter_client.get_trust_score(node_name)
+            if trust and trust.is_low_trust_authoritative:
+                raise ValueError(
+                    f"Cannot slot into '{node_name}': low trust ({trust.score:.2f}) "
+                    f"on authoritative node. Use --force to override."
+                )
+            gap = await self._arbiter_client.check_declaration_gap(
+                node_name,
+                declared_reads=list(node.data_access.reads),
+                declared_writes=list(node.data_access.writes),
+            )
+            if gap.has_gap:
+                record_event(
+                    self.project_dir, EventType.VALIDATION_FAILED, node_name,
+                    detail=f"declaration gap: {gap.unauthorized_tiers}",
+                )
+                raise ValueError(
+                    f"Declaration gap for [{node_name}]: unauthorized tiers {gap.unauthorized_tiers}"
+                )
+
         # Service listens on a dynamically assigned port
         service_port = node.port + 20000
         if service_port > 65535:
@@ -205,11 +259,33 @@ class LifecycleManager:
         env = dict(env or {})
         env["BATON_SERVICE_PORT"] = str(service_port)
         env["BATON_NODE_NAME"] = node_name
+        env["BATON_CONTROL_PORT"] = str(node.management_port)
 
-        info = await self._process_mgr.start(node_name, command, env=env)
+        info = await self._process_mgr.start(
+            node_name, command, env=env,
+            log_handler=self._log_collector.handler if self._log_collector else None,
+        )
 
         # Wait briefly for the service to start
         await asyncio.sleep(0.5)
+
+        # Runtime interface validation (if node has a contract)
+        if validate and node.contract and node.proxy_mode == "http":
+            from baton.compat import validate_service_runtime
+            validation = await validate_service_runtime(
+                "127.0.0.1", service_port,
+                node.contract, base_dir=self.project_dir,
+            )
+            if not validation.compatible:
+                await self._process_mgr.stop(node_name)
+                issues_str = "; ".join(i.detail for i in validation.issues)
+                record_event(
+                    self.project_dir, EventType.VALIDATION_FAILED, node_name,
+                    detail=f"interface validation failed: {issues_str}",
+                )
+                raise ValueError(
+                    f"Service failed interface validation for [{node_name}]: {issues_str}"
+                )
 
         adapter.set_backend(BackendTarget(host="127.0.0.1", port=service_port))
 
@@ -237,10 +313,23 @@ class LifecycleManager:
             detail=f"slot command={command} port={service_port} pid={info.pid}",
         )
 
-    async def swap(self, node_name: str, command: str, env: dict[str, str] | None = None) -> None:
+        # Seed canary data if taint analysis is active
+        self._seed_taint_data(node_name)
+
+        # Load classification mapping for span enrichment
+        if self._arbiter_client and node.openapi_spec:
+            from baton.adapter import load_openapi_classifications
+            mapping = load_openapi_classifications(node.openapi_spec, base_dir=self.project_dir)
+            if mapping:
+                adapter.set_classification_mapping(mapping)
+
+    async def swap(self, node_name: str, command: str, env: dict[str, str] | None = None, validate: bool = True) -> None:
         """Hot-swap a service: start new, drain, switch, stop old.
 
         The new service is running before the old one is removed.
+
+        Args:
+            validate: If True, run runtime interface validation against the node's contract.
         """
         adapter = self._adapters.get(node_name)
         if adapter is None:
@@ -259,11 +348,33 @@ class LifecycleManager:
         env = dict(env or {})
         env["BATON_SERVICE_PORT"] = str(service_port)
         env["BATON_NODE_NAME"] = node_name
+        env["BATON_CONTROL_PORT"] = str(node.management_port)
 
         # Start new process under a temp name
         temp_name = f"{node_name}__swap"
-        info = await self._process_mgr.start(temp_name, command, env=env)
+        info = await self._process_mgr.start(
+            temp_name, command, env=env,
+            log_handler=self._log_collector.handler if self._log_collector else None,
+        )
         await asyncio.sleep(0.5)
+
+        # Runtime interface validation (if node has a contract)
+        if validate and node.contract and node.proxy_mode == "http":
+            from baton.compat import validate_service_runtime
+            validation = await validate_service_runtime(
+                "127.0.0.1", service_port,
+                node.contract, base_dir=self.project_dir,
+            )
+            if not validation.compatible:
+                await self._process_mgr.stop(temp_name)
+                issues_str = "; ".join(i.detail for i in validation.issues)
+                record_event(
+                    self.project_dir, EventType.VALIDATION_FAILED, node_name,
+                    detail=f"swap validation failed: {issues_str}",
+                )
+                raise ValueError(
+                    f"Service failed interface validation for [{node_name}]: {issues_str}"
+                )
 
         # Drain old connections
         await adapter.drain(timeout=10.0)
@@ -346,17 +457,20 @@ class LifecycleManager:
         env_a = {
             "BATON_SERVICE_PORT": str(port_a),
             "BATON_NODE_NAME": node_name,
+            "BATON_CONTROL_PORT": str(node.management_port),
         }
         env_b = {
             "BATON_SERVICE_PORT": str(port_b),
             "BATON_NODE_NAME": node_name,
+            "BATON_CONTROL_PORT": str(node.management_port),
         }
 
         key_a = f"{node_name}__a"
         key_b = f"{node_name}__b"
 
-        info_a = await self._process_mgr.start(key_a, command_a, env=env_a)
-        info_b = await self._process_mgr.start(key_b, command_b, env=env_b)
+        _log_h = self._log_collector.handler if self._log_collector else None
+        info_a = await self._process_mgr.start(key_a, command_a, env=env_a, log_handler=_log_h)
+        info_b = await self._process_mgr.start(key_b, command_b, env=env_b, log_handler=_log_h)
         await asyncio.sleep(0.5)
 
         from baton.routing import ab_split
@@ -426,10 +540,14 @@ class LifecycleManager:
         env_b = {
             "BATON_SERVICE_PORT": str(port_b),
             "BATON_NODE_NAME": node_name,
+            "BATON_CONTROL_PORT": str(node.management_port),
         }
 
         key_b = f"{node_name}__b"
-        info_b = await self._process_mgr.start(key_b, command_b, env=env_b)
+        info_b = await self._process_mgr.start(
+            key_b, command_b, env=env_b,
+            log_handler=self._log_collector.handler if self._log_collector else None,
+        )
         await asyncio.sleep(0.5)
 
         from baton.routing import ab_split
@@ -553,9 +671,13 @@ class LifecycleManager:
         env = {
             "BATON_SERVICE_PORT": str(port_canary),
             "BATON_NODE_NAME": node_name,
+            "BATON_CONTROL_PORT": str(node.management_port),
         }
         key_canary = f"{node_name}__canary"
-        await self._process_mgr.start(key_canary, command, env=env)
+        await self._process_mgr.start(
+            key_canary, command, env=env,
+            log_handler=self._log_collector.handler if self._log_collector else None,
+        )
         await asyncio.sleep(0.5)
 
         # Set initial canary routing
@@ -630,8 +752,13 @@ class LifecycleManager:
             if action_type == "boot":
                 # Full boot from scratch
                 import os
+                from baton.service_log import ServiceLogCollector
                 self._circuit = desired_spec
                 ensure_baton_dir(self.project_dir)
+                self._log_collector = ServiceLogCollector(
+                    self.project_dir,
+                    taint_scanner=self._taint_scanner,
+                )
                 self._state = CircuitState(
                     circuit_name=desired_spec.name,
                     collapse_level=CollapseLevel.FULL_MOCK,
@@ -671,6 +798,16 @@ class LifecycleManager:
                 save_state(self._state, self.project_dir)
                 logger.info(f"Circuit '{desired_spec.name}' booted with {len(self._adapters)} nodes")
 
+                # Wire taint analysis if enabled
+                if config.taint.enabled:
+                    self._setup_taint(config)
+
+                # Initialize Arbiter client if configured
+                if config.arbiter.api_endpoint:
+                    from baton.arbiter import ArbiterClient
+                    self._arbiter_client = ArbiterClient(config.arbiter.api_endpoint)
+                    logger.info(f"Arbiter client configured: {config.arbiter.api_endpoint}")
+
                 # Start certificate manager if auto_rotate is enabled
                 if ssl_ctx and config.security.tls.auto_rotate:
                     self._start_cert_manager(config, ssl_ctx)
@@ -678,6 +815,18 @@ class LifecycleManager:
                 # Start federation if configured
                 if config.federation.enabled:
                     await self._start_federation(config)
+
+                # Start audit sidecar if configured
+                if config.audit_channel.port:
+                    from baton.audit_sidecar import AuditSidecar
+                    self._audit_sidecar = AuditSidecar(port=config.audit_channel.port)
+                    await self._audit_sidecar.start()
+
+                # Start Arbiter span forwarder if configured
+                if config.arbiter.endpoint and config.arbiter.forward_spans:
+                    from baton.arbiter_exporter import ArbiterSpanForwarder
+                    self._arbiter_forwarder = ArbiterSpanForwarder(config.arbiter.endpoint)
+                    self._arbiter_forwarder_task = asyncio.create_task(self._arbiter_forwarder.run())
 
             elif action_type == "reboot":
                 # Topology changed -- tear down and reboot
@@ -845,6 +994,52 @@ class LifecycleManager:
         )
         self._federation_task = asyncio.create_task(self._federation_manager.run())
         logger.info(f"Federation started (peers={[p.name for p in fed.peers]})")
+
+    def _setup_taint(self, config: CircuitConfig) -> None:
+        """Set up taint analysis: registry, scanner, and wire into adapters."""
+        from baton.taint import TaintRegistry, TaintScanner
+
+        self._taint_registry = TaintRegistry(project_dir=self.project_dir)
+        self._taint_scanner = TaintScanner(self._taint_registry)
+
+        for adapter in self._adapters.values():
+            adapter.set_taint_scanner(self._taint_scanner)
+
+        if self._log_collector:
+            self._log_collector._taint_scanner = self._taint_scanner
+
+        logger.info("Taint analysis enabled")
+
+    def _seed_taint_data(self, node_name: str) -> None:
+        """Seed canary data for a newly-slotted service.
+
+        Computes allowed boundary from circuit topology: the seed node
+        plus its direct neighbors (both outgoing and incoming edges).
+        """
+        if self._taint_registry is None or self._circuit is None:
+            return
+
+        from baton.taint import CanaryGenerator
+
+        generator = CanaryGenerator()
+        canaries = generator.generate_set(node_name)
+
+        # Allowed boundary: the node itself + its topological neighbors
+        neighbors = set(self._circuit.neighbors(node_name))
+        dependents = set(self._circuit.dependents(node_name))
+        allowed = {node_name} | neighbors | dependents
+
+        for datum in canaries:
+            self._taint_registry.register(datum, allowed)
+
+        # Rebuild scanner pattern with new fingerprints
+        if self._taint_scanner:
+            self._taint_scanner.rebuild_pattern()
+
+        logger.info(
+            f"Seeded {len(canaries)} canary data points for [{node_name}] "
+            f"(boundary: {sorted(allowed)})"
+        )
 
 
 def _compute_convergence_actions(
