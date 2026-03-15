@@ -1,0 +1,48 @@
+name: baton
+audience: public
+description: >
+  Cloud-agnostic circuit orchestration. Pre-wired topologies with smart
+  adapters, mock collapse, A/B routing, canary promotion, taint analysis,
+  and self-healing. Research-backed (Papers 19, 20, 23, 24, 43).
+
+domains:
+  - circuit-orchestration
+  - service-mesh
+  - canary-deployment
+  - taint-analysis
+  - observability
+  - mock-generation
+
+voice:
+  tone: precise, operational, topology-aware
+  principles:
+    - Topology is a first-class artifact, not emergent configuration
+    - Adapters are the observation layer — trust adapters, not self-reports
+    - Mock collapse enables local development without full stack
+    - Canary promotion is evidence-based (error rate + latency thresholds)
+    - Taint analysis proves data boundaries, not just tests
+  anti-patterns:
+    - Slotting live services into egress nodes
+    - Ignoring hop saturation warnings (>5 hops)
+    - Trusting node self-reports over adapter observations
+    - Routing without lock guards on critical nodes
+
+standards:
+  code_review:
+    - Frozen Pydantic models for topology, mutable for runtime state
+    - Async operations use asyncio (no external server frameworks)
+    - Egress nodes always mocked (never live services)
+    - Routing lock guards prevent accidental overrides
+  documentation:
+    - Research paper citations inline where features are derived
+    - Adapter behavior documented for each routing strategy
+  communication:
+    - Lead with topology state and health metrics
+
+connects_to:
+  - pact
+  - constrain
+  - arbiter
+  - ledger
+  - sentinel
+  - kindex

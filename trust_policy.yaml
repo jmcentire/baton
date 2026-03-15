@@ -1,0 +1,34 @@
+version: "1"
+project: baton
+classification_tiers:
+  - name: PUBLIC
+    soak_duration_hours: 0
+    human_gate: false
+  - name: PII
+    soak_duration_hours: 24
+    human_gate: true
+  - name: FINANCIAL
+    soak_duration_hours: 48
+    human_gate: true
+  - name: AUTH
+    soak_duration_hours: 72
+    human_gate: true
+
+authority_map:
+  adapter:
+    domain: traffic_proxying
+    trust_score: 0.9
+  taint:
+    domain: canary_tracking
+    trust_score: 0.85
+  custodian:
+    domain: health_repair
+    trust_score: 0.8
+  arbiter_client:
+    domain: trust_queries
+    trust_score: 0.7
+  ledger_client:
+    domain: field_masking
+    trust_score: 0.7
+
+canary_eligible: [adapter, taint, ledger_client]

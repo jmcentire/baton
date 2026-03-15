@@ -118,7 +118,7 @@ class TestE2ECircuit:
 
         # -- Step 5: Start SignalAggregator + TelemetryCollector as background tasks --
         sig_agg = SignalAggregator(
-            adapters, project_dir, flush_interval=0.5
+            adapters, project_dir, flush_interval=0.5, dedup_window_s=0,
         )
         telemetry = TelemetryCollector(
             adapters, state, circuit, project_dir, flush_interval=0.5

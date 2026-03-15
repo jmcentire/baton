@@ -13,14 +13,15 @@ from baton.tracing import SpanData
 class TestOtelImportGuard:
     def test_otel_without_package_raises(self):
         """OtelSpanExporter raises ImportError when OTel is not installed."""
+        import importlib
+        import baton.otel
+
         with patch.dict("sys.modules", {
             "opentelemetry": None,
             "opentelemetry.sdk": None,
             "opentelemetry.sdk.trace": None,
         }):
             # Force reimport
-            import importlib
-            import baton.otel
             importlib.reload(baton.otel)
 
             if not baton.otel.HAS_OTEL:
@@ -28,22 +29,29 @@ class TestOtelImportGuard:
                 with pytest.raises(ImportError, match="opentelemetry"):
                     baton.otel.OtelSpanExporter(config)
 
+        # Restore HAS_OTEL after patch exits
+        importlib.reload(baton.otel)
+
 
 class TestOtelMetricExporter:
     def test_metric_exporter_import_guard(self):
         """OtelMetricExporter raises ImportError when OTel is not installed."""
+        import importlib
+        import baton.otel
+
         with patch.dict("sys.modules", {
             "opentelemetry": None,
             "opentelemetry.sdk": None,
         }):
-            import importlib
-            import baton.otel
             importlib.reload(baton.otel)
 
             if not baton.otel.HAS_OTEL:
                 config = ObservabilityConfig(enabled=True)
                 with pytest.raises(ImportError, match="opentelemetry"):
                     baton.otel.OtelMetricExporter(config)
+
+        # Restore HAS_OTEL after patch exits
+        importlib.reload(baton.otel)
 
     def test_export_records_counters_and_gauges(self):
         """export() records metrics for each node with correct attributes."""

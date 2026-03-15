@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -218,5 +219,6 @@ class TestCreateSpanExporter:
 
     def test_otel_without_package(self):
         config = ObservabilityConfig(enabled=True, otlp_endpoint="http://localhost:4317")
-        with pytest.raises(ImportError, match="OpenTelemetry not installed"):
-            create_span_exporter("otel", config)
+        with patch.dict("sys.modules", {"baton.otel": None}):
+            with pytest.raises(ImportError, match="OpenTelemetry not installed"):
+                create_span_exporter("otel", config)

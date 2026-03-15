@@ -1,0 +1,86 @@
+version: "1"
+project: baton
+constraints:
+  - id: C001
+    name: egress_always_mocked
+    description: Egress nodes cannot have live services slotted in — always auto-mocked
+    severity: must
+    classification: null
+    rationale: Egress nodes represent external APIs; live access in dev/test environments is dangerous
+
+  - id: C002
+    name: routing_lock_guards
+    description: Locked routing prevents set_backend, set_routing, clear_routing, slot, and swap operations
+    severity: must
+    classification: null
+    rationale: Critical nodes need protection against accidental routing changes
+
+  - id: C003
+    name: adapter_ground_truth
+    description: Adapter observations are ground truth; node self-reports are claims
+    severity: must
+    classification: null
+    rationale: Nodes can misreport their behavior; adapters see actual traffic
+
+  - id: C004
+    name: audit_sidecar_local_only
+    description: AuditSidecar must bind to 127.0.0.1 only — never externally accessible
+    severity: must
+    classification: COMPLIANCE
+    rationale: Audit events contain sensitive operational data
+
+  - id: C005
+    name: taint_fingerprint_format
+    description: Canary data must use 8-char hex fingerprints in PII-shaped patterns (SSN, email, credit card, phone, name)
+    severity: must
+    classification: PII
+    rationale: Taint tracking requires recognizable synthetic data that won't collide with real PII
+
+  - id: C006
+    name: hop_saturation_warning
+    description: Topologies deeper than 5 hops must generate warnings (Paper 24)
+    severity: should
+    classification: null
+    rationale: Multi-hop degradation saturates by hop 5
+
+  - id: C007
+    name: two_phase_repair
+    description: Custodian repair must separate fault classification from recovery selection (Paper 23)
+    severity: should
+    classification: null
+    rationale: Orthogonal decisions (rho=0.858) should not be coupled
+
+  - id: C008
+    name: signal_deduplication
+    description: SignalAggregator must suppress repeated identical signals within configurable time window (Paper 20)
+    severity: should
+    classification: null
+    rationale: Repetition degrades performance +0.07 nats per repeat
+
+  - id: C009
+    name: arbiter_graceful_degradation
+    description: All Arbiter calls must use 2s timeout and degrade gracefully (return None/empty)
+    severity: must
+    classification: null
+    rationale: Baton must function independently of Arbiter availability
+
+  - id: C010
+    name: ledger_field_masking
+    description: Adapter must mask encrypted-at-rest fields with [ENCRYPTED] before forwarding
+    severity: must
+    classification: FINANCIAL
+    rationale: Prevents accidental exposure of encrypted data in transit
+
+  - id: C011
+    name: process_ownership
+    description: CircuitState.owner_pid must track the controlling process; baton down sends SIGTERM to owner for clean shutdown
+    severity: must
+    classification: null
+    rationale: Orphaned processes leak resources and prevent clean restarts
+
+  - id: C012
+    name: canary_centroid_selection
+    description: Multi-candidate canary evaluation must use centroid selection (Paper 19)
+    severity: should
+    classification: null
+    rationale: Closes 48.9% of coordination gap vs 9.1% for state injection

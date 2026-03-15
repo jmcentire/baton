@@ -1,0 +1,125 @@
+version: "1"
+project: baton
+components:
+  - id: cli
+    role: ingress
+    protocol: cli
+    authority: user_commands
+    data_access:
+      PUBLIC: read_write
+
+  - id: config
+    role: library
+    authority: topology_parsing
+    data_access:
+      PUBLIC: read
+
+  - id: circuit
+    role: library
+    authority: graph_operations
+    data_access:
+      PUBLIC: read
+
+  - id: adapter
+    role: service
+    protocol: http
+    authority: traffic_proxying
+    data_access:
+      PUBLIC: read_write
+      PII: read
+      FINANCIAL: read
+
+  - id: adapter_control
+    role: service
+    protocol: http
+    authority: adapter_management
+    data_access:
+      PUBLIC: read_write
+
+  - id: telemetry
+    role: library
+    authority: metrics_collection
+    data_access:
+      PUBLIC: read_write
+
+  - id: taint
+    role: library
+    authority: canary_tracking
+    data_access:
+      PII: read_write
+
+  - id: custodian
+    role: library
+    authority: health_repair
+    data_access:
+      PUBLIC: read_write
+
+  - id: lifecycle
+    role: library
+    authority: circuit_orchestration
+    data_access:
+      PUBLIC: read_write
+
+  - id: mock
+    role: library
+    authority: mock_generation
+    data_access:
+      PUBLIC: read_write
+
+  - id: collapse
+    role: library
+    authority: circuit_compression
+    data_access:
+      PUBLIC: read
+
+  - id: arbiter_client
+    role: library
+    authority: trust_queries
+    data_access:
+      PUBLIC: read
+
+  - id: ledger_client
+    role: library
+    authority: field_masking
+    data_access:
+      FINANCIAL: read
+      PII: read
+
+  - id: mcp_server
+    role: service
+    protocol: mcp
+    authority: external_query
+    data_access:
+      PUBLIC: read
+
+edges:
+  - from: cli
+    to: lifecycle
+    tier: internal
+  - from: cli
+    to: config
+    tier: internal
+  - from: lifecycle
+    to: adapter
+    tier: internal
+  - from: lifecycle
+    to: mock
+    tier: internal
+  - from: adapter
+    to: taint
+    tier: internal
+  - from: adapter
+    to: telemetry
+    tier: internal
+  - from: adapter
+    to: ledger_client
+    tier: cross_boundary
+  - from: custodian
+    to: adapter
+    tier: internal
+  - from: cli
+    to: arbiter_client
+    tier: cross_boundary
+  - from: taint
+    to: adapter
+    tier: internal

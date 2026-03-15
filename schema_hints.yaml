@@ -1,0 +1,24 @@
+version: "1"
+project: baton
+storage_backends:
+  - type: filesystem
+    purpose: state_persistence
+    path: .baton/
+    format: jsonl
+    fields:
+      - name: metrics
+        file: metrics.jsonl
+        classification: PUBLIC
+      - name: events
+        file: events.jsonl
+        classification: PUBLIC
+        annotation: append_only
+      - name: service_logs
+        file: service_logs.jsonl
+        classification: PUBLIC
+      - name: taint_canaries
+        file: taint_canaries.jsonl
+        classification: PII
+      - name: taint_violations
+        file: taint_violations.jsonl
+        classification: PII
