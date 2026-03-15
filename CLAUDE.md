@@ -38,6 +38,7 @@ src/baton/
   adapter_control.py  # Adapter management API (/health, /metrics, /status, /routing, /taint, POST /events)
   service_log.py      # System-controlled service log capture, severity parsing, JSONL persistence
   constrain.py        # Constrain component_map.yaml -> baton.yaml generation
+  migrate.py          # Config migration v1 -> v2 (data_access, authority, arbiter, ledger, audit_channel)
   arbiter.py          # Arbiter REST API client (trust scores, declaration gaps)
   arbiter_exporter.py # Fire-and-forget span forwarding to Arbiter OTLP
   audit_sidecar.py    # Local audit event receiver (127.0.0.1 only)
@@ -129,6 +130,12 @@ baton deploy [--provider local|gcp]    # deploy circuit to provider
 baton deploy --provider gcp --build    # auto-build + deploy to Cloud Run
 baton teardown [--provider local|gcp]  # tear down deployment
 baton deploy-status [--provider ...]   # check deployment status
+
+# Config Migration
+baton migrate-config                   # migrate baton.yaml v1 -> v2 in place
+baton migrate-config --config <path>   # migrate a specific file
+baton migrate-config --output <path>   # write to a different file
+baton migrate-config --dry-run         # print migrated config without writing
 ```
 
 ## Conventions

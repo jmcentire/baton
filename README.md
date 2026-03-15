@@ -203,6 +203,15 @@ baton apply [--dry-run]                   # converge running state to match bato
 baton export [--output file.yaml]         # export running state as YAML config
 ```
 
+### Config Migration
+
+```bash
+baton migrate-config                      # migrate baton.yaml from v1 to v2 in place
+baton migrate-config --config path.yaml   # migrate a specific file
+baton migrate-config --output v2.yaml     # write to a different file
+baton migrate-config --dry-run            # print migrated config without writing
+```
+
 ### Taint Analysis
 
 ```bash

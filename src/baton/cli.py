@@ -331,6 +331,12 @@ def main(argv: list[str] | None = None) -> int:
     p_sync_ledger = sub.add_parser("sync-ledger", help="Sync egress nodes from Ledger")
     p_sync_ledger.add_argument("--dir", default=".", help="Project directory")
 
+    # baton migrate-config
+    p_migrate = sub.add_parser("migrate-config", help="Migrate baton.yaml from v1 to v2 schema")
+    p_migrate.add_argument("--config", default="baton.yaml", help="Path to baton.yaml (default: baton.yaml)")
+    p_migrate.add_argument("--output", default="", help="Output path (default: overwrite input)")
+    p_migrate.add_argument("--dry-run", action="store_true", help="Print migrated config without writing")
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -398,6 +404,8 @@ def main(argv: list[str] | None = None) -> int:
             return asyncio.run(_cmd_test(args))
         elif args.command == "sync-ledger":
             return asyncio.run(_cmd_sync_ledger(args))
+        elif args.command == "migrate-config":
+            return _cmd_migrate_config(args)
         elif args.command in ("up", "down", "slot", "swap", "collapse", "watch", "deploy", "teardown", "deploy-status", "dashboard"):
             return asyncio.run(_cmd_async(args))
         else:
@@ -1932,3 +1940,11 @@ async def _cmd_test(args: argparse.Namespace) -> int:
     )
     print(result.format_report())
     return 0 if result.violations_found == 0 else 1
+
+
+def _cmd_migrate_config(args: argparse.Namespace) -> int:
+    from baton.migrate import run_migrate
+
+    config_path = Path(args.config)
+    output_path = Path(args.output) if args.output else None
+    return run_migrate(config_path, output_path=output_path, dry_run=args.dry_run)
