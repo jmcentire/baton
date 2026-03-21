@@ -1,125 +1,57 @@
-version: "1"
-project: baton
-components:
-  - id: cli
-    role: ingress
-    protocol: cli
-    authority: user_commands
-    data_access:
-      PUBLIC: read_write
+core_components:
+  observability_config:
+    file: "baton/config/observability.py"
+    class: "ObservabilityConfig"
+    changes:
+      - default_otlp_enabled_to_true: true
+      - support_multiple_endpoints: true
+    
+  otel_span_exporter:
+    file: "baton/observability/otel_span_exporter.py"
+    class: "OtelSpanExporter"
+    changes:
+      - enhance_error_handling: true
+      - implement_fire_and_forget: true
+    
+  otel_metric_exporter:
+    file: "baton/observability/otel_metric_exporter.py" 
+    class: "OtelMetricExporter"
+    changes:
+      - enhance_error_handling: true
+      - implement_fire_and_forget: true
 
-  - id: config
-    role: library
-    authority: topology_parsing
-    data_access:
-      PUBLIC: read
+configuration_files:
+  pyproject_toml:
+    file: "pyproject.toml"
+    changes:
+      - move_opentelemetry_from_optional_to_required: true
+      - maintain_version_constraints: true
+  
+  baton_yaml:
+    file: "baton.yaml"
+    backward_compatibility:
+      - configs_without_observability_section_work: true
+      - existing_observability_configs_unchanged: true
 
-  - id: circuit
-    role: library
-    authority: graph_operations
-    data_access:
-      PUBLIC: read
+integration_points:
+  circuit_orchestration:
+    components: ["baton/core/circuit.py", "baton/core/orchestrator.py"]
+    requirement: "Must never be blocked by OTLP export operations"
+  
+  chronicler_integration:
+    endpoint_type: "otlp_sink"
+    purpose: "Story building for governance stack"
+    reliability: "Fire-and-forget delivery"
+  
+  external_observability:
+    tools: ["Honeycomb", "Jaeger", "Other OTLP-compatible tools"]
+    delivery: "Fan-out to multiple endpoints"
 
-  - id: adapter
-    role: service
-    protocol: http
-    authority: traffic_proxying
-    data_access:
-      PUBLIC: read_write
-      PII: read
-      FINANCIAL: read
-
-  - id: adapter_control
-    role: service
-    protocol: http
-    authority: adapter_management
-    data_access:
-      PUBLIC: read_write
-
-  - id: telemetry
-    role: library
-    authority: metrics_collection
-    data_access:
-      PUBLIC: read_write
-
-  - id: taint
-    role: library
-    authority: canary_tracking
-    data_access:
-      PII: read_write
-
-  - id: custodian
-    role: library
-    authority: health_repair
-    data_access:
-      PUBLIC: read_write
-
-  - id: lifecycle
-    role: library
-    authority: circuit_orchestration
-    data_access:
-      PUBLIC: read_write
-
-  - id: mock
-    role: library
-    authority: mock_generation
-    data_access:
-      PUBLIC: read_write
-
-  - id: collapse
-    role: library
-    authority: circuit_compression
-    data_access:
-      PUBLIC: read
-
-  - id: arbiter_client
-    role: library
-    authority: trust_queries
-    data_access:
-      PUBLIC: read
-
-  - id: ledger_client
-    role: library
-    authority: field_masking
-    data_access:
-      FINANCIAL: read
-      PII: read
-
-  - id: mcp_server
-    role: service
-    protocol: mcp
-    authority: external_query
-    data_access:
-      PUBLIC: read
-
-edges:
-  - from: cli
-    to: lifecycle
-    tier: internal
-  - from: cli
-    to: config
-    tier: internal
-  - from: lifecycle
-    to: adapter
-    tier: internal
-  - from: lifecycle
-    to: mock
-    tier: internal
-  - from: adapter
-    to: taint
-    tier: internal
-  - from: adapter
-    to: telemetry
-    tier: internal
-  - from: adapter
-    to: ledger_client
-    tier: cross_boundary
-  - from: custodian
-    to: adapter
-    tier: internal
-  - from: cli
-    to: arbiter_client
-    tier: cross_boundary
-  - from: taint
-    to: adapter
-    tier: internal
+testing_components:
+  existing_test_suite:
+    count: "804+ tests"
+    requirement: "All must continue to pass"
+    categories:
+      - unit_tests: true
+      - integration_tests: true
+      - backward_compatibility_tests: true

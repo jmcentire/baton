@@ -1,24 +1,75 @@
-version: "1"
-project: baton
-storage_backends:
-  - type: filesystem
-    purpose: state_persistence
-    path: .baton/
-    format: jsonl
-    fields:
-      - name: metrics
-        file: metrics.jsonl
-        classification: PUBLIC
-      - name: events
-        file: events.jsonl
-        classification: PUBLIC
-        annotation: append_only
-      - name: service_logs
-        file: service_logs.jsonl
-        classification: PUBLIC
-      - name: taint_canaries
-        file: taint_canaries.jsonl
-        classification: PII
-      - name: taint_violations
-        file: taint_violations.jsonl
-        classification: PII
+config_schema:
+  ObservabilityConfig:
+    properties:
+      otlp_enabled:
+        type: boolean
+        default: true
+        description: "Enable OTLP export (changed from false to true)"
+      
+      otlp_endpoints:
+        type: array
+        items:
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            protocol:
+              type: string
+              enum: ["grpc", "http"]
+            headers:
+              type: object
+        description: "Support multiple endpoints for fan-out capability"
+      
+      timeout_seconds:
+        type: number
+        default: 5
+        description: "Timeout for OTLP export to prevent blocking"
+      
+      retry_enabled:
+        type: boolean
+        default: false
+        description: "Fire-and-forget means no retries"
+
+dependency_schema:
+  pyproject_toml:
+    dependencies:
+      opentelemetry-api:
+        version: ">=1.20.0"
+        optional: false
+        description: "Promoted from optional to required"
+      
+      opentelemetry-sdk:
+        version: ">=1.20.0" 
+        optional: false
+        description: "Promoted from optional to required"
+      
+      opentelemetry-exporter-otlp:
+        version: ">=1.20.0"
+        optional: false
+        description: "Promoted from optional to required"
+
+error_handling_schema:
+  OtelExporter:
+    methods:
+      export:
+        error_handling:
+          - catch_all_exceptions: true
+          - log_warning_for_failures: true
+          - never_raise_exceptions: true
+          - continue_circuit_operation: true
+        
+        timeout_handling:
+          - respect_configured_timeout: true
+          - default_timeout_5_seconds: true
+          - log_timeout_warnings: true
+
+backward_compatibility_schema:
+  baton_yaml:
+    missing_observability_section:
+      behavior: "Use default configuration with otlp_enabled=true"
+      validation: "Must not cause errors or warnings"
+    
+    existing_observability_section:
+      behavior: "Respect existing configuration"
+      validation: "Must work exactly as before if otlp_enabled explicitly set to false"

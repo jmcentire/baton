@@ -31,6 +31,7 @@ from baton.schemas import (
     NodeSpec,
     NodeTelemetryConfig,
     ObservabilityConfig,
+    OtlpEndpointConfig,
     RoutingConfig,
     RoutingRule,
     RoutingTarget,
@@ -278,10 +279,27 @@ def _parse_security(raw: dict) -> SecurityConfig:
 
 
 def _parse_observability(raw: dict) -> ObservabilityConfig:
-    """Parse observability section."""
+    """Parse observability section.
+
+    Handles backward compatibility: existing baton.yaml files without
+    observability section get defaults (OTLP enabled, localhost:4317).
+    Also handles new multi-endpoint format.
+    """
     if not raw:
         return ObservabilityConfig()
-    return ObservabilityConfig(**raw)
+
+    # Parse otlp_endpoints if present as list of dicts
+    parsed = dict(raw)
+    if "otlp_endpoints" in parsed and parsed["otlp_endpoints"] is not None:
+        endpoints = []
+        for ep in parsed["otlp_endpoints"]:
+            if isinstance(ep, dict):
+                endpoints.append(OtlpEndpointConfig(**ep))
+            else:
+                endpoints.append(ep)
+        parsed["otlp_endpoints"] = endpoints
+
+    return ObservabilityConfig(**parsed)
 
 
 def _parse_node_telemetry(raw: dict) -> NodeTelemetryConfig | None:
@@ -578,6 +596,27 @@ def _serialize_observability(obs: ObservabilityConfig) -> dict:
         d["service_name"] = obs.service_name
     if obs.trace_sample_rate != 1.0:
         d["trace_sample_rate"] = obs.trace_sample_rate
+    if not obs.otlp_enabled:
+        d["otlp_enabled"] = False
+    # Serialize otlp_endpoints if explicitly configured (not just the default)
+    if obs.otlp_endpoints is not None:
+        # Only serialize if not just the synthesized default
+        is_default = (
+            len(obs.otlp_endpoints) == 1
+            and obs.otlp_endpoints[0].name == "default"
+            and obs.otlp_endpoints[0].endpoint == "localhost:4317"
+            and obs.otlp_endpoints[0].protocol == "grpc"
+        )
+        if not is_default:
+            eps = []
+            for ep in obs.otlp_endpoints:
+                epd: dict = {
+                    "name": ep.name,
+                    "endpoint": ep.endpoint,
+                    "protocol": ep.protocol,
+                }
+                eps.append(epd)
+            d["otlp_endpoints"] = eps
     return d
 
 

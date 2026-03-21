@@ -1,4 +1,4 @@
-"""Tests for OpenTelemetry integration (optional dependency)."""
+"""Tests for OpenTelemetry integration (required dependency)."""
 
 from __future__ import annotations
 
@@ -10,48 +10,14 @@ from baton.schemas import ObservabilityConfig
 from baton.tracing import SpanData
 
 
-class TestOtelImportGuard:
-    def test_otel_without_package_raises(self):
-        """OtelSpanExporter raises ImportError when OTel is not installed."""
-        import importlib
-        import baton.otel
-
-        with patch.dict("sys.modules", {
-            "opentelemetry": None,
-            "opentelemetry.sdk": None,
-            "opentelemetry.sdk.trace": None,
-        }):
-            # Force reimport
-            importlib.reload(baton.otel)
-
-            if not baton.otel.HAS_OTEL:
-                config = ObservabilityConfig(enabled=True)
-                with pytest.raises(ImportError, match="opentelemetry"):
-                    baton.otel.OtelSpanExporter(config)
-
-        # Restore HAS_OTEL after patch exits
-        importlib.reload(baton.otel)
+class TestOtelAlwaysAvailable:
+    def test_has_otel_is_true(self):
+        """HAS_OTEL is always True now that OTel is a required dependency."""
+        from baton.otel import HAS_OTEL
+        assert HAS_OTEL is True
 
 
 class TestOtelMetricExporter:
-    def test_metric_exporter_import_guard(self):
-        """OtelMetricExporter raises ImportError when OTel is not installed."""
-        import importlib
-        import baton.otel
-
-        with patch.dict("sys.modules", {
-            "opentelemetry": None,
-            "opentelemetry.sdk": None,
-        }):
-            importlib.reload(baton.otel)
-
-            if not baton.otel.HAS_OTEL:
-                config = ObservabilityConfig(enabled=True)
-                with pytest.raises(ImportError, match="opentelemetry"):
-                    baton.otel.OtelMetricExporter(config)
-
-        # Restore HAS_OTEL after patch exits
-        importlib.reload(baton.otel)
 
     def test_export_records_counters_and_gauges(self):
         """export() records metrics for each node with correct attributes."""

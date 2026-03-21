@@ -212,7 +212,11 @@ def main(argv: list[str] | None = None) -> int:
     p_image_list.add_argument("--dir", default=".", help="Project directory")
 
     # baton dashboard
-    p_dashboard = sub.add_parser("dashboard", help="Show aggregated circuit metrics")
+    p_dashboard = sub.add_parser(
+        "dashboard",
+        help="Show aggregated circuit metrics (development aid — use OTLP export for production observability)",
+        description="Show aggregated circuit metrics (development aid — use OTLP export for production observability)",
+    )
     p_dashboard.add_argument("--json", action="store_true", help="Output as JSON")
     p_dashboard.add_argument("--serve", action="store_true", help="Start interactive dashboard server")
     p_dashboard.add_argument("--port", type=int, default=9900, help="Dashboard server port (default: 9900)")

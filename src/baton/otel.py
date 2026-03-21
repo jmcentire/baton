@@ -1,6 +1,7 @@
-"""OpenTelemetry integration -- optional dependency.
+"""OpenTelemetry integration -- OTLP export enabled by default.
 
-Install with: pip install baton[otel]
+Supports multiple OTLP endpoints with independent failure isolation.
+Unreachable endpoints log a warning once, then suppress to DEBUG.
 """
 
 from __future__ import annotations
@@ -11,23 +12,61 @@ from typing import TYPE_CHECKING
 from baton.tracing import SpanData
 
 if TYPE_CHECKING:
-    from baton.schemas import ObservabilityConfig
+    from baton.schemas import ObservabilityConfig, OtlpEndpointConfig
 
 logger = logging.getLogger(__name__)
 
-try:
-    from opentelemetry import trace
-    from opentelemetry.sdk.resources import Resource
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
-    from opentelemetry.trace import StatusCode
+from opentelemetry import trace
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.trace import StatusCode
 
-    from opentelemetry.sdk.metrics import MeterProvider
-    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 
-    HAS_OTEL = True
-except ImportError:
-    HAS_OTEL = False
+# Kept for backward compatibility with any code that checks this flag
+HAS_OTEL = True
+
+
+class _EndpointHealth:
+    """Track per-endpoint failure state for log-level suppression."""
+
+    def __init__(self, endpoint: str):
+        self.endpoint = endpoint
+        self.is_failed = False
+        self.failure_logged_at_warning = False
+
+    def record_failure(self, error_message: str) -> None:
+        self.is_failed = True
+        if not self.failure_logged_at_warning:
+            logger.warning(
+                "OTLP endpoint %s unreachable: %s (suppressing further warnings)",
+                self.endpoint, error_message,
+            )
+            self.failure_logged_at_warning = True
+        else:
+            logger.debug("OTLP endpoint %s still unreachable: %s", self.endpoint, error_message)
+
+    def record_recovery(self) -> None:
+        if self.is_failed:
+            logger.info("OTLP endpoint %s recovered", self.endpoint)
+        self.is_failed = False
+        self.failure_logged_at_warning = False
+
+
+def _create_otlp_span_exporter(protocol: str, endpoint: str):
+    """Create an OTLP span exporter for the given protocol."""
+    if protocol == "grpc":
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+            OTLPSpanExporter as GrpcExporter,
+        )
+        return GrpcExporter(endpoint=endpoint, insecure=True)
+    else:
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+            OTLPSpanExporter as HttpExporter,
+        )
+        return HttpExporter(endpoint=endpoint)
 
 
 def _create_otlp_metric_exporter(protocol: str, endpoint: str):
@@ -36,42 +75,75 @@ def _create_otlp_metric_exporter(protocol: str, endpoint: str):
         from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
             OTLPMetricExporter as GrpcMetricExporter,
         )
-
         return GrpcMetricExporter(endpoint=endpoint, insecure=True)
     else:
         from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
             OTLPMetricExporter as HttpMetricExporter,
         )
-
         return HttpMetricExporter(endpoint=endpoint)
 
 
-class OtelSpanExporter:
-    """Exports SpanData to OTLP collector via OpenTelemetry SDK."""
+class MultiEndpointSpanExporter:
+    """Exports SpanData to multiple OTLP endpoints with independent failure isolation."""
 
     def __init__(self, config: ObservabilityConfig):
-        if not HAS_OTEL:
-            raise ImportError("opentelemetry packages not installed")
+        resource = Resource.create({"service.name": config.service_name or "baton"})
+        self._providers: list[tuple[TracerProvider, str]] = []
+        self._tracers: list[tuple[object, _EndpointHealth]] = []
 
+        endpoints = config.otlp_endpoints or []
+        for ep in endpoints:
+            try:
+                provider = TracerProvider(resource=resource)
+                exporter = _create_otlp_span_exporter(ep.protocol, ep.endpoint)
+                provider.add_span_processor(BatchSpanProcessor(exporter))
+                tracer = provider.get_tracer("baton")
+                health = _EndpointHealth(ep.endpoint)
+                self._providers.append((provider, ep.name))
+                self._tracers.append((tracer, health))
+            except Exception as e:
+                logger.warning("Failed to create span exporter for endpoint %s: %s", ep.name, e)
+
+    def export(self, spans: list[SpanData]) -> None:
+        """Fan out spans to all configured endpoints independently."""
+        for tracer, health in self._tracers:
+            try:
+                for sd in spans:
+                    with tracer.start_span(sd.name) as span:
+                        for k, v in sd.attributes.items():
+                            span.set_attribute(k, v)
+                        span.set_attribute("baton.node", sd.node_name)
+                        span.set_attribute("baton.trace_id", sd.trace_id)
+                        if sd.edge_label:
+                            span.set_attribute("baton.edge", sd.edge_label)
+                        if sd.status == "error":
+                            span.set_status(StatusCode.ERROR)
+                health.record_recovery()
+            except Exception as e:
+                health.record_failure(str(e))
+
+    def shutdown(self) -> None:
+        for provider, _name in self._providers:
+            try:
+                provider.shutdown()
+            except Exception:
+                pass
+
+
+class OtelSpanExporter:
+    """Exports SpanData to OTLP collector via OpenTelemetry SDK.
+
+    Supports single endpoint (legacy) and multi-endpoint configurations.
+    """
+
+    def __init__(self, config: ObservabilityConfig):
         resource = Resource.create({"service.name": config.service_name or "baton"})
         self._provider = TracerProvider(resource=resource)
 
         protocol = config.otlp_protocol or "grpc"
         endpoint = config.otlp_endpoint or "http://localhost:4317"
 
-        if protocol == "grpc":
-            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-                OTLPSpanExporter as GrpcExporter,
-            )
-
-            exporter = GrpcExporter(endpoint=endpoint, insecure=True)
-        else:
-            from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
-                OTLPSpanExporter as HttpExporter,
-            )
-
-            exporter = HttpExporter(endpoint=endpoint)
-
+        exporter = _create_otlp_span_exporter(protocol, endpoint)
         self._provider.add_span_processor(BatchSpanProcessor(exporter))
         self._tracer = self._provider.get_tracer("baton")
 
@@ -96,8 +168,6 @@ class OtelMetricExporter:
     """Exports adapter metrics to OTLP collector."""
 
     def __init__(self, config: ObservabilityConfig):
-        if not HAS_OTEL:
-            raise ImportError("opentelemetry packages not installed")
         self._config = config
 
         resource = Resource.create({"service.name": config.service_name or "baton"})
@@ -189,13 +259,6 @@ class OtelMetricExporter:
             if delta_failed:
                 self._requests_failed.add(delta_failed, attrs)
 
-            # Status code counters (not in NodeSnapshot directly, but we
-            # can derive from error_rate * total -- however the snapshot
-            # doesn't carry per-status-class counts).
-            # NodeSnapshot does not include status_2xx..5xx or bytes_forwarded
-            # individually, so we skip those counters when the data isn't
-            # present.  The raw AdapterMetrics fields may be passed by
-            # future callers; handle both cases gracefully.
             for field_name, counter in (
                 ("bytes_forwarded", self._bytes_forwarded),
                 ("status_2xx", self._status_2xx),

@@ -159,18 +159,23 @@ def create_span_exporter(
     config: ObservabilityConfig,
     project_dir: str | Path = "",
 ) -> SpanExporter:
-    """Factory: create exporter by name."""
-    if sink == "null" or not config.enabled:
+    """Factory: create exporter by name.
+
+    When OTLP is enabled (otlp_enabled=True, the default), creates a
+    multi-endpoint span exporter that fans out to all configured endpoints.
+    Unreachable endpoints are handled gracefully (fire-and-forget).
+    """
+    if sink == "null":
+        return NullExporter()
+    if not config.enabled:
+        # observability.enabled is False, but otlp_enabled may be True
+        if config.otlp_enabled and config.otlp_endpoints:
+            from baton.otel import MultiEndpointSpanExporter
+            return MultiEndpointSpanExporter(config)
         return NullExporter()
     if sink == "jsonl":
         return JsonlExporter(project_dir)
     if sink == "otel":
-        try:
-            from baton.otel import OtelSpanExporter
-
-            return OtelSpanExporter(config)
-        except ImportError:
-            raise ImportError(
-                "OpenTelemetry not installed. Run: pip install baton[otel]"
-            )
+        from baton.otel import OtelSpanExporter
+        return OtelSpanExporter(config)
     raise ValueError(f"Unknown span exporter: {sink}")

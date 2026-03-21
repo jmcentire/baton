@@ -1,31 +1,50 @@
-# Baton — System Context
+# Enable OTLP Export by Default in Baton Circuit Orchestration
 
-## What It Is
-Cloud-agnostic circuit orchestration. Pre-wired topologies with smart adapters, mock collapse, A/B routing, canary promotion, taint analysis, and self-healing. Research-backed (Papers 19, 20, 23, 24, 43).
+## Context
 
-## How It Works
-Circuit board metaphor: define topology (nodes + edges) once, slot services in and out. Two workflows: topology-first (hand-author baton.yaml) or service-first (derive from manifests).
+Baton is a circuit orchestration / service mesh system that currently treats OpenTelemetry (OTLP) span and metric export as optional. The system has existing `OtelSpanExporter` and `OtelMetricExporter` classes supporting gRPC and HTTP protocols, plus built-in observability via JSONL signals and dashboard.
 
-## Key Constraints
-- Egress nodes always mocked (C001)
-- Routing lock guards protect critical nodes (C002)
-- Adapter observations are ground truth (C003)
-- Audit sidecar binds 127.0.0.1 only (C004)
-- Arbiter calls degrade gracefully with 2s timeout (C009)
-- Field masking for encrypted data in transit (C010)
+## Problem
 
-## Architecture
-43 source modules. Core: adapter (reverse proxy), lifecycle (orchestration), custodian (self-healing), taint (canary tracking), telemetry (metrics), signals (cross-node aggregation).
+Teams naturally forward telemetry to external observability tools (Honeycomb/Jaeger) for exploration because Baton's built-in observability is too thin for exploratory querying. The current opt-in approach creates friction for teams who need OTLP export enabled by default. Additionally, the new Chronicler project requires OTLP as a sink for story building, and OTLP export enables closed-loop feedback in the governance stack.
 
-## Integrations
-- Arbiter: trust scores, OTLP span forwarding (optional, graceful degradation)
-- Ledger: field masking, egress node sync, mock records (optional)
-- Constrain: component_map.yaml -> baton.yaml generation
-- Pact: adopted, 103 smoke tests
+## Requirements
 
-## Done Checklist
-- [ ] Circuit boots with mock and live services
-- [ ] Taint analysis detects boundary violations
-- [ ] Arbiter unavailability doesn't crash circuit
-- [ ] Field masking replaces encrypted fields
-- [ ] Canary promotion/rollback works end-to-end
+### Functional Requirements
+- Change OpenTelemetry from optional to required dependency in pyproject.toml
+- Default `otlp_enabled` to `True` in `ObservabilityConfig`
+- Support multiple OTLP endpoints for fan-out capability (collector + Chronicler)
+- Implement fire-and-forget approach: unreachable endpoints log warning and continue without blocking circuit operation
+- Maintain backward compatibility for existing baton.yaml configs without observability section
+
+### Non-Functional Requirements
+- All existing 804+ tests must continue to pass
+- Circuit operation must never be blocked by OTLP export failures
+- System must gracefully handle unreachable OTLP endpoints
+- Performance impact should be minimal
+
+## Stakeholders
+- Teams using Baton for deployment/routing
+- Users of external observability tools (Honeycomb/Jaeger)  
+- FOSS governance stack users
+- Chronicler project team
+
+## Dependencies
+- OpenTelemetry library (transitioning from optional to required)
+- Pact (contracts)
+- Sentinel (production monitoring)
+- Chronicler project
+- External observability tools
+- OTLP collector endpoints
+
+## Success Criteria
+- Seamless integration with external observability tools by default
+- Fan-out capability to multiple OTLP endpoints working correctly
+- Backward compatibility maintained for existing configurations
+- No blocking behavior on unreachable endpoints
+- All tests passing
+
+## Constraints
+- Must maintain backward compatibility with existing baton.yaml files
+- Circuit operation must never be blocked by observability export
+- Focus on OTLP export enhancement, not replacing built-in observability

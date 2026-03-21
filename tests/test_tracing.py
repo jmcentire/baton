@@ -203,9 +203,16 @@ class TestCreateSpanExporter:
         assert isinstance(exporter, NullExporter)
 
     def test_disabled_returns_null(self):
-        config = ObservabilityConfig(enabled=False)
+        config = ObservabilityConfig(enabled=False, otlp_enabled=False)
         exporter = create_span_exporter("jsonl", config)
         assert isinstance(exporter, NullExporter)
+
+    def test_disabled_with_otlp_returns_multi_endpoint(self):
+        """When enabled=False but otlp_enabled=True, still exports via OTLP."""
+        from baton.otel import MultiEndpointSpanExporter
+        config = ObservabilityConfig(enabled=False, otlp_enabled=True)
+        exporter = create_span_exporter("jsonl", config)
+        assert isinstance(exporter, MultiEndpointSpanExporter)
 
     def test_jsonl_exporter(self, project_dir: Path):
         config = ObservabilityConfig(enabled=True)
@@ -217,8 +224,10 @@ class TestCreateSpanExporter:
         with pytest.raises(ValueError, match="Unknown span exporter"):
             create_span_exporter("unknown", config)
 
-    def test_otel_without_package(self):
+    def test_otel_exporter_creates_successfully(self):
+        """OTel exporter can be created since OpenTelemetry is a required dependency."""
+        from baton.otel import OtelSpanExporter
         config = ObservabilityConfig(enabled=True, otlp_endpoint="http://localhost:4317")
-        with patch.dict("sys.modules", {"baton.otel": None}):
-            with pytest.raises(ImportError, match="OpenTelemetry not installed"):
-                create_span_exporter("otel", config)
+        exporter = create_span_exporter("otel", config)
+        assert isinstance(exporter, OtelSpanExporter)
+        exporter.shutdown()

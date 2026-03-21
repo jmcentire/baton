@@ -530,6 +530,16 @@ class NodeTelemetryConfig(BaseModel):
     classes: list[TelemetryClassRule] = Field(default_factory=list)
 
 
+class OtlpEndpointConfig(BaseModel):
+    """Configuration for a single OTLP collector endpoint."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str = "default"
+    endpoint: str = "localhost:4317"
+    protocol: str = "grpc"  # "grpc" or "http"
+
+
 class ObservabilityConfig(BaseModel):
     """Observability settings from baton.yaml."""
 
@@ -541,6 +551,20 @@ class ObservabilityConfig(BaseModel):
     otlp_protocol: str = "grpc"
     service_name: str = ""
     trace_sample_rate: float = Field(default=1.0, ge=0.0, le=1.0)
+    otlp_enabled: bool = True
+    otlp_endpoints: list[OtlpEndpointConfig] | None = None
+
+    @model_validator(mode="after")
+    def synthesize_default_endpoints(self) -> ObservabilityConfig:
+        """When otlp_enabled is True and no endpoints are provided, synthesize a default."""
+        if self.otlp_enabled and self.otlp_endpoints is None:
+            default_ep = OtlpEndpointConfig(
+                name="default",
+                endpoint="localhost:4317",
+                protocol="grpc",
+            )
+            object.__setattr__(self, "otlp_endpoints", [default_ep])
+        return self
 
 
 class TaintConfig(BaseModel):

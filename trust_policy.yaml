@@ -1,34 +1,41 @@
-version: "1"
-project: baton
-classification_tiers:
-  - name: PUBLIC
-    soak_duration_hours: 0
-    human_gate: false
-  - name: PII
-    soak_duration_hours: 24
-    human_gate: true
-  - name: FINANCIAL
-    soak_duration_hours: 48
-    human_gate: true
-  - name: AUTH
-    soak_duration_hours: 72
-    human_gate: true
+components:
+  baton_core:
+    trust_level: high
+    rationale: "Core circuit orchestration system with established reliability"
+    verification: "Existing 804+ test suite provides comprehensive coverage"
+  
+  otel_exporters:
+    trust_level: medium
+    rationale: "Existing OtelSpanExporter and OtelMetricExporter classes proven in production"
+    verification: "Must handle failures gracefully without blocking circuit operation"
+  
+  opentelemetry_library:
+    trust_level: high
+    rationale: "Mature CNCF project with widespread adoption"
+    verification: "Industry standard for observability telemetry"
 
-authority_map:
-  adapter:
-    domain: traffic_proxying
-    trust_score: 0.9
-  taint:
-    domain: canary_tracking
-    trust_score: 0.85
-  custodian:
-    domain: health_repair
-    trust_score: 0.8
-  arbiter_client:
-    domain: trust_queries
-    trust_score: 0.7
-  ledger_client:
-    domain: field_masking
-    trust_score: 0.7
+external_dependencies:
+  otlp_endpoints:
+    trust_level: low
+    rationale: "External endpoints may be unreachable or slow"
+    mitigation: "Fire-and-forget approach with timeout and error logging"
+  
+  chronicler_project:
+    trust_level: medium
+    rationale: "New project requiring OTLP sink for story building"
+    verification: "Must not block circuit operation if unavailable"
+  
+  observability_tools:
+    trust_level: medium
+    rationale: "External tools like Honeycomb/Jaeger may have availability issues"
+    mitigation: "Fan-out capability allows degraded operation if some endpoints fail"
 
-canary_eligible: [adapter, taint, ledger_client]
+security:
+  data_handling:
+    - telemetry_data_contains_no_secrets: true
+    - span_data_follows_opentelemetry_standards: true
+    - metric_data_sanitized: true
+  
+  network:
+    - otlp_endpoints_use_secure_protocols: true
+    - timeout_configuration_prevents_hanging: true
