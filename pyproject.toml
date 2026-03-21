@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "baton-orchestrator"
-version = "0.3.1"
+version = "0.3.2"
 description = "Cloud-agnostic circuit orchestration -- pre-wired topologies with smart adapters, mock collapse, and self-healing."
 readme = "README.md"
 license = {text = "MIT"}
