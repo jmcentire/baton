@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     # baton slot
     p_slot = sub.add_parser("slot", help="Slot a service into a node")
     p_slot.add_argument("node", help="Node name")
-    p_slot.add_argument("command", nargs="?", help="Command to run (omit for --mock)")
+    p_slot.add_argument("service_cmd", nargs="?", help="Command to run (omit for --mock)")
     p_slot.add_argument("--mock", action="store_true", help="Slot a mock instead")
     p_slot.add_argument("--skip-validate", action="store_true", help="Skip runtime interface validation")
     p_slot.add_argument("--force", action="store_true", help="Force slot even with low Arbiter trust")
@@ -91,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
     # baton swap
     p_swap = sub.add_parser("swap", help="Hot-swap a service in a node")
     p_swap.add_argument("node", help="Node name")
-    p_swap.add_argument("command", help="Command to run")
+    p_swap.add_argument("service_cmd", help="Command to run")
     p_swap.add_argument("--skip-validate", action="store_true", help="Skip runtime interface validation")
     p_swap.add_argument("--dir", default=".", help="Project directory")
 
@@ -552,17 +552,48 @@ async def _cmd_slot(args: argparse.Namespace) -> int:
     if args.mock:
         print("Use 'baton collapse' to mock nodes in a running circuit")
         return 1
-    if not args.command:
+    if not args.service_cmd:
         print("Error: command required (or use --mock)", file=sys.stderr)
         return 1
 
+    from baton.collapse import build_mock_server, compute_mock_backends
     from baton.lifecycle import LifecycleManager
+
     mgr = LifecycleManager(args.dir)
     state = await mgr.up(mock=False)
+
+    # Wire mocks for all nodes except the one being slotted
+    circuit = load_circuit(args.dir)
+    live_nodes: set[str] = {args.node}
+    mock_server = build_mock_server(circuit, live_nodes=live_nodes, project_dir=args.dir)
+    backends = compute_mock_backends(circuit, live_nodes=live_nodes)
+    await mock_server.start()
+    for node_name, target in backends.items():
+        adapter = mgr.adapters.get(node_name)
+        if adapter:
+            adapter.set_backend(target)
+            if state.adapters.get(node_name):
+                state.adapters[node_name].status = NodeStatus.ACTIVE
+
     skip = getattr(args, "skip_validate", False)
     force = getattr(args, "force", False)
-    await mgr.slot(args.node, args.command, validate=not skip, force=force)
+    await mgr.slot(args.node, args.service_cmd, validate=not skip, force=force)
     print(f"Slotted service into '{args.node}'")
+
+    # Block until interrupted so adapters stay alive
+    stop_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, stop_event.set)
+    print("Press Ctrl+C to stop")
+    try:
+        await stop_event.wait()
+    except asyncio.CancelledError:
+        pass
+    finally:
+        await mock_server.stop()
+        await mgr.down()
+        print("Circuit is down")
     return 0
 
 
@@ -571,7 +602,7 @@ async def _cmd_swap(args: argparse.Namespace) -> int:
     mgr = LifecycleManager(args.dir)
     state = await mgr.up(mock=False)
     skip = getattr(args, "skip_validate", False)
-    await mgr.swap(args.node, args.command, validate=not skip)
+    await mgr.swap(args.node, args.service_cmd, validate=not skip)
     print(f"Swapped service in '{args.node}'")
     return 0
 
