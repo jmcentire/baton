@@ -1,0 +1,26 @@
+name: exemplar-stack
+version: 1
+
+ledger:
+  api_endpoint: http://localhost:7701
+  mock_from_ledger: true
+
+taint:
+  enabled: true
+  scan_requests: true
+  scan_responses: true
+
+nodes:
+  - name: reeve-prod
+    port: 18080
+    role: ingress
+    proxy_mode: http
+    metadata:
+      component: reeve
+      upstream_url: https://reeve.fly.dev
+      liveness_path: /health/live
+      readiness_path: /health/ready
+      smoke.config: configs/reeve-smoke.yaml
+      canary.threshold_event_type: reeve.canary.thresholds.registered
+      canary.threshold_payload_key: thresholds
+      ledger.egress_config: configs/reeve-egress.yaml

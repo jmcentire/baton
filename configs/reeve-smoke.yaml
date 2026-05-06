@@ -1,0 +1,23 @@
+component: reeve
+upstream_url: https://reeve.fly.dev
+checks:
+  - id: liveness
+    path: /health/live
+    interval_sec: 30
+    on_failure: restart
+  - id: readiness
+    path: /health/ready
+    interval_sec: 30
+    on_failure: drain
+  - id: audit-chain-intact
+    path: /smoke/audit-chain-intact
+    interval_sec: 60
+    on_failure: mark-degraded
+  - id: stack-mode-nominal
+    path: /smoke/stack-mode-nominal
+    interval_sec: 60
+    on_failure: mark-degraded
+  - id: registries-populated
+    path: /smoke/registries-populated
+    interval_sec: 300
+    on_failure: alert

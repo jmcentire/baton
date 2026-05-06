@@ -1,0 +1,28 @@
+component: reeve
+backend_id: reeve_main
+format: baton
+egress_nodes:
+- id: reeve_main.customer_emails
+  owner: reeve
+  mock_generator: ledger
+  masked_fields:
+  - customer_emails.email
+  canary_eligible_fields:
+  - customer_emails.email
+- id: reeve_main.customers
+  owner: reeve
+  mock_generator: ledger
+  masked_fields:
+  - customers.display_name
+  canary_eligible_fields:
+  - customers.display_name
+- id: reeve_main.messages
+  owner: reeve
+  mock_generator: ledger
+  masked_fields:
+  - messages.body_html
+  - messages.body_text
+  - messages.subject
+  canary_eligible_fields:
+  - messages.body_text
+  - messages.subject
