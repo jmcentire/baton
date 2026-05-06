@@ -14,12 +14,18 @@ import mimetypes
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from baton import __version__
 from baton.adapter import Adapter
 from baton.dashboard import collect
 from baton.schemas import CircuitSpec, CircuitState
 from baton.signals import SignalAggregator
 
 logger = logging.getLogger(__name__)
+
+
+def _package_version() -> str:
+    """Return Baton package version for stack drift checks."""
+    return __version__
 
 
 class DashboardServer:
@@ -90,7 +96,10 @@ class DashboardServer:
             path = parsed.path
             query = parse_qs(parsed.query)
 
-            if method == "GET" and path == "/api/snapshot":
+            if method == "GET" and path == "/v1/about":
+                body = self._handle_about()
+                self._write_json_response(writer, 200, body)
+            elif method == "GET" and path == "/api/snapshot":
                 body = await self._handle_snapshot()
                 self._write_json_response(writer, 200, body)
             elif method == "GET" and path == "/api/topology":
@@ -118,6 +127,20 @@ class DashboardServer:
             logger.debug(f"Dashboard server error: {e}")
         finally:
             writer.close()
+
+    def _handle_about(self) -> str:
+        """Return component/version metadata for stack drift checks."""
+        return json.dumps(
+            {
+                "component": "baton",
+                "version": _package_version(),
+                "deps": {},
+                "circuit": {
+                    "name": self._circuit.name,
+                    "version": self._circuit.version,
+                },
+            }
+        )
 
     async def _handle_snapshot(self) -> str:
         """Return dashboard.collect() as JSON."""

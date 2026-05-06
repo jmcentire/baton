@@ -1,3 +1,3 @@
 """Baton -- cloud-agnostic circuit orchestration."""
 
-__version__ = "0.3.2"
+__version__ = "0.3.5"
