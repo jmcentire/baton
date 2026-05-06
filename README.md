@@ -196,6 +196,21 @@ baton teardown [--provider local|gcp]     # tear down deployment
 baton deploy-status [--provider ...]      # check deployment status
 ```
 
+### Fly Deployment
+
+This repo includes a minimal `Dockerfile` and `fly.toml` for the Exemplar
+stack Baton node:
+
+```bash
+flyctl apps create baton-stack
+flyctl deploy
+```
+
+The Fly image runs `baton dashboard --serve --host 0.0.0.0 --port 9900 --dir
+/app` against the checked-in `baton.yaml` and `configs/` directory. The service
+health check targets `/api/snapshot`. This gives Reeve and `stack-smoke` a live
+Baton surface while first-class multi-smoke polling continues to mature.
+
 ### Declarative Config
 
 ```bash

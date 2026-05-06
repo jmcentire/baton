@@ -219,6 +219,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_dashboard.add_argument("--json", action="store_true", help="Output as JSON")
     p_dashboard.add_argument("--serve", action="store_true", help="Start interactive dashboard server")
+    p_dashboard.add_argument("--host", default="127.0.0.1", help="Dashboard server host (default: 127.0.0.1)")
     p_dashboard.add_argument("--port", type=int, default=9900, help="Dashboard server port (default: 9900)")
     p_dashboard.add_argument("--dir", default=".", help="Project directory")
 
@@ -1078,11 +1079,11 @@ async def _cmd_dashboard(args: argparse.Namespace) -> int:
             circuit=circuit,
             signal_aggregator=sig_agg,
             static_dir=static_dir,
-            host="127.0.0.1",
+            host=args.host,
             port=args.port,
         )
         await server.start()
-        print(f"Dashboard server running on http://127.0.0.1:{args.port}")
+        print(f"Dashboard server running on http://{args.host}:{args.port}")
         print("Press Ctrl+C to stop")
 
         try:

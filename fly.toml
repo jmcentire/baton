@@ -1,0 +1,56 @@
+# Baton deployment for Exemplar stack smoke/control visibility.
+#
+# First-time setup:
+#
+#     flyctl apps create baton-stack
+#     flyctl deploy
+#
+# The dashboard is intentionally lightweight. It boots the declared circuit in
+# mock mode, exposes topology/snapshot APIs, and gives Reeve/stack-smoke a live
+# Baton node to target while deeper adapter polling lands.
+
+app = "baton-stack"
+primary_region = "ord"
+
+kill_signal = "SIGTERM"
+kill_timeout = 30
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  BATON_HOST = "0.0.0.0"
+  BATON_PORT = "9900"
+
+[[services]]
+  internal_port = 9900
+  protocol = "tcp"
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 50
+    soft_limit = 25
+
+  [[services.http_checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "get"
+    path = "/api/snapshot"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
