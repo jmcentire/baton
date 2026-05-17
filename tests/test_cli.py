@@ -938,3 +938,35 @@ class TestNoCommand:
     def test_no_args(self):
         rc = main([])
         assert rc == 1
+
+
+class TestSlotAndSwapDispatch:
+    def test_slot_preserves_subcommand_when_service_command_is_provided(self, monkeypatch, project_dir):
+        captured = {}
+
+        async def fake_cmd_async(args):
+            captured["args"] = args
+            return 0
+
+        monkeypatch.setattr("baton.cli._cmd_async", fake_cmd_async)
+
+        rc = main(["slot", "api", "python -m app", "--dir", str(project_dir)])
+
+        assert rc == 0
+        assert captured["args"].command == "slot"
+        assert captured["args"].service_cmd == "python -m app"
+
+    def test_swap_preserves_subcommand_when_service_command_is_provided(self, monkeypatch, project_dir):
+        captured = {}
+
+        async def fake_cmd_async(args):
+            captured["args"] = args
+            return 0
+
+        monkeypatch.setattr("baton.cli._cmd_async", fake_cmd_async)
+
+        rc = main(["swap", "api", "python -m app", "--dir", str(project_dir)])
+
+        assert rc == 0
+        assert captured["args"].command == "swap"
+        assert captured["args"].service_cmd == "python -m app"

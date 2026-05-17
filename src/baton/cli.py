@@ -560,38 +560,40 @@ async def _cmd_slot(args: argparse.Namespace) -> int:
     from baton.lifecycle import LifecycleManager
 
     mgr = LifecycleManager(args.dir)
-    state = await mgr.up(mock=False)
-
-    # Wire mocks for all nodes except the one being slotted
-    circuit = load_circuit(args.dir)
-    live_nodes: set[str] = {args.node}
-    mock_server = build_mock_server(circuit, live_nodes=live_nodes, project_dir=args.dir)
-    backends = compute_mock_backends(circuit, live_nodes=live_nodes)
-    await mock_server.start()
-    for node_name, target in backends.items():
-        adapter = mgr.adapters.get(node_name)
-        if adapter:
-            adapter.set_backend(target)
-            if state.adapters.get(node_name):
-                state.adapters[node_name].status = NodeStatus.ACTIVE
-
-    skip = getattr(args, "skip_validate", False)
-    force = getattr(args, "force", False)
-    await mgr.slot(args.node, args.service_cmd, validate=not skip, force=force)
-    print(f"Slotted service into '{args.node}'")
-
-    # Block until interrupted so adapters stay alive
-    stop_event = asyncio.Event()
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, stop_event.set)
-    print("Press Ctrl+C to stop")
+    mock_server = None
     try:
+        state = await mgr.up(mock=False)
+
+        # Wire mocks for all nodes except the one being slotted
+        circuit = load_circuit(args.dir)
+        live_nodes: set[str] = {args.node}
+        mock_server = build_mock_server(circuit, live_nodes=live_nodes, project_dir=args.dir)
+        backends = compute_mock_backends(circuit, live_nodes=live_nodes)
+        await mock_server.start()
+        for node_name, target in backends.items():
+            adapter = mgr.adapters.get(node_name)
+            if adapter:
+                adapter.set_backend(target)
+                if state.adapters.get(node_name):
+                    state.adapters[node_name].status = NodeStatus.ACTIVE
+
+        skip = getattr(args, "skip_validate", False)
+        force = getattr(args, "force", False)
+        await mgr.slot(args.node, args.service_cmd, validate=not skip, force=force)
+        print(f"Slotted service into '{args.node}'")
+
+        # Block until interrupted so adapters stay alive
+        stop_event = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, stop_event.set)
+        print("Press Ctrl+C to stop")
         await stop_event.wait()
     except asyncio.CancelledError:
         pass
     finally:
-        await mock_server.stop()
+        if mock_server is not None:
+            await mock_server.stop()
         await mgr.down()
         print("Circuit is down")
     return 0
