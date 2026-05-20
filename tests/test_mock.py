@@ -331,6 +331,36 @@ class TestMockServer:
         finally:
             await server.stop()
 
+    async def test_query_string_ignored_in_route_matching(self):
+        server = MockServer()
+        server.add_routes(16013, {
+            "/check": {"GET": {"available": True}},
+        })
+        await server.start()
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 16013)
+            writer.write(
+                b"GET /check?unitId=00000000-0000-0000-0000-000000000000"
+                b"&region=us-east-1&field=availability"
+                b"&localFrom=2026-06-01&localTo=2026-06-07 HTTP/1.1\r\n"
+                b"Host: localhost\r\n\r\n"
+            )
+            await writer.drain()
+            chunks = []
+            while True:
+                chunk = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+            response = b"".join(chunks)
+            writer.close()
+
+            assert b"200 OK" in response
+            body = json.loads(response.split(b"\r\n\r\n", 1)[1])
+            assert body["available"] is True
+        finally:
+            await server.stop()
+
     async def test_default_routes(self):
         server = MockServer()
         server.add_default_routes(16006)

@@ -246,6 +246,8 @@ class MockServer:
             parts = request_line.decode("ascii", errors="replace").strip().split()
             method = parts[0] if parts else "GET"
             path = parts[1] if len(parts) > 1 else "/"
+            if "?" in path:
+                path = path.split("?")[0]
 
             routes = self._route_tables.get(port, {})
             route = routes.get(path, {})

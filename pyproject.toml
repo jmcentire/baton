@@ -25,6 +25,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+    "mcp[cli]>=1.26.0",
 ]
 gcp = [
     "google-cloud-run>=0.10",
