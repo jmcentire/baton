@@ -134,6 +134,12 @@ class AdapterControlServer:
                 await writer.drain()
                 writer.close()
                 return
+            elif method == "POST" and path == "/backend":
+                status, body = self._handle_set_backend(request_body)
+                self._write_response(writer, status, body)
+                await writer.drain()
+                writer.close()
+                return
             else:
                 body = json.dumps({"error": "not found"})
                 self._write_response(writer, 404, body)
@@ -207,6 +213,36 @@ class AdapterControlServer:
             "count": len(violations),
         })
 
+    def _handle_set_backend(self, request_body: bytes) -> tuple[int, str]:
+        """Handle POST /backend: point this adapter at a new backend.
+
+        Body: {"host": "...", "port": N}. Returns 423 if routing is locked.
+        """
+        from baton.adapter import BackendTarget
+
+        try:
+            data = json.loads(request_body)
+        except (json.JSONDecodeError, ValueError):
+            return 400, json.dumps({"error": "invalid JSON"})
+
+        host = data.get("host")
+        port = data.get("port")
+        if not isinstance(host, str) or not host:
+            return 400, json.dumps({"error": "host (non-empty str) required"})
+        if not isinstance(port, int) or port <= 0 or port > 65535:
+            return 400, json.dumps({"error": "port (1..65535) required"})
+
+        try:
+            self._adapter.set_backend(BackendTarget(host=host, port=port))
+        except RuntimeError as e:
+            return 423, json.dumps({"error": str(e)})
+
+        backend = self._adapter.backend
+        return 200, json.dumps({
+            "node": self._adapter.node.name,
+            "backend": {"host": backend.host, "port": backend.port},
+        })
+
     def _handle_event(self, request_body: bytes) -> str:
         """Handle POST /events: accept a service event and buffer it."""
         from datetime import datetime, timezone
@@ -242,9 +278,16 @@ class AdapterControlServer:
 
     @staticmethod
     def _write_response(writer: asyncio.StreamWriter, status: int, body: str) -> None:
-        reason = {200: "OK", 201: "Created", 401: "Unauthorized", 404: "Not Found", 500: "Internal Server Error", 503: "Service Unavailable"}.get(
-            status, "Unknown"
-        )
+        reason = {
+            200: "OK",
+            201: "Created",
+            400: "Bad Request",
+            401: "Unauthorized",
+            404: "Not Found",
+            423: "Locked",
+            500: "Internal Server Error",
+            503: "Service Unavailable",
+        }.get(status, "Unknown")
         body_bytes = body.encode("utf-8")
         writer.write(
             f"HTTP/1.1 {status} {reason}\r\n"

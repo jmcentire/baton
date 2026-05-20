@@ -12,6 +12,35 @@ from baton.adapter_control import AdapterControlServer
 from baton.schemas import ControlAuthConfig, NodeSpec, RoutingConfig, RoutingStrategy, RoutingTarget, SecurityConfig
 
 
+async def _http_post(port: int, path: str, body_obj: dict) -> tuple[int, dict]:
+    """Make a simple HTTP POST request and return (status_code, json_body)."""
+    body = json.dumps(body_obj).encode("utf-8")
+    reader, writer = await asyncio.open_connection("127.0.0.1", port)
+    writer.write(
+        f"POST {path} HTTP/1.1\r\n"
+        f"Host: localhost\r\n"
+        f"Content-Type: application/json\r\n"
+        f"Content-Length: {len(body)}\r\n"
+        f"\r\n".encode("ascii")
+        + body
+    )
+    await writer.drain()
+
+    chunks = []
+    while True:
+        chunk = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+        if not chunk:
+            break
+        chunks.append(chunk)
+    response = b"".join(chunks)
+    writer.close()
+
+    first_line = response.split(b"\r\n", 1)[0].decode()
+    status = int(first_line.split(" ")[1])
+    body_part = response.split(b"\r\n\r\n", 1)[1].decode()
+    return status, json.loads(body_part) if body_part else {}
+
+
 async def _http_get(port: int, path: str, headers: dict[str, str] | None = None) -> tuple[int, dict]:
     """Make a simple HTTP GET request and return (status_code, json_body)."""
     reader, writer = await asyncio.open_connection("127.0.0.1", port)
@@ -213,6 +242,65 @@ class TestControlServer:
             assert status == 200
             assert body["routing_strategy"] == "weighted"
             assert body["routing_locked"] is True
+        finally:
+            await ctrl.stop()
+
+
+class TestSetBackend:
+    async def test_post_backend_updates_adapter(self):
+        node = NodeSpec(name="ctrl-set-be", port=19030, management_port=29030)
+        adapter = Adapter(node)
+        ctrl = AdapterControlServer(adapter)
+        await ctrl.start()
+        try:
+            status, body = await _http_post(
+                29030, "/backend", {"host": "127.0.0.1", "port": 9001}
+            )
+            assert status == 200
+            assert body["node"] == "ctrl-set-be"
+            assert body["backend"] == {"host": "127.0.0.1", "port": 9001}
+            assert adapter.backend.host == "127.0.0.1"
+            assert adapter.backend.port == 9001
+        finally:
+            await ctrl.stop()
+
+    async def test_post_backend_rejects_invalid_payload(self):
+        node = NodeSpec(name="ctrl-bad-be", port=19031, management_port=29031)
+        adapter = Adapter(node)
+        ctrl = AdapterControlServer(adapter)
+        await ctrl.start()
+        try:
+            status, body = await _http_post(29031, "/backend", {"host": "x"})
+            assert status == 400
+            status, body = await _http_post(
+                29031, "/backend", {"host": "", "port": 9001}
+            )
+            assert status == 400
+            status, body = await _http_post(
+                29031, "/backend", {"host": "x", "port": 0}
+            )
+            assert status == 400
+        finally:
+            await ctrl.stop()
+
+    async def test_post_backend_locked_routing_returns_423(self):
+        node = NodeSpec(name="ctrl-locked-be", port=19032, management_port=29032)
+        adapter = Adapter(node)
+        adapter.set_routing(
+            RoutingConfig(
+                strategy=RoutingStrategy.WEIGHTED,
+                targets=[RoutingTarget(name="a", port=8001, weight=100)],
+                locked=True,
+            )
+        )
+        ctrl = AdapterControlServer(adapter)
+        await ctrl.start()
+        try:
+            status, body = await _http_post(
+                29032, "/backend", {"host": "127.0.0.1", "port": 9001}
+            )
+            assert status == 423
+            assert "locked" in body["error"].lower()
         finally:
             await ctrl.stop()
 

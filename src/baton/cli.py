@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import inspect
 import signal
 import sys
 from pathlib import Path
@@ -26,10 +27,12 @@ def main(argv: list[str] | None = None) -> int:
     p_init.add_argument("dir", nargs="?", default=".", help="Project directory")
     p_init.add_argument("--name", default="default", help="Circuit name")
     p_init.add_argument("--constrain-dir", default="", help="Generate from Constrain component_map.yaml")
+    p_init.set_defaults(func=_cmd_init)
 
     # baton node
     p_node = sub.add_parser("node", help="Manage nodes")
     node_sub = p_node.add_subparsers(dest="node_command")
+    p_node.set_defaults(func=_cmd_node)
 
     p_node_add = node_sub.add_parser("add", help="Add a node")
     p_node_add.add_argument("name", help="Node name")
@@ -37,47 +40,57 @@ def main(argv: list[str] | None = None) -> int:
     p_node_add.add_argument("--mode", default="http", choices=["http", "tcp", "grpc", "protobuf", "soap"], help="Proxy mode")
     p_node_add.add_argument("--role", default="service", choices=["service", "ingress", "egress"], help="Node role")
     p_node_add.add_argument("--dir", default=".", help="Project directory")
+    p_node_add.set_defaults(func=_cmd_node)
 
     p_node_rm = node_sub.add_parser("rm", help="Remove a node")
     p_node_rm.add_argument("name", help="Node name")
     p_node_rm.add_argument("--dir", default=".", help="Project directory")
+    p_node_rm.set_defaults(func=_cmd_node)
 
     # baton edge
     p_edge = sub.add_parser("edge", help="Manage edges")
     edge_sub = p_edge.add_subparsers(dest="edge_command")
+    p_edge.set_defaults(func=_cmd_edge)
 
     p_edge_add = edge_sub.add_parser("add", help="Add an edge")
     p_edge_add.add_argument("source", help="Source node")
     p_edge_add.add_argument("target", help="Target node")
     p_edge_add.add_argument("--dir", default=".", help="Project directory")
+    p_edge_add.set_defaults(func=_cmd_edge)
 
     p_edge_rm = edge_sub.add_parser("rm", help="Remove an edge")
     p_edge_rm.add_argument("source", help="Source node")
     p_edge_rm.add_argument("target", help="Target node")
     p_edge_rm.add_argument("--dir", default=".", help="Project directory")
+    p_edge_rm.set_defaults(func=_cmd_edge)
 
     # baton contract
     p_contract = sub.add_parser("contract", help="Manage contracts")
     contract_sub = p_contract.add_subparsers(dest="contract_command")
+    p_contract.set_defaults(func=_cmd_contract)
 
     p_contract_set = contract_sub.add_parser("set", help="Set contract for a node")
     p_contract_set.add_argument("node", help="Node name")
     p_contract_set.add_argument("spec", help="Path to contract spec")
     p_contract_set.add_argument("--dir", default=".", help="Project directory")
+    p_contract_set.set_defaults(func=_cmd_contract)
 
     # baton status
     p_status = sub.add_parser("status", help="Show circuit status")
     p_status.add_argument("--dir", default=".", help="Project directory")
+    p_status.set_defaults(func=_cmd_status)
 
     # baton up
     p_up = sub.add_parser("up", help="Boot the circuit")
     p_up.add_argument("--mock", action="store_true", default=True, help="Start with all nodes mocked (default)")
     p_up.add_argument("--services", action="store_true", help="Derive circuit from service manifests")
     p_up.add_argument("--dir", default=".", help="Project directory")
+    p_up.set_defaults(func=_cmd_up)
 
     # baton down
     p_down = sub.add_parser("down", help="Tear down the circuit")
     p_down.add_argument("--dir", default=".", help="Project directory")
+    p_down.set_defaults(func=_cmd_down)
 
     # baton slot
     p_slot = sub.add_parser("slot", help="Slot a service into a node")
@@ -87,6 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     p_slot.add_argument("--skip-validate", action="store_true", help="Skip runtime interface validation")
     p_slot.add_argument("--force", action="store_true", help="Force slot even with low Arbiter trust")
     p_slot.add_argument("--dir", default=".", help="Project directory")
+    p_slot.set_defaults(func=_cmd_slot)
 
     # baton swap
     p_swap = sub.add_parser("swap", help="Hot-swap a service in a node")
@@ -94,45 +108,55 @@ def main(argv: list[str] | None = None) -> int:
     p_swap.add_argument("service_cmd", help="Command to run")
     p_swap.add_argument("--skip-validate", action="store_true", help="Skip runtime interface validation")
     p_swap.add_argument("--dir", default=".", help="Project directory")
+    p_swap.set_defaults(func=_cmd_swap)
 
     # baton collapse
     p_collapse = sub.add_parser("collapse", help="Collapse circuit to minimal mock")
     p_collapse.add_argument("--live", default="", help="Comma-separated nodes to keep live")
     p_collapse.add_argument("--dir", default=".", help="Project directory")
+    p_collapse.set_defaults(func=_cmd_collapse)
 
     # baton watch
     p_watch = sub.add_parser("watch", help="Start the custodian monitor")
     p_watch.add_argument("--dir", default=".", help="Project directory")
     p_watch.add_argument("--interval", type=float, default=5.0, help="Poll interval in seconds")
+    p_watch.set_defaults(func=_cmd_watch)
 
     # baton service
     p_service = sub.add_parser("service", help="Manage service manifests")
     svc_sub = p_service.add_subparsers(dest="service_command")
+    p_service.set_defaults(func=_cmd_service)
 
     p_svc_register = svc_sub.add_parser("register", help="Register a service")
     p_svc_register.add_argument("path", help="Path to service directory")
     p_svc_register.add_argument("--dir", default=".", help="Project directory")
+    p_svc_register.set_defaults(func=_cmd_service)
 
     p_svc_list = svc_sub.add_parser("list", help="List registered services")
     p_svc_list.add_argument("--dir", default=".", help="Project directory")
+    p_svc_list.set_defaults(func=_cmd_service)
 
     p_svc_derive = svc_sub.add_parser("derive", help="Derive circuit from services")
     p_svc_derive.add_argument("--dir", default=".", help="Project directory")
     p_svc_derive.add_argument("--save", action="store_true", help="Save derived circuit to baton.yaml")
+    p_svc_derive.set_defaults(func=_cmd_service)
 
     # baton route
     p_route = sub.add_parser("route", help="Manage A/B routing")
     route_sub = p_route.add_subparsers(dest="route_command")
+    p_route.set_defaults(func=lambda a, p=p_route: (p.print_help(), 1)[-1])
 
     p_route_show = route_sub.add_parser("show", help="Show routing config for a node")
     p_route_show.add_argument("node", help="Node name")
     p_route_show.add_argument("--dir", default=".", help="Project directory")
+    p_route_show.set_defaults(func=_cmd_route_show)
 
     p_route_ab = route_sub.add_parser("ab", help="A/B split with a new service instance")
     p_route_ab.add_argument("node", help="Node name")
     p_route_ab.add_argument("command", help="Command for instance B")
     p_route_ab.add_argument("--split", default="80/20", help="Weight split A/B (default: 80/20)")
     p_route_ab.add_argument("--dir", default=".", help="Project directory")
+    p_route_ab.set_defaults(func=_cmd_route_ab)
 
     p_route_canary = route_sub.add_parser("canary", help="Canary rollout")
     p_route_canary.add_argument("node", help="Node name")
@@ -143,6 +167,7 @@ def main(argv: list[str] | None = None) -> int:
     p_route_canary.add_argument("--latency-threshold", type=float, default=500.0, help="Max canary p99 ms (default: 500)")
     p_route_canary.add_argument("--eval-interval", type=float, default=30.0, help="Seconds between evaluations (default: 30)")
     p_route_canary.add_argument("--dir", default=".", help="Project directory")
+    p_route_canary.set_defaults(func=_cmd_route_canary)
 
     p_route_set = route_sub.add_parser("set", help="Set custom routing config")
     p_route_set.add_argument("node", help="Node name")
@@ -152,18 +177,22 @@ def main(argv: list[str] | None = None) -> int:
     p_route_set.add_argument("--rules", default="", help="Rules: value:target,... (for header strategy)")
     p_route_set.add_argument("--default", default="", help="Default target (for header strategy)")
     p_route_set.add_argument("--dir", default=".", help="Project directory")
+    p_route_set.set_defaults(func=_cmd_route_set)
 
     p_route_lock = route_sub.add_parser("lock", help="Lock routing config")
     p_route_lock.add_argument("node", help="Node name")
     p_route_lock.add_argument("--dir", default=".", help="Project directory")
+    p_route_lock.set_defaults(func=_cmd_route_lock)
 
     p_route_unlock = route_sub.add_parser("unlock", help="Unlock routing config")
     p_route_unlock.add_argument("node", help="Node name")
     p_route_unlock.add_argument("--dir", default=".", help="Project directory")
+    p_route_unlock.set_defaults(func=_cmd_route_unlock)
 
     p_route_clear = route_sub.add_parser("clear", help="Clear routing config")
     p_route_clear.add_argument("node", help="Node name")
     p_route_clear.add_argument("--dir", default=".", help="Project directory")
+    p_route_clear.set_defaults(func=_cmd_route_clear)
 
     # baton deploy
     p_deploy = sub.add_parser("deploy", help="Deploy circuit to a provider")
@@ -176,6 +205,7 @@ def main(argv: list[str] | None = None) -> int:
     p_deploy.add_argument("--image", default="", help="Container image (or template with {node} placeholder)")
     p_deploy.add_argument("--build", action="store_true", help="Build images before deploying")
     p_deploy.add_argument("--dir", default=".", help="Project directory")
+    p_deploy.set_defaults(func=_cmd_deploy)
 
     # baton teardown
     p_teardown = sub.add_parser("teardown", help="Tear down deployed circuit")
@@ -184,6 +214,7 @@ def main(argv: list[str] | None = None) -> int:
     p_teardown.add_argument("--region", default="", help="Cloud region")
     p_teardown.add_argument("--namespace", default="", help="Namespace prefix")
     p_teardown.add_argument("--dir", default=".", help="Project directory")
+    p_teardown.set_defaults(func=_cmd_teardown)
 
     # baton deploy-status
     p_deploy_status = sub.add_parser("deploy-status", help="Check deployment status")
@@ -192,24 +223,29 @@ def main(argv: list[str] | None = None) -> int:
     p_deploy_status.add_argument("--region", default="", help="Cloud region")
     p_deploy_status.add_argument("--namespace", default="", help="Namespace prefix")
     p_deploy_status.add_argument("--dir", default=".", help="Project directory")
+    p_deploy_status.set_defaults(func=_cmd_deploy_status)
 
     # baton image
     p_image = sub.add_parser("image", help="Build and manage container images")
     image_sub = p_image.add_subparsers(dest="image_command")
+    p_image.set_defaults(func=lambda a, p=p_image: (p.print_help(), 1)[-1])
 
     p_image_build = image_sub.add_parser("build", help="Build a container image")
     p_image_build.add_argument("--node", default="", help="Node name")
     p_image_build.add_argument("--tag", default="", help="Image tag")
     p_image_build.add_argument("--path", default="", help="Service directory path")
     p_image_build.add_argument("--dir", default=".", help="Project directory")
+    p_image_build.set_defaults(func=_cmd_image_build)
 
     p_image_push = image_sub.add_parser("push", help="Push a container image")
     p_image_push.add_argument("--node", default="", help="Node name (looks up tag from images.json)")
     p_image_push.add_argument("--tag", default="", help="Image tag to push")
     p_image_push.add_argument("--dir", default=".", help="Project directory")
+    p_image_push.set_defaults(func=_cmd_image_push)
 
     p_image_list = image_sub.add_parser("list", help="List built images")
     p_image_list.add_argument("--dir", default=".", help="Project directory")
+    p_image_list.set_defaults(func=_cmd_image_list)
 
     # baton dashboard
     p_dashboard = sub.add_parser(
@@ -222,6 +258,7 @@ def main(argv: list[str] | None = None) -> int:
     p_dashboard.add_argument("--host", default="127.0.0.1", help="Dashboard server host (default: 127.0.0.1)")
     p_dashboard.add_argument("--port", type=int, default=9900, help="Dashboard server port (default: 9900)")
     p_dashboard.add_argument("--dir", default=".", help="Project directory")
+    p_dashboard.set_defaults(func=_cmd_dashboard)
 
     # baton signals
     p_signals = sub.add_parser("signals", help="Show request signals")
@@ -230,6 +267,7 @@ def main(argv: list[str] | None = None) -> int:
     p_signals.add_argument("--last", type=int, default=20, help="Show last N signals")
     p_signals.add_argument("--stats", action="store_true", help="Show per-path statistics")
     p_signals.add_argument("--dir", default=".", help="Project directory")
+    p_signals.set_defaults(func=_cmd_signals)
 
     # baton metrics
     p_metrics = sub.add_parser("metrics", help="Show persistent metrics")
@@ -237,50 +275,61 @@ def main(argv: list[str] | None = None) -> int:
     p_metrics.add_argument("--last", type=int, default=1, help="Show last N snapshots")
     p_metrics.add_argument("--prometheus", action="store_true", help="Prometheus text format")
     p_metrics.add_argument("--dir", default=".", help="Project directory")
+    p_metrics.set_defaults(func=_cmd_metrics)
 
     # baton check
     p_check = sub.add_parser("check", help="Run compatibility check")
     p_check.add_argument("--service", default="", help="Check specific service (default: all)")
     p_check.add_argument("--dir", default=".", help="Project directory")
+    p_check.set_defaults(func=_cmd_check)
 
     # baton apply
     p_apply = sub.add_parser("apply", help="Apply declarative config (converge desired vs running)")
     p_apply.add_argument("--dir", default=".", help="Project directory")
     p_apply.add_argument("--dry-run", action="store_true", help="Show what would change without applying")
+    p_apply.set_defaults(func=_cmd_apply_dispatch)
 
     # baton export
     p_export = sub.add_parser("export", help="Export running state as YAML config")
     p_export.add_argument("--dir", default=".", help="Project directory")
     p_export.add_argument("--output", default="", help="Output file (default: stdout)")
+    p_export.set_defaults(func=_cmd_export)
 
     # baton federation
     p_fed = sub.add_parser("federation", help="Multi-cluster federation")
     fed_sub = p_fed.add_subparsers(dest="federation_command")
+    p_fed.set_defaults(func=_cmd_federation)
 
     p_fed_status = fed_sub.add_parser("status", help="Show federation status")
     p_fed_status.add_argument("--dir", default=".", help="Project directory")
     p_fed_status.add_argument("--json", action="store_true", dest="json_output", help="JSON output")
+    p_fed_status.set_defaults(func=_cmd_federation)
 
     p_fed_peers = fed_sub.add_parser("peers", help="Show peer cluster states")
     p_fed_peers.add_argument("--dir", default=".", help="Project directory")
     p_fed_peers.add_argument("--json", action="store_true", dest="json_output", help="JSON output")
+    p_fed_peers.set_defaults(func=_cmd_federation)
 
     # baton certs
     p_certs = sub.add_parser("certs", help="Certificate management")
     certs_sub = p_certs.add_subparsers(dest="certs_command")
+    p_certs.set_defaults(func=_cmd_certs)
 
     p_certs_status = certs_sub.add_parser("status", help="Show certificate status")
     p_certs_status.add_argument("--dir", default=".", help="Project directory")
     p_certs_status.add_argument("--json", action="store_true", dest="json_output", help="JSON output")
+    p_certs_status.set_defaults(func=_cmd_certs)
 
     p_certs_rotate = certs_sub.add_parser("rotate", help="Force certificate rotation")
     p_certs_rotate.add_argument("--dir", default=".", help="Project directory")
+    p_certs_rotate.set_defaults(func=_cmd_certs)
 
     # baton dora
     p_dora = sub.add_parser("dora", help="Show DORA metrics (deployment frequency, lead time, CFR, MTTR)")
     p_dora.add_argument("--window", type=int, default=168, help="Time window in hours (default: 168 = 1 week)")
     p_dora.add_argument("--json", action="store_true", dest="json_output", help="Output as JSON")
     p_dora.add_argument("--dir", default=".", help="Project directory")
+    p_dora.set_defaults(func=_cmd_dora)
 
     # baton logs
     p_logs = sub.add_parser("logs", help="Show service logs")
@@ -288,40 +337,50 @@ def main(argv: list[str] | None = None) -> int:
     p_logs.add_argument("--level", default="", help="Minimum severity level (debug/info/warning/error/critical)")
     p_logs.add_argument("--last", type=int, default=50, help="Number of entries (default: 50)")
     p_logs.add_argument("--dir", default=".", help="Project directory")
+    p_logs.set_defaults(func=_cmd_logs)
 
     # baton taint
     p_taint = sub.add_parser("taint", help="Taint analysis / canary data boundary verification")
     taint_sub = p_taint.add_subparsers(dest="taint_command")
+    p_taint.set_defaults(func=_cmd_taint)
 
     p_taint_seed = taint_sub.add_parser("seed", help="Seed canary data into services")
     p_taint_seed.add_argument("--node", default="", help="Seed only this node (default: all)")
     p_taint_seed.add_argument("--dir", default=".", help="Project directory")
+    p_taint_seed.set_defaults(func=_cmd_taint)
 
     p_taint_status = taint_sub.add_parser("status", help="Show active canary data and violations")
     p_taint_status.add_argument("--dir", default=".", help="Project directory")
+    p_taint_status.set_defaults(func=_cmd_taint)
 
     p_taint_violations = taint_sub.add_parser("violations", help="List all taint violations")
     p_taint_violations.add_argument("--dir", default=".", help="Project directory")
+    p_taint_violations.set_defaults(func=_cmd_taint)
 
     p_taint_clear = taint_sub.add_parser("clear", help="Remove all canary data")
     p_taint_clear.add_argument("--dir", default=".", help="Project directory")
+    p_taint_clear.set_defaults(func=_cmd_taint)
 
     # baton trust
     p_trust = sub.add_parser("trust", help="Show Arbiter trust score for a node")
     p_trust.add_argument("node", help="Node name")
     p_trust.add_argument("--dir", default=".", help="Project directory")
+    p_trust.set_defaults(func=_cmd_trust)
 
     # baton audit
     p_audit = sub.add_parser("audit", help="Show recent audit events for a node")
     p_audit.add_argument("node", help="Node name")
     p_audit.add_argument("--last", type=int, default=20, help="Number of entries")
     p_audit.add_argument("--dir", default=".", help="Project directory")
+    p_audit.set_defaults(func=_cmd_audit)
 
     # baton arbiter
     p_arbiter = sub.add_parser("arbiter", help="Arbiter integration")
     arbiter_sub = p_arbiter.add_subparsers(dest="arbiter_command")
+    p_arbiter.set_defaults(func=_cmd_arbiter)
     p_arb_status = arbiter_sub.add_parser("status", help="Show Arbiter connectivity")
     p_arb_status.add_argument("--dir", default=".", help="Project directory")
+    p_arb_status.set_defaults(func=_cmd_arbiter)
 
     # baton test
     p_test = sub.add_parser("test", help="Run circuit tests")
@@ -331,91 +390,35 @@ def main(argv: list[str] | None = None) -> int:
     p_test.add_argument("--run-id", default="", help="Run identifier")
     p_test.add_argument("--ledger-mocks", action="store_true", help="Use Ledger for mock data")
     p_test.add_argument("--dir", default=".", help="Project directory")
+    p_test.set_defaults(func=_cmd_test)
 
     # baton sync-ledger
     p_sync_ledger = sub.add_parser("sync-ledger", help="Sync egress nodes from Ledger")
     p_sync_ledger.add_argument("--dir", default=".", help="Project directory")
+    p_sync_ledger.set_defaults(func=_cmd_sync_ledger)
 
     # baton migrate-config
     p_migrate = sub.add_parser("migrate-config", help="Migrate baton.yaml from v1 to v2 schema")
     p_migrate.add_argument("--config", default="baton.yaml", help="Path to baton.yaml (default: baton.yaml)")
     p_migrate.add_argument("--output", default="", help="Output path (default: overwrite input)")
     p_migrate.add_argument("--dry-run", action="store_true", help="Print migrated config without writing")
+    p_migrate.set_defaults(func=_cmd_migrate_config)
 
     args = parser.parse_args(argv)
 
-    if args.command is None:
+    if args.command is None or not hasattr(args, "func") or args.func is None:
         parser.print_help()
         return 1
 
     try:
-        if args.command == "init":
-            return _cmd_init(args)
-        elif args.command == "node":
-            return _cmd_node(args)
-        elif args.command == "edge":
-            return _cmd_edge(args)
-        elif args.command == "contract":
-            return _cmd_contract(args)
-        elif args.command == "status":
-            return _cmd_status(args)
-        elif args.command == "service":
-            return _cmd_service(args)
-        elif args.command == "check":
-            return _cmd_check(args)
-        elif args.command == "metrics":
-            return _cmd_metrics(args)
-        elif args.command == "signals":
-            return _cmd_signals(args)
-        elif args.command == "route":
-            if args.route_command in ("show",):
-                return _cmd_route_show(args)
-            elif args.route_command in ("ab", "canary", "set", "lock", "unlock", "clear"):
-                return asyncio.run(_cmd_async(args))
-            else:
-                print("Usage: baton route {show|ab|canary|set|lock|unlock|clear}", file=sys.stderr)
-                return 1
-        elif args.command == "image":
-            if args.image_command == "list":
-                return _cmd_image_list(args)
-            elif args.image_command in ("build", "push"):
-                return asyncio.run(_cmd_async(args))
-            else:
-                print("Usage: baton image {build|push|list}", file=sys.stderr)
-                return 1
-        elif args.command == "apply":
-            if args.dry_run:
-                return _cmd_apply_dry_run(args)
-            return asyncio.run(_cmd_async(args))
-        elif args.command == "export":
-            return _cmd_export(args)
-        elif args.command == "federation":
-            return _cmd_federation(args)
-        elif args.command == "certs":
-            return _cmd_certs(args)
-        elif args.command == "dora":
-            return _cmd_dora(args)
-        elif args.command == "logs":
-            return _cmd_logs(args)
-        elif args.command == "taint":
-            return _cmd_taint(args)
-        elif args.command == "trust":
-            return asyncio.run(_cmd_trust(args))
-        elif args.command == "audit":
-            return _cmd_audit(args)
-        elif args.command == "arbiter":
-            return asyncio.run(_cmd_arbiter(args))
-        elif args.command == "test":
-            return asyncio.run(_cmd_test(args))
-        elif args.command == "sync-ledger":
-            return asyncio.run(_cmd_sync_ledger(args))
-        elif args.command == "migrate-config":
-            return _cmd_migrate_config(args)
-        elif args.command in ("up", "down", "slot", "swap", "collapse", "watch", "deploy", "teardown", "deploy-status", "dashboard"):
-            return asyncio.run(_cmd_async(args))
-        else:
-            parser.print_help()
-            return 1
+        func = args.func
+        if inspect.iscoroutinefunction(func):
+            return asyncio.run(func(args))
+        result = func(args)
+        # Allow handlers to return coroutines (e.g. lambdas that delegate).
+        if inspect.iscoroutine(result):
+            return asyncio.run(result)
+        return result
     except (ValueError, FileNotFoundError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
@@ -424,37 +427,11 @@ def main(argv: list[str] | None = None) -> int:
         return 130
 
 
-async def _cmd_async(args: argparse.Namespace) -> int:
-    """Dispatch async commands."""
-    from baton.lifecycle import LifecycleManager
-
-    if args.command == "up":
-        return await _cmd_up(args)
-    elif args.command == "down":
-        return await _cmd_down(args)
-    elif args.command == "slot":
-        return await _cmd_slot(args)
-    elif args.command == "swap":
-        return await _cmd_swap(args)
-    elif args.command == "collapse":
-        return await _cmd_collapse(args)
-    elif args.command == "watch":
-        return await _cmd_watch(args)
-    elif args.command == "route":
-        return await _cmd_route_async(args)
-    elif args.command == "deploy":
-        return await _cmd_deploy(args)
-    elif args.command == "teardown":
-        return await _cmd_teardown(args)
-    elif args.command == "deploy-status":
-        return await _cmd_deploy_status(args)
-    elif args.command == "dashboard":
-        return await _cmd_dashboard(args)
-    elif args.command == "image":
-        return await _cmd_image_async(args)
-    elif args.command == "apply":
-        return await _cmd_apply(args)
-    return 1
+def _cmd_apply_dispatch(args: argparse.Namespace) -> int:
+    """Apply is sync (--dry-run) or async — pick the right handler."""
+    if args.dry_run:
+        return _cmd_apply_dry_run(args)
+    return asyncio.run(_cmd_apply(args))
 
 
 async def _cmd_up(args: argparse.Namespace) -> int:
@@ -548,6 +525,22 @@ async def _cmd_down(args: argparse.Namespace) -> int:
     return 0
 
 
+def _owner_alive(state) -> bool:
+    """Check whether the recorded circuit owner process is still running."""
+    import os
+    pid = getattr(state, "owner_pid", 0) or 0
+    if pid <= 0 or pid == os.getpid():
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Process exists but we can't signal it — still treat as alive.
+        return True
+    return True
+
+
 async def _cmd_slot(args: argparse.Namespace) -> int:
     if args.mock:
         print("Use 'baton collapse' to mock nodes in a running circuit")
@@ -555,6 +548,12 @@ async def _cmd_slot(args: argparse.Namespace) -> int:
     if not args.service_cmd:
         print("Error: command required (or use --mock)", file=sys.stderr)
         return 1
+
+    # If a circuit is already running in another process, attach to it
+    # instead of trying to bring up our own (which would port-bind-fail).
+    existing = load_state(args.dir)
+    if existing is not None and _owner_alive(existing):
+        return await _cmd_slot_attach(args, existing)
 
     from baton.collapse import build_mock_server, compute_mock_backends
     from baton.lifecycle import LifecycleManager
@@ -596,6 +595,152 @@ async def _cmd_slot(args: argparse.Namespace) -> int:
             await mock_server.stop()
         await mgr.down()
         print("Circuit is down")
+    return 0
+
+
+async def _control_post(host: str, port: int, path: str, payload: dict) -> tuple[int, str]:
+    """Minimal HTTP/1.1 POST to an adapter control server. Returns (status, body)."""
+    import json as _json
+    body = _json.dumps(payload).encode("utf-8")
+    req = (
+        f"POST {path} HTTP/1.1\r\n"
+        f"Host: {host}:{port}\r\n"
+        f"Content-Type: application/json\r\n"
+        f"Content-Length: {len(body)}\r\n"
+        f"Connection: close\r\n"
+        f"\r\n"
+    ).encode("ascii") + body
+
+    reader, writer = await asyncio.open_connection(host, port)
+    try:
+        writer.write(req)
+        await writer.drain()
+        status_line = await reader.readline()
+        parts = status_line.decode("ascii", errors="replace").split(" ", 2)
+        status = int(parts[1]) if len(parts) >= 2 and parts[1].isdigit() else 0
+        # Drain headers
+        content_length = 0
+        while True:
+            line = await reader.readline()
+            if line in (b"\r\n", b"\n", b""):
+                break
+            decoded = line.decode("ascii", errors="replace").strip()
+            if ":" in decoded:
+                k, v = decoded.split(":", 1)
+                if k.strip().lower() == "content-length":
+                    try:
+                        content_length = int(v.strip())
+                    except ValueError:
+                        content_length = 0
+        body_bytes = b""
+        if content_length > 0:
+            body_bytes = await reader.readexactly(content_length)
+        else:
+            body_bytes = await reader.read()
+        return status, body_bytes.decode("utf-8", errors="replace")
+    finally:
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass
+
+
+async def _cmd_slot_attach(args: argparse.Namespace, state) -> int:
+    """Attach a live service to a node in a circuit that's already running
+    in another process (started via `baton up` or `baton apply`).
+
+    We don't own the adapters here, so we don't call mgr.up(). Instead we:
+      1. Spawn the service subprocess locally.
+      2. POST /backend on the adapter's control port to point it at the service.
+      3. Block until Ctrl+C, then restore the original backend and stop the service.
+    """
+    from baton.collapse import compute_mock_backends
+    from baton.process import ProcessManager
+    from baton.schemas import NodeRole
+
+    circuit = load_circuit(args.dir)
+    node = next((n for n in circuit.nodes if n.name == args.node), None)
+    if node is None:
+        print(f"Error: node '{args.node}' not found in circuit", file=sys.stderr)
+        return 1
+    if node.role == NodeRole.EGRESS:
+        print(
+            f"Error: cannot slot a live service into egress node '{args.node}' "
+            "(egress nodes are auto-mocked)",
+            file=sys.stderr,
+        )
+        return 1
+
+    service_port = node.port + 20000
+    if service_port > 65535:
+        service_port = node.port + 5000
+
+    env = {
+        "BATON_SERVICE_PORT": str(service_port),
+        "BATON_NODE_NAME": node.name,
+        "BATON_CONTROL_PORT": str(node.management_port),
+    }
+
+    pm = ProcessManager()
+    print(
+        f"Attaching to running circuit (owner pid={state.owner_pid}); "
+        f"starting service on port {service_port}"
+    )
+    info = await pm.start(node.name, args.service_cmd, env=env)
+    # Give the service a moment to bind.
+    await asyncio.sleep(0.5)
+
+    skip_validate = getattr(args, "skip_validate", False)
+    if not skip_validate and node.contract and node.proxy_mode == "http":
+        from baton.compat import validate_service_runtime
+        validation = await validate_service_runtime(
+            "127.0.0.1", service_port, node.contract, base_dir=args.dir,
+        )
+        if not validation.compatible:
+            await pm.stop(node.name)
+            issues = "; ".join(i.detail for i in validation.issues)
+            print(f"Error: interface validation failed: {issues}", file=sys.stderr)
+            return 1
+
+    status, body = await _control_post(
+        node.host, node.management_port, "/backend",
+        {"host": "127.0.0.1", "port": service_port},
+    )
+    if status != 200:
+        await pm.stop(node.name)
+        print(
+            f"Error: control /backend returned {status}: {body}",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"Slotted service into '{node.name}' (pid={info.pid})")
+
+    stop_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, stop_event.set)
+    print("Press Ctrl+C to stop (circuit will keep running)")
+
+    try:
+        await stop_event.wait()
+    except asyncio.CancelledError:
+        pass
+    finally:
+        # Restore the mock backend for this node so the owning process keeps serving.
+        mock_backends = compute_mock_backends(circuit, live_nodes=set())
+        restore = mock_backends.get(node.name)
+        if restore is not None:
+            try:
+                await _control_post(
+                    node.host, node.management_port, "/backend",
+                    {"host": restore.host, "port": restore.port},
+                )
+            except Exception as e:
+                logger_msg = f"Warning: failed to restore mock backend: {e}"
+                print(logger_msg, file=sys.stderr)
+        await pm.stop(node.name)
+        print(f"Detached from '{node.name}'")
     return 0
 
 

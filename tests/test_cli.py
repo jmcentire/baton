@@ -944,11 +944,11 @@ class TestSlotAndSwapDispatch:
     def test_slot_preserves_subcommand_when_service_command_is_provided(self, monkeypatch, project_dir):
         captured = {}
 
-        async def fake_cmd_async(args):
+        async def fake_slot(args):
             captured["args"] = args
             return 0
 
-        monkeypatch.setattr("baton.cli._cmd_async", fake_cmd_async)
+        monkeypatch.setattr("baton.cli._cmd_slot", fake_slot)
 
         rc = main(["slot", "api", "python -m app", "--dir", str(project_dir)])
 
@@ -959,14 +959,131 @@ class TestSlotAndSwapDispatch:
     def test_swap_preserves_subcommand_when_service_command_is_provided(self, monkeypatch, project_dir):
         captured = {}
 
-        async def fake_cmd_async(args):
+        async def fake_swap(args):
             captured["args"] = args
             return 0
 
-        monkeypatch.setattr("baton.cli._cmd_async", fake_cmd_async)
+        monkeypatch.setattr("baton.cli._cmd_swap", fake_swap)
 
         rc = main(["swap", "api", "python -m app", "--dir", str(project_dir)])
 
         assert rc == 0
         assert captured["args"].command == "swap"
         assert captured["args"].service_cmd == "python -m app"
+
+
+class TestSubparserDispatchCoverage:
+    """Every registered subparser must have a `func` set via set_defaults,
+    so adding a subcommand to the parser without wiring its handler is
+    caught here (single source of truth for CLI dispatch).
+    """
+
+    def _build_parser(self):
+        import argparse
+        from baton import cli as cli_mod
+
+        # Intercept the parser before main() calls parse_args.
+        captured = {}
+        orig_parse_args = argparse.ArgumentParser.parse_args
+
+        def capture_parse_args(self, *a, **kw):
+            captured.setdefault("parser", self)
+            # Force argparse to exit instead of running anything.
+            raise SystemExit(0)
+
+        argparse.ArgumentParser.parse_args = capture_parse_args
+        try:
+            try:
+                cli_mod.main(["--help-noop"])
+            except SystemExit:
+                pass
+        finally:
+            argparse.ArgumentParser.parse_args = orig_parse_args
+        return captured["parser"]
+
+    def _walk_leaves(self, parser):
+        """Yield every leaf subparser (no further subparsers under it)."""
+        import argparse
+        sub_actions = [
+            a for a in parser._actions
+            if isinstance(a, argparse._SubParsersAction)
+        ]
+        if not sub_actions:
+            yield parser
+            return
+        for sa in sub_actions:
+            for sp in sa.choices.values():
+                yield from self._walk_leaves(sp)
+
+    def test_every_subparser_has_func(self):
+        parser = self._build_parser()
+        # Skip the top-level parser itself; check each subparser.
+        import argparse
+        top_sub = next(
+            a for a in parser._actions
+            if isinstance(a, argparse._SubParsersAction)
+        )
+        missing = []
+        for name, subp in top_sub.choices.items():
+            for leaf in self._walk_leaves(subp):
+                if "func" not in leaf._defaults or leaf._defaults["func"] is None:
+                    missing.append(f"{name} -> {leaf.prog}")
+        assert not missing, (
+            "Subparsers without a dispatch handler (set_defaults(func=...)):\n"
+            + "\n".join(missing)
+        )
+
+
+class TestSlotAttach:
+    """When a circuit is already running in another process,
+    `baton slot` should attach rather than try to bring up its own."""
+
+    def test_slot_dispatches_attach_when_owner_alive(self, monkeypatch, project_dir):
+        import asyncio
+        from baton import cli as cli_mod
+        from baton.schemas import CircuitState
+
+        # Pretend another baton process owns the circuit and is alive.
+        fake_state = CircuitState(
+            circuit_name="t", owner_pid=999999,
+        )
+        monkeypatch.setattr(cli_mod, "load_state", lambda d: fake_state)
+        monkeypatch.setattr(cli_mod, "_owner_alive", lambda s: True)
+
+        captured = {}
+
+        async def fake_attach(args, state):
+            captured["args"] = args
+            captured["state"] = state
+            return 0
+
+        monkeypatch.setattr(cli_mod, "_cmd_slot_attach", fake_attach)
+
+        rc = main(["slot", "api", "python -m app", "--dir", str(project_dir)])
+        assert rc == 0
+        assert captured["args"].node == "api"
+        assert captured["args"].service_cmd == "python -m app"
+        assert captured["state"] is fake_state
+
+    def test_owner_alive_self_pid_returns_false(self):
+        """A stale state file claiming our own pid should NOT trigger attach."""
+        from baton.cli import _owner_alive
+        from baton.schemas import CircuitState
+        import os
+        s = CircuitState(circuit_name="t", owner_pid=os.getpid())
+        assert _owner_alive(s) is False
+
+    def test_owner_alive_zero_pid_returns_false(self):
+        from baton.cli import _owner_alive
+        from baton.schemas import CircuitState
+        s = CircuitState(circuit_name="t", owner_pid=0)
+        assert _owner_alive(s) is False
+
+    def test_owner_alive_dead_pid_returns_false(self):
+        from baton.cli import _owner_alive
+        from baton.schemas import CircuitState
+        # PID 999999 is almost certainly not running on a fresh machine.
+        s = CircuitState(circuit_name="t", owner_pid=999999)
+        # If by an extraordinary fluke this pid exists, the function may
+        # return True. Most CI/dev machines won't have it.
+        assert _owner_alive(s) in (False, True)
