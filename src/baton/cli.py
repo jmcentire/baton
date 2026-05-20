@@ -11,8 +11,8 @@ from pathlib import Path
 
 from baton.circuit import add_edge, add_node, remove_edge, remove_node, set_contract
 from baton.config import CONFIG_FILENAME, load_circuit, load_circuit_config, save_circuit, save_circuit_config, _serialize_circuit_config
-from baton.schemas import CircuitSpec, NodeStatus
-from baton.state import ensure_baton_dir, load_circuit_spec, load_state
+from baton.schemas import CircuitSpec, CollapseLevel, NodeStatus
+from baton.state import ensure_baton_dir, load_circuit_spec, load_state, save_state
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -716,6 +716,18 @@ async def _cmd_slot_attach(args: argparse.Namespace, state) -> int:
         return 1
     print(f"Slotted service into '{node.name}' (pid={info.pid})")
 
+    if node.name not in state.live_nodes:
+        state.live_nodes = list(state.live_nodes) + [node.name]
+    total_nodes = len(circuit.nodes)
+    live_count = len(state.live_nodes)
+    if live_count == 0:
+        state.collapse_level = CollapseLevel.FULL_MOCK
+    elif live_count >= total_nodes:
+        state.collapse_level = CollapseLevel.FULL_LIVE
+    else:
+        state.collapse_level = CollapseLevel.PARTIAL
+    save_state(state, args.dir)
+
     stop_event = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -739,6 +751,15 @@ async def _cmd_slot_attach(args: argparse.Namespace, state) -> int:
             except Exception as e:
                 logger_msg = f"Warning: failed to restore mock backend: {e}"
                 print(logger_msg, file=sys.stderr)
+        state.live_nodes = [n for n in state.live_nodes if n != node.name]
+        live_count = len(state.live_nodes)
+        if live_count == 0:
+            state.collapse_level = CollapseLevel.FULL_MOCK
+        elif live_count >= total_nodes:
+            state.collapse_level = CollapseLevel.FULL_LIVE
+        else:
+            state.collapse_level = CollapseLevel.PARTIAL
+        save_state(state, args.dir)
         await pm.stop(node.name)
         print(f"Detached from '{node.name}'")
     return 0

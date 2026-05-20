@@ -1087,3 +1087,192 @@ class TestSlotAttach:
         # If by an extraordinary fluke this pid exists, the function may
         # return True. Most CI/dev machines won't have it.
         assert _owner_alive(s) in (False, True)
+
+
+class TestCmdSlotAttach:
+    """Unit tests for _cmd_slot_attach state-persistence fix.
+
+    The function is fully async, so every test is an async def (picked up
+    automatically by pytest-asyncio in auto mode).  All I/O that would hit
+    real ports is replaced with lightweight mocks so the suite stays fast
+    and port-free.
+    """
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _setup_one_node(self, d: Path) -> None:
+        main(["init", str(d)])
+        main(["node", "add", "api", "--port", "8001", "--dir", str(d)])
+
+    def _setup_two_nodes(self, d: Path) -> None:
+        main(["init", str(d)])
+        main(["node", "add", "api", "--port", "8001", "--dir", str(d)])
+        main(["node", "add", "svc", "--port", "8002", "--dir", str(d)])
+
+    def _make_args(self, d: Path, node: str = "api"):
+        from unittest.mock import MagicMock
+        args = MagicMock()
+        args.dir = str(d)
+        args.node = node
+        args.service_cmd = "python -m myapp"
+        args.skip_validate = True
+        return args
+
+    def _apply_mocks(self, monkeypatch, cli_mod, saved_states, *, control_status: int = 200) -> None:
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock
+        from baton import collapse as collapse_mod
+        from baton import process as process_mod
+
+        monkeypatch.setattr(cli_mod, "save_state", lambda s, d: saved_states.append(s.model_copy(deep=True)))
+        monkeypatch.setattr(cli_mod, "_control_post", AsyncMock(return_value=(control_status, "ok")))
+        monkeypatch.setattr(asyncio, "sleep", AsyncMock())
+
+        fake_info = MagicMock()
+        fake_info.pid = 42
+        pm = MagicMock()
+        pm.start = AsyncMock(return_value=fake_info)
+        pm.stop = AsyncMock()
+        monkeypatch.setattr(process_mod, "ProcessManager", lambda: pm)
+
+        # No real adapters are running, so skip the restore POST in the finally block.
+        monkeypatch.setattr(collapse_mod, "compute_mock_backends", lambda c, live_nodes: {})
+
+        # Make the stop event pre-set so await stop_event.wait() returns immediately,
+        # driving the finally block without blocking.
+        pre_set = asyncio.Event()
+        pre_set.set()
+        monkeypatch.setattr(asyncio, "Event", lambda: pre_set)
+
+    # ------------------------------------------------------------------
+    # Tests: successful attach
+    # ------------------------------------------------------------------
+
+    async def test_node_added_to_live_nodes_on_attach(self, project_dir: Path, monkeypatch):
+        from baton import cli as cli_mod
+        from baton.schemas import CircuitState
+
+        self._setup_one_node(project_dir)
+        saved = []
+        self._apply_mocks(monkeypatch, cli_mod, saved)
+
+        rc = await cli_mod._cmd_slot_attach(
+            self._make_args(project_dir), CircuitState(circuit_name="t", owner_pid=12345)
+        )
+
+        assert rc == 0
+        assert "api" in saved[0].live_nodes
+
+    async def test_collapse_level_full_live_with_only_node(self, project_dir: Path, monkeypatch):
+        from baton import cli as cli_mod
+        from baton.schemas import CircuitState, CollapseLevel
+
+        self._setup_one_node(project_dir)
+        saved = []
+        self._apply_mocks(monkeypatch, cli_mod, saved)
+
+        await cli_mod._cmd_slot_attach(
+            self._make_args(project_dir), CircuitState(circuit_name="t", owner_pid=12345)
+        )
+
+        assert saved[0].collapse_level == CollapseLevel.FULL_LIVE
+
+    async def test_collapse_level_partial_with_one_of_two_nodes(self, project_dir: Path, monkeypatch):
+        from baton import cli as cli_mod
+        from baton.schemas import CircuitState, CollapseLevel
+
+        self._setup_two_nodes(project_dir)
+        saved = []
+        self._apply_mocks(monkeypatch, cli_mod, saved)
+
+        await cli_mod._cmd_slot_attach(
+            self._make_args(project_dir), CircuitState(circuit_name="t", owner_pid=12345)
+        )
+
+        assert saved[0].collapse_level == CollapseLevel.PARTIAL
+
+    async def test_save_state_called_twice(self, project_dir: Path, monkeypatch):
+        """save_state must be called once on attach and once in the finally block."""
+        from baton import cli as cli_mod
+        from baton.schemas import CircuitState
+
+        self._setup_one_node(project_dir)
+        saved = []
+        self._apply_mocks(monkeypatch, cli_mod, saved)
+
+        await cli_mod._cmd_slot_attach(
+            self._make_args(project_dir), CircuitState(circuit_name="t", owner_pid=12345)
+        )
+
+        assert len(saved) == 2
+
+    # ------------------------------------------------------------------
+    # Tests: detach / finally-block restoration
+    # ------------------------------------------------------------------
+
+    async def test_live_nodes_cleared_after_detach(self, project_dir: Path, monkeypatch):
+        from baton import cli as cli_mod
+        from baton.schemas import CircuitState
+
+        self._setup_one_node(project_dir)
+        saved = []
+        self._apply_mocks(monkeypatch, cli_mod, saved)
+
+        await cli_mod._cmd_slot_attach(
+            self._make_args(project_dir), CircuitState(circuit_name="t", owner_pid=12345)
+        )
+
+        # Second save is the finally-block restoration.
+        assert saved[1].live_nodes == []
+
+    async def test_collapse_level_full_mock_after_detach(self, project_dir: Path, monkeypatch):
+        from baton import cli as cli_mod
+        from baton.schemas import CircuitState, CollapseLevel
+
+        self._setup_one_node(project_dir)
+        saved = []
+        self._apply_mocks(monkeypatch, cli_mod, saved)
+
+        await cli_mod._cmd_slot_attach(
+            self._make_args(project_dir), CircuitState(circuit_name="t", owner_pid=12345)
+        )
+
+        assert saved[1].collapse_level == CollapseLevel.FULL_MOCK
+
+    # ------------------------------------------------------------------
+    # Tests: failure path — control POST rejected
+    # ------------------------------------------------------------------
+
+    async def test_state_not_saved_when_control_post_fails(self, project_dir: Path, monkeypatch):
+        from baton import cli as cli_mod
+        from baton.schemas import CircuitState
+
+        self._setup_one_node(project_dir)
+        saved = []
+        self._apply_mocks(monkeypatch, cli_mod, saved, control_status=500)
+
+        rc = await cli_mod._cmd_slot_attach(
+            self._make_args(project_dir), CircuitState(circuit_name="t", owner_pid=12345)
+        )
+
+        assert rc == 1
+        assert saved == []
+
+
+class TestDevDependencies:
+    """Verify pyproject.toml includes mcp in the dev extra."""
+
+    def test_mcp_in_dev_extras(self):
+        import tomllib
+
+        pyproject = Path(__file__).parent.parent / "pyproject.toml"
+        with open(pyproject, "rb") as f:
+            data = tomllib.load(f)
+
+        dev_deps = data["project"]["optional-dependencies"]["dev"]
+        assert any("mcp" in dep for dep in dev_deps), (
+            "mcp must be listed in [project.optional-dependencies.dev] "
+            "so that `pip install -e '.[dev]'` installs it"
+        )
