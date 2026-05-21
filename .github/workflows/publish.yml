@@ -1,0 +1,35 @@
+# Canonical PyPI publish workflow.
+# PyPI Trusted Publishing (OIDC) — no PyPI API token, no ~/.pypirc.
+# One-time setup on pypi.org:
+#   Project -> Manage -> Publishing -> Add a new pending publisher
+#     Owner:        jmcentire
+#     Repository:   <repo>
+#     Workflow:     publish.yml
+#     Environment:  pypi
+#
+# Trigger: a published GitHub Release. Tag the commit, push the tag,
+# `gh release create <tag>` (or click "Publish release" in the UI).
+
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install build
+      - run: python -m build
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
