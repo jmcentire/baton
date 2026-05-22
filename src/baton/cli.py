@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import inspect
 import signal
+import socket
 import sys
 from pathlib import Path
 
@@ -672,9 +673,9 @@ async def _cmd_slot_attach(args: argparse.Namespace, state) -> int:
         )
         return 1
 
-    service_port = node.port + 20000
-    if service_port > 65535:
-        service_port = node.port + 5000
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as _sock:
+        _sock.bind(("127.0.0.1", 0))
+        service_port = _sock.getsockname()[1]
 
     env = {
         "BATON_SERVICE_PORT": str(service_port),

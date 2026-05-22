@@ -1147,6 +1147,73 @@ class TestCmdSlotAttach:
         monkeypatch.setattr(asyncio, "Event", lambda: pre_set)
 
     # ------------------------------------------------------------------
+    # Helpers (port-conflict tests)
+    # ------------------------------------------------------------------
+
+    def _apply_mocks_capturing(self, monkeypatch, cli_mod):
+        """Like _apply_mocks but returns the raw mock objects for inspection."""
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock
+        from baton import collapse as collapse_mod
+        from baton import process as process_mod
+
+        fake_info = MagicMock()
+        fake_info.pid = 42
+        pm_mock = MagicMock()
+        pm_mock.start = AsyncMock(return_value=fake_info)
+        pm_mock.stop = AsyncMock()
+        monkeypatch.setattr(process_mod, "ProcessManager", lambda: pm_mock)
+
+        control_post_mock = AsyncMock(return_value=(200, "ok"))
+        monkeypatch.setattr(cli_mod, "_control_post", control_post_mock)
+        monkeypatch.setattr(cli_mod, "save_state", lambda s, d: None)
+        monkeypatch.setattr(asyncio, "sleep", AsyncMock())
+        monkeypatch.setattr(collapse_mod, "compute_mock_backends", lambda c, live_nodes: {})
+
+        pre_set = asyncio.Event()
+        pre_set.set()
+        monkeypatch.setattr(asyncio, "Event", lambda: pre_set)
+
+        return pm_mock, control_post_mock
+
+    # ------------------------------------------------------------------
+    # Tests: port allocation (fix for mock-server port conflict)
+    # ------------------------------------------------------------------
+
+    async def test_service_port_does_not_conflict_with_mock_server(self, project_dir: Path, monkeypatch):
+        """service_port must not equal node.port+20000 — that port belongs to the mock server."""
+        from baton import cli as cli_mod
+        from baton.schemas import CircuitState
+
+        self._setup_one_node(project_dir)  # api on 8001; mock server holds 28001
+        pm_mock, _ = self._apply_mocks_capturing(monkeypatch, cli_mod)
+
+        rc = await cli_mod._cmd_slot_attach(
+            self._make_args(project_dir), CircuitState(circuit_name="t", owner_pid=12345)
+        )
+
+        assert rc == 0
+        allocated_port = int(pm_mock.start.call_args.kwargs["env"]["BATON_SERVICE_PORT"])
+        assert allocated_port != 8001 + 20000
+        assert 1 <= allocated_port <= 65535
+
+    async def test_backend_post_uses_allocated_service_port(self, project_dir: Path, monkeypatch):
+        """The /backend control POST must carry the same free port the service was given."""
+        from baton import cli as cli_mod
+        from baton.schemas import CircuitState
+
+        self._setup_one_node(project_dir)
+        pm_mock, control_post_mock = self._apply_mocks_capturing(monkeypatch, cli_mod)
+
+        await cli_mod._cmd_slot_attach(
+            self._make_args(project_dir), CircuitState(circuit_name="t", owner_pid=12345)
+        )
+
+        allocated_port = int(pm_mock.start.call_args.kwargs["env"]["BATON_SERVICE_PORT"])
+        backend_call = next(c for c in control_post_mock.call_args_list if c.args[2] == "/backend")
+        assert backend_call.args[3]["port"] == allocated_port
+
+    # ------------------------------------------------------------------
     # Tests: successful attach
     # ------------------------------------------------------------------
 
