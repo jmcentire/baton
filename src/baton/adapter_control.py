@@ -140,6 +140,12 @@ class AdapterControlServer:
                 await writer.drain()
                 writer.close()
                 return
+            elif method == "POST" and path == "/routing":
+                status, body = self._handle_set_routing(request_body)
+                self._write_response(writer, status, body)
+                await writer.drain()
+                writer.close()
+                return
             else:
                 body = json.dumps({"error": "not found"})
                 self._write_response(writer, 404, body)
@@ -242,6 +248,30 @@ class AdapterControlServer:
             "node": self._adapter.node.name,
             "backend": {"host": backend.host, "port": backend.port},
         })
+
+    def _handle_set_routing(self, request_body: bytes) -> tuple[int, str]:
+        """Handle POST /routing: set routing config for this adapter.
+
+        Body: a serialised RoutingConfig. Returns 423 if routing is locked.
+        """
+        from baton.schemas import RoutingConfig
+
+        try:
+            data = json.loads(request_body)
+        except (json.JSONDecodeError, ValueError):
+            return 400, json.dumps({"error": "invalid JSON"})
+
+        try:
+            config = RoutingConfig.model_validate(data)
+        except Exception as e:
+            return 400, json.dumps({"error": str(e)})
+
+        try:
+            self._adapter.set_routing(config)
+        except RuntimeError as e:
+            return 423, json.dumps({"error": str(e)})
+
+        return 200, json.dumps({"ok": True, "node": self._adapter.node.name})
 
     def _handle_event(self, request_body: bytes) -> str:
         """Handle POST /events: accept a service event and buffer it."""

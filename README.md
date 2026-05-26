@@ -97,7 +97,7 @@ baton down
 Each adapter is an async reverse proxy that:
 - Forwards traffic to the slotted service (or mock)
 - Supports HTTP, TCP, gRPC, protobuf, and SOAP protocols
-- Exposes `/health`, `/metrics`, `/status`, `/routing` on a management port
+- Exposes `/health`, `/metrics`, `/status`, `/routing` (GET and POST) on a management port
 - Supports weighted, header-based, and canary routing
 - Drains connections gracefully during hot-swaps
 - Reports metrics: request count, latency, bytes forwarded, error rate
@@ -108,6 +108,12 @@ Each adapter is an async reverse proxy that:
 - Accepts service events via POST /events on the management port
 
 ## Commands
+
+### Global Flags
+
+```bash
+baton --log-level DEBUG <subcommand>      # set log verbosity (DEBUG, INFO, WARNING, ERROR); defaults to $LOG_LEVEL or INFO
+```
 
 ### Topology
 
@@ -134,9 +140,12 @@ baton check [--service <name>]            # static API compatibility analysis
 
 ```bash
 baton up [--mock] [--services]            # boot circuit
+baton up --mock --mock-host 0.0.0.0       # bind mock servers on all interfaces (e.g. Docker/K8s)
 baton slot <node> <command>               # slot live service into node
+baton slot <node> host:port --remote HOST[:PORT]  # POST /backend to a remote adapter, no local process
 baton swap <node> <command>               # hot-swap (zero-downtime replace)
 baton collapse [--live n1,n2]             # partial mock (keep some nodes live)
+baton collapse --mock-host 0.0.0.0        # bind mock servers on all interfaces during collapse
 baton watch [--interval 5]                # start custodian (health monitor)
 baton down                                # tear down circuit
 ```
@@ -148,7 +157,8 @@ baton route show <node>                   # display routing config
 baton route ab <node> <cmd> [--split N/M] # A/B split (default 80/20)
 baton route canary <node> <cmd> [--pct N] # canary rollout (default 10%)
 baton route canary <node> <cmd> --promote # auto-promote canary (evaluate + promote/rollback)
-baton route set <node> --strategy ...     # custom routing config
+baton route set <node> --strategy ... --targets name:host:port[:weight],...  # custom routing config
+baton route set <node> --strategy ... --targets ... --remote HOST[:PORT]      # POST routing config to remote adapter
 baton route lock <node>                   # lock routing (prevents slot/swap)
 baton route unlock <node>                 # unlock routing
 baton route clear <node>                  # remove routing, back to single backend

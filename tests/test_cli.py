@@ -1328,6 +1328,679 @@ class TestCmdSlotAttach:
         assert saved == []
 
 
+class TestCmdSlotRemote:
+    """Tests for _cmd_slot_remote — the --remote flag path of baton slot."""
+
+    def _setup_node(self, d: Path, port: int = 8001) -> None:
+        main(["init", str(d)])
+        main(["node", "add", "api", "--port", str(port), "--dir", str(d)])
+
+    def _make_args(self, d: Path, service_cmd: str, remote: str):
+        from unittest.mock import MagicMock
+        args = MagicMock()
+        args.dir = str(d)
+        args.node = "api"
+        args.service_cmd = service_cmd
+        args.remote = remote
+        return args
+
+    async def test_posts_backend_to_remote_host(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        rc = await cli_mod._cmd_slot_remote(
+            self._make_args(project_dir, "svc.cluster.local:9090", "baton.cluster.local")
+        )
+
+        assert rc == 0
+        mock_post.assert_called_once()
+        host, port, path, body = mock_post.call_args.args
+        assert host == "baton.cluster.local"
+        assert path == "/backend"
+        assert body == {"host": "svc.cluster.local", "port": 9090}
+
+    async def test_uses_node_mgmt_port_when_remote_has_no_port(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir, port=8001)  # management_port = 18001
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        await cli_mod._cmd_slot_remote(
+            self._make_args(project_dir, "svc.cluster.local:9090", "baton.cluster.local")
+        )
+
+        _, mgmt_port, _, _ = mock_post.call_args.args
+        assert mgmt_port == 8001 + 10000  # 18001
+
+    async def test_accepts_explicit_mgmt_port_in_remote(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        await cli_mod._cmd_slot_remote(
+            self._make_args(project_dir, "svc.cluster.local:9090", "baton.cluster.local:19999")
+        )
+
+        remote_host, mgmt_port, _, _ = mock_post.call_args.args
+        assert remote_host == "baton.cluster.local"
+        assert mgmt_port == 19999
+
+    async def test_rejects_service_cmd_without_colon(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "_control_post", AsyncMock())
+
+        rc = await cli_mod._cmd_slot_remote(
+            self._make_args(project_dir, "nodothost", "baton.cluster.local")
+        )
+
+        assert rc == 1
+
+    async def test_rejects_unknown_node(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock, MagicMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "_control_post", AsyncMock())
+
+        args = MagicMock()
+        args.dir = str(project_dir)
+        args.node = "nonexistent"
+        args.service_cmd = "svc:9090"
+        args.remote = "baton.cluster.local"
+
+        rc = await cli_mod._cmd_slot_remote(args)
+
+        assert rc == 1
+
+    async def test_returns_1_on_non_200_response(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "_control_post", AsyncMock(return_value=(423, '{"error": "locked"}')))
+
+        rc = await cli_mod._cmd_slot_remote(
+            self._make_args(project_dir, "svc.cluster.local:9090", "baton.cluster.local")
+        )
+
+        assert rc == 1
+
+    async def test_rejects_empty_host_in_target(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "_control_post", AsyncMock())
+
+        rc = await cli_mod._cmd_slot_remote(
+            self._make_args(project_dir, ":9090", "baton.cluster.local")
+        )
+
+        assert rc == 1
+
+    async def test_rejects_invalid_port_in_remote(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "_control_post", AsyncMock())
+
+        rc = await cli_mod._cmd_slot_remote(
+            self._make_args(project_dir, "svc.cluster.local:9090", "baton.cluster.local:notaport")
+        )
+
+        assert rc == 1
+
+
+class TestCmdRouteSetRemote:
+    """Tests for _cmd_route_set with --remote: new target formats and remote dispatch."""
+
+    def _setup_node(self, d: Path) -> None:
+        main(["init", str(d)])
+        main(["node", "add", "api", "--port", "8001", "--dir", str(d)])
+
+    def _make_args(self, d: Path, *, targets: str, remote: str | None = None,
+                   strategy: str = "weighted"):
+        from unittest.mock import MagicMock
+        args = MagicMock()
+        args.dir = str(d)
+        args.node = "api"
+        args.strategy = strategy
+        args.targets = targets
+        args.rules = ""
+        args.header = ""
+        args.default = ""
+        args.remote = remote
+        return args
+
+    # ------------------------------------------------------------------
+    # Target parsing
+    # ------------------------------------------------------------------
+
+    async def test_target_name_host_port_sets_host(self, project_dir: Path, monkeypatch):
+        """name:host:port form (non-numeric middle field) sets the host correctly."""
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        rc = await cli_mod._cmd_route_set(
+            self._make_args(project_dir, targets="a:svc.cluster.local:9090", remote="baton.cluster.local")
+        )
+
+        assert rc == 0
+        _, _, _, payload = mock_post.call_args.args
+        t = payload["targets"][0]
+        assert t["host"] == "svc.cluster.local"
+        assert t["port"] == 9090
+        assert t["weight"] == 100
+
+    async def test_target_name_host_port_weight(self, project_dir: Path, monkeypatch):
+        """name:host:port:weight (4-field) form sets host and weight."""
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        rc = await cli_mod._cmd_route_set(
+            self._make_args(
+                project_dir,
+                targets="a:svc.cluster.local:9090:80,b:other.svc:9091:20",
+                remote="baton.cluster.local",
+            )
+        )
+
+        assert rc == 0
+        _, _, _, payload = mock_post.call_args.args
+        assert payload["targets"][0]["host"] == "svc.cluster.local"
+        assert payload["targets"][0]["weight"] == 80
+        assert payload["targets"][1]["host"] == "other.svc"
+        assert payload["targets"][1]["weight"] == 20
+
+    async def test_target_name_port_weight_still_works(self, project_dir: Path, monkeypatch):
+        """name:port:weight (numeric middle field) still works after disambiguation change."""
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        rc = await cli_mod._cmd_route_set(
+            self._make_args(project_dir, targets="a:8001:100", remote="baton.cluster.local")
+        )
+
+        assert rc == 0
+        _, _, _, payload = mock_post.call_args.args
+        t = payload["targets"][0]
+        assert t["host"] == "127.0.0.1"
+        assert t["port"] == 8001
+        assert t["weight"] == 100
+
+    # ------------------------------------------------------------------
+    # Remote dispatch
+    # ------------------------------------------------------------------
+
+    async def test_posts_to_routing_endpoint_with_correct_host(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        rc = await cli_mod._cmd_route_set(
+            self._make_args(project_dir, targets="a:127.0.0.1:9090:100", remote="baton.cluster.local")
+        )
+
+        assert rc == 0
+        host, port, path, _ = mock_post.call_args.args
+        assert host == "baton.cluster.local"
+        assert path == "/routing"
+
+    async def test_uses_node_mgmt_port_when_remote_has_no_port(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)  # api on 8001 → management_port 18001
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        await cli_mod._cmd_route_set(
+            self._make_args(project_dir, targets="a:127.0.0.1:9090:100", remote="baton.cluster.local")
+        )
+
+        _, mgmt_port, _, _ = mock_post.call_args.args
+        assert mgmt_port == 8001 + 10000
+
+    async def test_uses_explicit_mgmt_port_in_remote(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        await cli_mod._cmd_route_set(
+            self._make_args(project_dir, targets="a:127.0.0.1:9090:100", remote="baton.cluster.local:19999")
+        )
+
+        remote_host, mgmt_port, _, _ = mock_post.call_args.args
+        assert remote_host == "baton.cluster.local"
+        assert mgmt_port == 19999
+
+    async def test_returns_1_on_non_200_response(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "_control_post", AsyncMock(return_value=(423, '{"error": "locked"}')))
+
+        rc = await cli_mod._cmd_route_set(
+            self._make_args(project_dir, targets="a:127.0.0.1:9090:100", remote="baton.cluster.local")
+        )
+
+        assert rc == 1
+
+    async def test_rejects_unknown_node(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock, MagicMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "_control_post", AsyncMock())
+
+        args = MagicMock()
+        args.dir = str(project_dir)
+        args.node = "nonexistent"
+        args.strategy = "weighted"
+        args.targets = "a:127.0.0.1:9090:100"
+        args.rules = ""
+        args.header = ""
+        args.default = ""
+        args.remote = "baton.cluster.local"
+
+        rc = await cli_mod._cmd_route_set(args)
+
+        assert rc == 1
+
+    async def test_skips_mgr_up_when_circuit_already_running(self, project_dir: Path, monkeypatch):
+        """If the circuit owner is alive, the local path must not call mgr.up()."""
+        from unittest.mock import AsyncMock, MagicMock
+        from baton import cli as cli_mod
+        import baton.lifecycle as lifecycle_mod
+
+        self._setup_node(project_dir)
+
+        fake_state = MagicMock()
+        monkeypatch.setattr(cli_mod, "load_state", lambda d: fake_state)
+        monkeypatch.setattr(cli_mod, "_owner_alive", lambda s: True)
+
+        fake_mgr = MagicMock()
+        fake_mgr.up = AsyncMock()
+        fake_mgr.set_routing = MagicMock()
+        monkeypatch.setattr(lifecycle_mod, "LifecycleManager", lambda d: fake_mgr)
+
+        rc = await cli_mod._cmd_route_set(
+            self._make_args(project_dir, targets="a:127.0.0.1:9090:100", remote=None)
+        )
+
+        assert rc == 0
+        fake_mgr.up.assert_not_called()
+        fake_mgr.set_routing.assert_called_once()
+
+
+class TestMockHostFlag:
+    """--mock-host is wired to all four subparsers and passed to mock_server.start()."""
+
+    def _setup_circuit(self, d: Path) -> None:
+        main(["init", str(d)])
+        main(["node", "add", "api", "--port", "8001", "--dir", str(d)])
+
+    def _mock_infra(self, monkeypatch, *, include_slot=False):
+        """Patch LifecycleManager, build_mock_server, compute_mock_backends, and asyncio.Event.
+        Returns the fake mock server so callers can assert on .start."""
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock
+        import baton.collapse as collapse_mod
+        import baton.lifecycle as lifecycle_mod
+
+        fake_mock_server = MagicMock()
+        fake_mock_server.start = AsyncMock()
+        fake_mock_server.stop = AsyncMock()
+        monkeypatch.setattr(collapse_mod, "build_mock_server", lambda *a, **kw: fake_mock_server)
+        monkeypatch.setattr(collapse_mod, "compute_mock_backends", lambda *a, **kw: {})
+
+        fake_state = MagicMock()
+        fake_state.circuit_name = "default"
+        fake_state.adapters = {}
+        fake_state.live_nodes = []
+        fake_mgr = MagicMock()
+        fake_mgr.up = AsyncMock(return_value=fake_state)
+        fake_mgr.down = AsyncMock()
+        fake_mgr.adapters = {}
+        if include_slot:
+            fake_mgr.slot = AsyncMock()
+        monkeypatch.setattr(lifecycle_mod, "LifecycleManager", lambda d: fake_mgr)
+
+        pre_set = asyncio.Event()
+        pre_set.set()
+        monkeypatch.setattr(asyncio, "Event", lambda: pre_set)
+
+        return fake_mock_server
+
+    # ------------------------------------------------------------------
+    # Argparse: verify --mock-host is wired to each subparser with the right default
+    # ------------------------------------------------------------------
+
+    def test_up_default_mock_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_up(args):
+            captured["mock_host"] = args.mock_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_up", fake_up)
+        main(["up", "--dir", str(project_dir)])
+        assert captured["mock_host"] == "127.0.0.1"
+
+    def test_up_explicit_mock_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_up(args):
+            captured["mock_host"] = args.mock_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_up", fake_up)
+        main(["up", "--mock-host", "0.0.0.0", "--dir", str(project_dir)])
+        assert captured["mock_host"] == "0.0.0.0"
+
+    def test_slot_default_mock_host(self, project_dir: Path, monkeypatch):
+        self._setup_circuit(project_dir)
+        captured = {}
+        async def fake_slot(args):
+            captured["mock_host"] = args.mock_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_slot", fake_slot)
+        main(["slot", "api", "python -m app", "--dir", str(project_dir)])
+        assert captured["mock_host"] == "127.0.0.1"
+
+    def test_slot_explicit_mock_host(self, project_dir: Path, monkeypatch):
+        self._setup_circuit(project_dir)
+        captured = {}
+        async def fake_slot(args):
+            captured["mock_host"] = args.mock_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_slot", fake_slot)
+        main(["slot", "api", "python -m app", "--mock-host", "0.0.0.0", "--dir", str(project_dir)])
+        assert captured["mock_host"] == "0.0.0.0"
+
+    def test_collapse_default_mock_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_collapse(args):
+            captured["mock_host"] = args.mock_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_collapse", fake_collapse)
+        main(["collapse", "--dir", str(project_dir)])
+        assert captured["mock_host"] == "127.0.0.1"
+
+    def test_collapse_explicit_mock_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_collapse(args):
+            captured["mock_host"] = args.mock_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_collapse", fake_collapse)
+        main(["collapse", "--mock-host", "0.0.0.0", "--dir", str(project_dir)])
+        assert captured["mock_host"] == "0.0.0.0"
+
+    def test_apply_default_mock_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_apply(args):
+            captured["mock_host"] = args.mock_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_apply", fake_apply)
+        main(["apply", "--dir", str(project_dir)])
+        assert captured["mock_host"] == "127.0.0.1"
+
+    def test_apply_explicit_mock_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_apply(args):
+            captured["mock_host"] = args.mock_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_apply", fake_apply)
+        main(["apply", "--mock-host", "0.0.0.0", "--dir", str(project_dir)])
+        assert captured["mock_host"] == "0.0.0.0"
+
+    # ------------------------------------------------------------------
+    # Integration: verify the host value is threaded through to mock_server.start()
+    # ------------------------------------------------------------------
+
+    async def test_cmd_up_passes_mock_host_to_start(self, project_dir: Path, monkeypatch):
+        from baton import cli as cli_mod
+        from unittest.mock import MagicMock
+
+        self._setup_circuit(project_dir)
+        fake_mock_server = self._mock_infra(monkeypatch)
+
+        args = MagicMock()
+        args.dir = str(project_dir)
+        args.mock = True
+        args.services = False
+        args.mock_host = "0.0.0.0"
+
+        await cli_mod._cmd_up(args)
+
+        fake_mock_server.start.assert_called_once_with(host="0.0.0.0")
+
+    async def test_cmd_slot_passes_mock_host_to_start(self, project_dir: Path, monkeypatch):
+        from baton import cli as cli_mod
+        from unittest.mock import MagicMock
+
+        self._setup_circuit(project_dir)
+        fake_mock_server = self._mock_infra(monkeypatch, include_slot=True)
+
+        args = MagicMock()
+        args.dir = str(project_dir)
+        args.node = "api"
+        args.service_cmd = "python -m app"
+        args.mock = False
+        args.remote = None
+        args.skip_validate = True
+        args.force = False
+        args.mock_host = "0.0.0.0"
+
+        await cli_mod._cmd_slot(args)
+
+        fake_mock_server.start.assert_called_once_with(host="0.0.0.0")
+
+    async def test_cmd_collapse_passes_mock_host_to_start(self, project_dir: Path, monkeypatch):
+        from baton import cli as cli_mod
+        from unittest.mock import MagicMock
+
+        self._setup_circuit(project_dir)
+        fake_mock_server = self._mock_infra(monkeypatch)
+
+        args = MagicMock()
+        args.dir = str(project_dir)
+        args.live = ""
+        args.mock_host = "0.0.0.0"
+
+        await cli_mod._cmd_collapse(args)
+
+        fake_mock_server.start.assert_called_once_with(host="0.0.0.0")
+
+    async def test_cmd_apply_passes_mock_host_to_start(self, project_dir: Path, monkeypatch):
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock
+        import baton.collapse as collapse_mod
+        import baton.lifecycle as lifecycle_mod
+        from baton import cli as cli_mod
+        from baton.schemas import AdapterState, CircuitState, NodeStatus
+
+        self._setup_circuit(project_dir)
+
+        fake_mock_server = MagicMock()
+        fake_mock_server.start = AsyncMock()
+        fake_mock_server.stop = AsyncMock()
+        monkeypatch.setattr(collapse_mod, "build_mock_server", lambda *a, **kw: fake_mock_server)
+        monkeypatch.setattr(collapse_mod, "compute_mock_backends", lambda *a, **kw: {})
+
+        # Adapter in LISTENING status so unmocked is non-empty → start() is called
+        fake_state = CircuitState(
+            circuit_name="default",
+            adapters={"api": AdapterState(node_name="api", status=NodeStatus.LISTENING)},
+        )
+        fake_mgr = MagicMock()
+        fake_mgr.apply = AsyncMock(return_value=fake_state)
+        fake_mgr.down = AsyncMock()
+        fake_mgr._adapters = {}
+        monkeypatch.setattr(lifecycle_mod, "LifecycleManager", lambda d: fake_mgr)
+
+        pre_set = asyncio.Event()
+        pre_set.set()
+        monkeypatch.setattr(asyncio, "Event", lambda: pre_set)
+
+        args = MagicMock()
+        args.dir = str(project_dir)
+        args.mock_host = "0.0.0.0"
+
+        await cli_mod._cmd_apply(args)
+
+        fake_mock_server.start.assert_called_once_with(host="0.0.0.0")
+
+    def test_invalid_mock_host_rejected(self, project_dir: Path, monkeypatch):
+        captured = {}
+
+        async def fake_up(args):
+            captured["called"] = True
+            return 0
+
+        monkeypatch.setattr("baton.cli._cmd_up", fake_up)
+        rc = main(["up", "--dir", str(project_dir), "--mock-host", "notanip"])
+        assert rc == 1
+        assert "called" not in captured
+
+
+class TestLogLevelFlag:
+    """Tests for --log-level argument and logging.basicConfig wiring."""
+
+    def test_default_log_level_is_info(self, project_dir, monkeypatch):
+        captured = {}
+
+        async def fake_up(args):
+            captured["log_level"] = args.log_level
+            return 0
+
+        monkeypatch.setattr("baton.cli._cmd_up", fake_up)
+        monkeypatch.delenv("LOG_LEVEL", raising=False)
+        main(["up", "--dir", str(project_dir)])
+        assert captured["log_level"] == "INFO"
+
+    def test_explicit_log_level(self, project_dir, monkeypatch):
+        captured = {}
+
+        async def fake_up(args):
+            captured["log_level"] = args.log_level
+            return 0
+
+        monkeypatch.setattr("baton.cli._cmd_up", fake_up)
+        main(["--log-level", "DEBUG", "up", "--dir", str(project_dir)])
+        assert captured["log_level"] == "DEBUG"
+
+    def test_log_level_env_var(self, project_dir, monkeypatch):
+        captured = {}
+
+        async def fake_up(args):
+            captured["log_level"] = args.log_level
+            return 0
+
+        monkeypatch.setattr("baton.cli._cmd_up", fake_up)
+        monkeypatch.setenv("LOG_LEVEL", "WARNING")
+        main(["up", "--dir", str(project_dir)])
+        assert captured["log_level"] == "WARNING"
+
+    def test_explicit_flag_takes_precedence_over_env(self, project_dir, monkeypatch):
+        captured = {}
+
+        async def fake_up(args):
+            captured["log_level"] = args.log_level
+            return 0
+
+        monkeypatch.setattr("baton.cli._cmd_up", fake_up)
+        monkeypatch.setenv("LOG_LEVEL", "WARNING")
+        main(["--log-level", "ERROR", "up", "--dir", str(project_dir)])
+        assert captured["log_level"] == "ERROR"
+
+    def test_basicconfig_called_with_log_level(self, project_dir, monkeypatch):
+        import logging as _logging
+
+        calls = []
+
+        def fake_basicconfig(**kwargs):
+            calls.append(kwargs)
+
+        async def fake_up(args):
+            return 0
+
+        monkeypatch.setattr(_logging, "basicConfig", fake_basicconfig)
+        monkeypatch.setattr("baton.cli._cmd_up", fake_up)
+        monkeypatch.delenv("LOG_LEVEL", raising=False)
+        main(["up", "--dir", str(project_dir)])
+        assert len(calls) == 1
+        assert calls[0]["level"] == "INFO"
+
+    def test_basicconfig_stdout(self, project_dir, monkeypatch):
+        import logging as _logging
+        import sys as _sys
+
+        calls = []
+
+        def fake_basicconfig(**kwargs):
+            calls.append(kwargs)
+
+        async def fake_up(args):
+            return 0
+
+        monkeypatch.setattr(_logging, "basicConfig", fake_basicconfig)
+        monkeypatch.setattr("baton.cli._cmd_up", fake_up)
+        main(["up", "--dir", str(project_dir)])
+        assert calls[0]["stream"] is _sys.stdout
+
+    def test_log_level_flag_available_on_all_subcommands(self, project_dir, monkeypatch):
+        """--log-level is on the top-level parser so it works with any subcommand."""
+        captured = {}
+
+        def fake_status(args):
+            captured["log_level"] = args.log_level
+            return 0
+
+        monkeypatch.setattr("baton.cli._cmd_status", fake_status)
+        main(["--log-level", "DEBUG", "status", "--dir", str(project_dir)])
+        assert captured["log_level"] == "DEBUG"
+
+    def test_invalid_log_level_rejected(self, project_dir, monkeypatch):
+        import pytest
+
+        async def fake_up(args):
+            return 0
+
+        monkeypatch.setattr("baton.cli._cmd_up", fake_up)
+        with pytest.raises(SystemExit) as exc_info:
+            main(["--log-level", "NONSENSE", "up", "--dir", str(project_dir)])
+        assert exc_info.value.code == 2
+
+
 class TestDevDependencies:
     """Verify pyproject.toml includes mcp in the dev extra."""
 
