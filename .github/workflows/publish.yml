@@ -3,7 +3,7 @@
 # One-time setup on pypi.org:
 #   Project -> Manage -> Publishing -> Add a new pending publisher
 #     Owner:        jmcentire
-#     Repository:   <repo>
+#     Repository:   baton
 #     Workflow:     publish.yml
 #     Environment:  pypi
 #
@@ -28,6 +28,10 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+
+      - name: Verify release tag matches package version
+        run: |
+          python -c "import os, pathlib, sys, tomllib; version = tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version']; tag = os.environ['GITHUB_REF_NAME']; expected = f'v{version}'; print(f'Publishing {expected}') if tag == expected else sys.exit(f'release tag {tag} does not match package version {expected}')"
 
       - run: pip install build
       - run: python -m build
