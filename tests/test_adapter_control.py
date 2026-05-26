@@ -305,6 +305,115 @@ class TestSetBackend:
             await ctrl.stop()
 
 
+class TestSetRouting:
+    async def test_post_routing_sets_config(self):
+        node = NodeSpec(name="ctrl-set-rt", port=19040, management_port=29040)
+        adapter = Adapter(node)
+        ctrl = AdapterControlServer(adapter)
+        await ctrl.start()
+        try:
+            status, body = await _http_post(
+                29040,
+                "/routing",
+                {
+                    "strategy": "weighted",
+                    "targets": [
+                        {"name": "a", "host": "127.0.0.1", "port": 8001, "weight": 80},
+                        {"name": "b", "host": "svc.cluster.local", "port": 9090, "weight": 20},
+                    ],
+                    "rules": [],
+                    "default_target": "",
+                    "locked": False,
+                },
+            )
+            assert status == 200
+            assert body["ok"] is True
+            assert adapter.routing is not None
+            assert adapter.routing.strategy == RoutingStrategy.WEIGHTED
+            assert len(adapter.routing.targets) == 2
+            assert adapter.routing.targets[1].host == "svc.cluster.local"
+            assert adapter.routing.targets[1].port == 9090
+        finally:
+            await ctrl.stop()
+
+    async def test_post_routing_rejects_invalid_json(self):
+        node = NodeSpec(name="ctrl-bad-rt", port=19041, management_port=29041)
+        adapter = Adapter(node)
+        ctrl = AdapterControlServer(adapter)
+        await ctrl.start()
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 29041)
+            writer.write(
+                b"POST /routing HTTP/1.1\r\nHost: localhost\r\n"
+                b"Content-Type: application/json\r\n"
+                b"Content-Length: 8\r\n\r\nnot-json"
+            )
+            await writer.drain()
+            chunks = []
+            while True:
+                chunk = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+            writer.close()
+            status = int(b"".join(chunks).split(b" ")[1])
+            assert status == 400
+        finally:
+            await ctrl.stop()
+
+    async def test_post_routing_invalid_config_returns_400(self):
+        node = NodeSpec(name="ctrl-inv-rt", port=19043, management_port=29043)
+        adapter = Adapter(node)
+        ctrl = AdapterControlServer(adapter)
+        await ctrl.start()
+        try:
+            # weights sum to 50, not 100 — RoutingConfig validation will reject it
+            status, body = await _http_post(
+                29043,
+                "/routing",
+                {
+                    "strategy": "weighted",
+                    "targets": [{"name": "a", "host": "127.0.0.1", "port": 8001, "weight": 50}],
+                    "rules": [],
+                    "default_target": "",
+                    "locked": False,
+                },
+            )
+            assert status == 400
+            assert "error" in body
+        finally:
+            await ctrl.stop()
+
+    async def test_post_routing_locked_returns_423(self):
+        node = NodeSpec(name="ctrl-locked-rt", port=19042, management_port=29042)
+        adapter = Adapter(node)
+        adapter.set_routing(
+            RoutingConfig(
+                strategy=RoutingStrategy.WEIGHTED,
+                targets=[RoutingTarget(name="a", port=8001, weight=100)],
+                locked=True,
+            )
+        )
+        ctrl = AdapterControlServer(adapter)
+        await ctrl.start()
+        try:
+            status, body = await _http_post(
+                29042,
+                "/routing",
+                {
+                    "strategy": "weighted",
+                    "targets": [{"name": "b", "host": "127.0.0.1", "port": 8002, "weight": 100}],
+                    "rules": [],
+                    "default_target": "",
+                    "locked": False,
+                },
+            )
+            assert status == 423
+            assert "locked" in body["error"].lower()
+        finally:
+            await ctrl.stop()
+
+
 class TestControlAuth:
     async def test_no_auth_allows_all(self):
         """No security config -> /health returns 200."""

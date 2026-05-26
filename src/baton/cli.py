@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import inspect
+import logging
+import os
 import signal
 import socket
 import sys
@@ -20,6 +22,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="baton",
         description="Cloud-agnostic circuit orchestration.",
+    )
+    parser.add_argument(
+        "--log-level",
+        default=os.environ.get("LOG_LEVEL", "INFO"),
+        help="Logging level (default: INFO, or $LOG_LEVEL)",
     )
     sub = parser.add_subparsers(dest="command")
 
@@ -85,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     p_up = sub.add_parser("up", help="Boot the circuit")
     p_up.add_argument("--mock", action="store_true", default=True, help="Start with all nodes mocked (default)")
     p_up.add_argument("--services", action="store_true", help="Derive circuit from service manifests")
+    p_up.add_argument("--mock-host", default="127.0.0.1", help="Host to bind mock servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
     p_up.add_argument("--dir", default=".", help="Project directory")
     p_up.set_defaults(func=_cmd_up)
 
@@ -100,6 +108,8 @@ def main(argv: list[str] | None = None) -> int:
     p_slot.add_argument("--mock", action="store_true", help="Slot a mock instead")
     p_slot.add_argument("--skip-validate", action="store_true", help="Skip runtime interface validation")
     p_slot.add_argument("--force", action="store_true", help="Force slot even with low Arbiter trust")
+    p_slot.add_argument("--remote", default=None, metavar="HOST[:PORT]", help="Remote baton host; POST /backend directly, no local process management")
+    p_slot.add_argument("--mock-host", default="127.0.0.1", help="Host to bind mock servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
     p_slot.add_argument("--dir", default=".", help="Project directory")
     p_slot.set_defaults(func=_cmd_slot)
 
@@ -114,6 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     # baton collapse
     p_collapse = sub.add_parser("collapse", help="Collapse circuit to minimal mock")
     p_collapse.add_argument("--live", default="", help="Comma-separated nodes to keep live")
+    p_collapse.add_argument("--mock-host", default="127.0.0.1", help="Host to bind mock servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
     p_collapse.add_argument("--dir", default=".", help="Project directory")
     p_collapse.set_defaults(func=_cmd_collapse)
 
@@ -173,10 +184,11 @@ def main(argv: list[str] | None = None) -> int:
     p_route_set = route_sub.add_parser("set", help="Set custom routing config")
     p_route_set.add_argument("node", help="Node name")
     p_route_set.add_argument("--strategy", required=True, choices=["weighted", "header"], help="Routing strategy")
-    p_route_set.add_argument("--targets", required=True, help="Targets: name:port:weight,... (weight optional for header)")
+    p_route_set.add_argument("--targets", required=True, help="Targets: name:port[:weight] | name:host:port[:weight], comma-separated")
     p_route_set.add_argument("--header", default="", help="Header name (required for header strategy)")
     p_route_set.add_argument("--rules", default="", help="Rules: value:target,... (for header strategy)")
     p_route_set.add_argument("--default", default="", help="Default target (for header strategy)")
+    p_route_set.add_argument("--remote", default=None, metavar="HOST[:PORT]", help="Remote baton host; POST /routing directly")
     p_route_set.add_argument("--dir", default=".", help="Project directory")
     p_route_set.set_defaults(func=_cmd_route_set)
 
@@ -288,6 +300,7 @@ def main(argv: list[str] | None = None) -> int:
     p_apply = sub.add_parser("apply", help="Apply declarative config (converge desired vs running)")
     p_apply.add_argument("--dir", default=".", help="Project directory")
     p_apply.add_argument("--dry-run", action="store_true", help="Show what would change without applying")
+    p_apply.add_argument("--mock-host", default="127.0.0.1", help="Host to bind mock servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
     p_apply.set_defaults(func=_cmd_apply_dispatch)
 
     # baton export
@@ -407,6 +420,12 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
+    logging.basicConfig(
+        level=args.log_level,
+        stream=sys.stdout,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+
     if args.command is None or not hasattr(args, "func") or args.func is None:
         parser.print_help()
         return 1
@@ -453,7 +472,7 @@ async def _cmd_up(args: argparse.Namespace) -> int:
         mock_server = build_mock_server(circuit, live_nodes=set(), project_dir=args.dir)
         backends = compute_mock_backends(circuit, live_nodes=set())
 
-        await mock_server.start()
+        await mock_server.start(host=args.mock_host)
         for node_name, target in backends.items():
             adapter = mgr.adapters.get(node_name)
             if adapter:
@@ -543,6 +562,8 @@ def _owner_alive(state) -> bool:
 
 
 async def _cmd_slot(args: argparse.Namespace) -> int:
+    if getattr(args, "remote", None):
+        return await _cmd_slot_remote(args)
     if args.mock:
         print("Use 'baton collapse' to mock nodes in a running circuit")
         return 1
@@ -569,7 +590,7 @@ async def _cmd_slot(args: argparse.Namespace) -> int:
         live_nodes: set[str] = {args.node}
         mock_server = build_mock_server(circuit, live_nodes=live_nodes, project_dir=args.dir)
         backends = compute_mock_backends(circuit, live_nodes=live_nodes)
-        await mock_server.start()
+        await mock_server.start(host=args.mock_host)
         for node_name, target in backends.items():
             adapter = mgr.adapters.get(node_name)
             if adapter:
@@ -766,6 +787,51 @@ async def _cmd_slot_attach(args: argparse.Namespace, state) -> int:
     return 0
 
 
+async def _cmd_slot_remote(args: argparse.Namespace) -> int:
+    """POST /backend to a remote adapter's management port — no local process management."""
+    circuit = load_circuit(args.dir)
+    node = next((n for n in circuit.nodes if n.name == args.node), None)
+    if node is None:
+        print(f"Error: node '{args.node}' not found in circuit", file=sys.stderr)
+        return 1
+
+    target = args.service_cmd
+    if not target or ":" not in target:
+        print("Error: host:port target required with --remote", file=sys.stderr)
+        return 1
+    target_host, _, target_port_str = target.rpartition(":")
+    if not target_host:
+        print(f"Error: invalid target '{target}' — host is empty", file=sys.stderr)
+        return 1
+    try:
+        target_port = int(target_port_str)
+    except ValueError:
+        print(f"Error: invalid port in target '{target}'", file=sys.stderr)
+        return 1
+
+    remote = args.remote
+    if ":" in remote:
+        remote_host, _, remote_port_str = remote.rpartition(":")
+        try:
+            mgmt_port = int(remote_port_str)
+        except ValueError:
+            print(f"Error: invalid port in --remote '{remote}'", file=sys.stderr)
+            return 1
+    else:
+        remote_host = remote
+        mgmt_port = node.management_port
+
+    status, body = await _control_post(
+        remote_host, mgmt_port, "/backend",
+        {"host": target_host, "port": target_port},
+    )
+    if status != 200:
+        print(f"Error: remote /backend returned {status}: {body}", file=sys.stderr)
+        return 1
+    print(f"Slotted '{node.name}' → {target_host}:{target_port} via {remote_host}:{mgmt_port}")
+    return 0
+
+
 async def _cmd_swap(args: argparse.Namespace) -> int:
     from baton.lifecycle import LifecycleManager
     mgr = LifecycleManager(args.dir)
@@ -806,7 +872,7 @@ async def _cmd_collapse(args: argparse.Namespace) -> int:
     mock_server = build_mock_server(circuit, live_nodes=live, project_dir=args.dir)
     backends = compute_mock_backends(circuit, live_nodes=live)
 
-    await mock_server.start()
+    await mock_server.start(host=args.mock_host)
     for node_name, target in backends.items():
         adapter = mgr.adapters.get(node_name)
         if adapter:
@@ -976,20 +1042,22 @@ async def _cmd_route_canary(args: argparse.Namespace) -> int:
 
 
 async def _cmd_route_set(args: argparse.Namespace) -> int:
-    from baton.lifecycle import LifecycleManager
     from baton.schemas import RoutingConfig, RoutingRule, RoutingStrategy, RoutingTarget
 
-    mgr = LifecycleManager(args.dir)
-    await mgr.up(mock=False)
-
-    # Parse targets: name:port:weight or name:port
+    # Parse targets: name:port | name:port:weight | name:host:port | name:host:port:weight
+    # Disambiguate 3-field form by whether the middle field is purely numeric (port) or not (host).
     targets = []
     for part in args.targets.split(","):
         fields = part.strip().split(":")
-        if len(fields) == 3:
-            targets.append(RoutingTarget(name=fields[0], port=int(fields[1]), weight=int(fields[2])))
-        elif len(fields) == 2:
+        if len(fields) == 2:
             targets.append(RoutingTarget(name=fields[0], port=int(fields[1])))
+        elif len(fields) == 3:
+            if fields[1].isdigit():
+                targets.append(RoutingTarget(name=fields[0], port=int(fields[1]), weight=int(fields[2])))
+            else:
+                targets.append(RoutingTarget(name=fields[0], host=fields[1], port=int(fields[2])))
+        elif len(fields) == 4:
+            targets.append(RoutingTarget(name=fields[0], host=fields[1], port=int(fields[2]), weight=int(fields[3])))
         else:
             print(f"Error: invalid target '{part}'", file=sys.stderr)
             return 1
@@ -1009,6 +1077,37 @@ async def _cmd_route_set(args: argparse.Namespace) -> int:
         rules=rules,
         default_target=getattr(args, "default", ""),
     )
+
+    remote = getattr(args, "remote", None)
+    if remote:
+        circuit = load_circuit(args.dir)
+        node = next((n for n in circuit.nodes if n.name == args.node), None)
+        if node is None:
+            print(f"Error: node '{args.node}' not found in circuit", file=sys.stderr)
+            return 1
+        if ":" in remote:
+            remote_host, _, remote_port_str = remote.rpartition(":")
+            try:
+                mgmt_port = int(remote_port_str)
+            except ValueError:
+                print(f"Error: invalid port in --remote '{remote}'", file=sys.stderr)
+                return 1
+        else:
+            remote_host = remote
+            mgmt_port = node.management_port
+        status, body = await _control_post(
+            remote_host, mgmt_port, "/routing",
+            config.model_dump(),
+        )
+        if status != 200:
+            print(f"Error: remote /routing returned {status}: {body}", file=sys.stderr)
+            return 1
+        print(f"Routing config set for '{args.node}' via {remote_host}:{mgmt_port} (strategy: {args.strategy})")
+        return 0
+
+    from baton.lifecycle import LifecycleManager
+    mgr = LifecycleManager(args.dir)
+    await mgr.up(mock=False)
     mgr.set_routing(args.node, config)
     print(f"Routing config set for '{args.node}' (strategy: {args.strategy})")
     return 0
@@ -1682,7 +1781,7 @@ async def _cmd_apply(args: argparse.Namespace) -> int:
         mock_server = build_mock_server(circuit, live_nodes=live_nodes, project_dir=str(project_dir))
         backends = compute_mock_backends(circuit, live_nodes=live_nodes)
 
-        await mock_server.start()
+        await mock_server.start(host=args.mock_host)
         for node_name, target in backends.items():
             adapter = mgr._adapters.get(node_name)
             if adapter:
