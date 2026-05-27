@@ -571,11 +571,10 @@ def _owner_alive(state) -> bool:
 
 
 async def _cmd_slot(args: argparse.Namespace) -> int:
+    if args.mock:
+        return await _cmd_unslot(args)
     if getattr(args, "remote", None):
         return await _cmd_slot_remote(args)
-    if args.mock:
-        print("Use 'baton collapse' to mock nodes in a running circuit")
-        return 1
     if not args.service_cmd:
         print("Error: command required (or use --mock)", file=sys.stderr)
         return 1

@@ -2001,6 +2001,70 @@ class TestLogLevelFlag:
         assert exc_info.value.code == 2
 
 
+class TestSlotMockFlag:
+    """baton slot <node> --mock should delegate to _cmd_unslot, not print an error."""
+
+    def _setup_node(self, d: Path, port: int = 8001) -> None:
+        main(["init", str(d)])
+        main(["node", "add", "api", "--port", str(port), "--dir", str(d)])
+
+    def test_slot_mock_delegates_to_unslot(self, project_dir: Path, monkeypatch):
+        """slot --mock must call _cmd_unslot, not print the old error message."""
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        called_with = {}
+        async def fake_unslot(args):
+            called_with["node"] = args.node
+            called_with["remote"] = getattr(args, "remote", None)
+            return 0
+
+        monkeypatch.setattr(cli_mod, "_cmd_unslot", fake_unslot)
+        rc = main(["slot", "api", "--mock", "--dir", str(project_dir)])
+        assert rc == 0
+        assert called_with["node"] == "api"
+
+    def test_slot_mock_with_remote_passes_remote_to_unslot(self, project_dir: Path, monkeypatch):
+        """slot --mock --remote HOST passes remote through to _cmd_unslot."""
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        called_with = {}
+        async def fake_unslot(args):
+            called_with["remote"] = args.remote
+            return 0
+
+        monkeypatch.setattr(cli_mod, "_cmd_unslot", fake_unslot)
+        rc = main(["slot", "api", "--mock", "--remote", "baton.cluster.local", "--dir", str(project_dir)])
+        assert rc == 0
+        assert called_with["remote"] == "baton.cluster.local"
+
+    def test_slot_mock_does_not_require_service_cmd(self, project_dir: Path, monkeypatch, capsys):
+        """slot --mock must not print 'command required' error."""
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+
+        async def fake_unslot(args):
+            return 0
+
+        monkeypatch.setattr(cli_mod, "_cmd_unslot", fake_unslot)
+        rc = main(["slot", "api", "--mock", "--dir", str(project_dir)])
+        assert rc == 0
+        err = capsys.readouterr().err
+        assert "command required" not in err
+
+    def test_slot_without_mock_still_requires_service_cmd(self, project_dir: Path, capsys):
+        """slot without --mock and without service_cmd must still error."""
+        self._setup_node(project_dir)
+        rc = main(["slot", "api", "--dir", str(project_dir)])
+        assert rc == 1
+        err = capsys.readouterr().err
+        assert "command required" in err
+
+
 class TestDevDependencies:
     """Verify pyproject.toml includes mcp in the dev extra."""
 
