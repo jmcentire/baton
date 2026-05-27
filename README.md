@@ -141,6 +141,7 @@ baton check [--service <name>]            # static API compatibility analysis
 ```bash
 baton up [--mock] [--services]            # boot circuit
 baton up --mock --mock-host 0.0.0.0       # bind mock servers on all interfaces (e.g. Docker/K8s)
+baton up --mock --adapter-host 0.0.0.0    # bind adapter servers on all interfaces (e.g. Docker/K8s)
 baton slot <node> <command>               # slot live service into node
 baton slot <node> host:port --remote HOST[:PORT]  # POST /backend to a remote adapter, no local process
 baton swap <node> <command>               # hot-swap (zero-downtime replace)

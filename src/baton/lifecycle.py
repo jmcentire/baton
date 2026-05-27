@@ -103,12 +103,13 @@ class LifecycleManager:
     def state(self) -> CircuitState | None:
         return self._state
 
-    async def up(self, mock: bool = True) -> CircuitState:
+    async def up(self, mock: bool = True, adapter_host: str = "127.0.0.1") -> CircuitState:
         """Boot the circuit: start all adapters.
 
         Args:
             mock: If True, adapters start with no backend (503).
                   Mock generation is handled by collapse module.
+            adapter_host: Host address for adapter servers to bind on.
         """
         self._circuit = load_circuit(self.project_dir)
         ensure_baton_dir(self.project_dir)
@@ -126,6 +127,8 @@ class LifecycleManager:
         )
 
         for node in self._circuit.nodes:
+            if adapter_host != "127.0.0.1":
+                node = node.model_copy(update={"host": adapter_host})
             adapter = Adapter(node)
             await adapter.start()
             self._adapters[node.name] = adapter
@@ -731,7 +734,7 @@ class LifecycleManager:
         save_state(state, self.project_dir)
         return state
 
-    async def apply(self, config: CircuitConfig) -> CircuitState:
+    async def apply(self, config: CircuitConfig, adapter_host: str = "127.0.0.1") -> CircuitState:
         """Converge running state to match the declarative CircuitConfig.
 
         1. No running state -> boot circuit + apply routing
@@ -774,6 +777,8 @@ class LifecycleManager:
                 )
 
                 for node in desired_spec.nodes:
+                    if adapter_host != "127.0.0.1":
+                        node = node.model_copy(update={"host": adapter_host})
                     adapter = Adapter(node, ssl_context=ssl_ctx)
                     await adapter.start()
                     # Set edge policy

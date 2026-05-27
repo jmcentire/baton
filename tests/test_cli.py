@@ -1892,6 +1892,146 @@ class TestMockHostFlag:
         assert "called" not in captured
 
 
+class TestAdapterHostFlag:
+    """--adapter-host is wired to all four subparsers and passed to LifecycleManager.up/apply."""
+
+    def _setup_circuit(self, d: Path) -> None:
+        main(["init", str(d)])
+        main(["node", "add", "api", "--port", "8001", "--dir", str(d)])
+
+    # ------------------------------------------------------------------
+    # Argparse: default and explicit values per subcommand
+    # ------------------------------------------------------------------
+
+    def test_up_default_adapter_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_up(args):
+            captured["adapter_host"] = args.adapter_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_up", fake_up)
+        main(["up", "--dir", str(project_dir)])
+        assert captured["adapter_host"] == "127.0.0.1"
+
+    def test_up_explicit_adapter_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_up(args):
+            captured["adapter_host"] = args.adapter_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_up", fake_up)
+        main(["up", "--dir", str(project_dir), "--adapter-host", "0.0.0.0"])
+        assert captured["adapter_host"] == "0.0.0.0"
+
+    def test_slot_default_adapter_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_slot(args):
+            captured["adapter_host"] = args.adapter_host
+            return 0
+        self._setup_circuit(project_dir)
+        monkeypatch.setattr("baton.cli._cmd_slot", fake_slot)
+        main(["slot", "api", "python app.py", "--dir", str(project_dir)])
+        assert captured["adapter_host"] == "127.0.0.1"
+
+    def test_slot_explicit_adapter_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_slot(args):
+            captured["adapter_host"] = args.adapter_host
+            return 0
+        self._setup_circuit(project_dir)
+        monkeypatch.setattr("baton.cli._cmd_slot", fake_slot)
+        main(["slot", "api", "python app.py", "--dir", str(project_dir), "--adapter-host", "0.0.0.0"])
+        assert captured["adapter_host"] == "0.0.0.0"
+
+    def test_collapse_default_adapter_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_collapse(args):
+            captured["adapter_host"] = args.adapter_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_collapse", fake_collapse)
+        main(["collapse", "--dir", str(project_dir)])
+        assert captured["adapter_host"] == "127.0.0.1"
+
+    def test_collapse_explicit_adapter_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_collapse(args):
+            captured["adapter_host"] = args.adapter_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_collapse", fake_collapse)
+        main(["collapse", "--dir", str(project_dir), "--adapter-host", "0.0.0.0"])
+        assert captured["adapter_host"] == "0.0.0.0"
+
+    def test_apply_default_adapter_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_apply(args):
+            captured["adapter_host"] = args.adapter_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_apply", fake_apply)
+        main(["apply", "--dir", str(project_dir)])
+        assert captured["adapter_host"] == "127.0.0.1"
+
+    def test_apply_explicit_adapter_host(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_apply(args):
+            captured["adapter_host"] = args.adapter_host
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_apply", fake_apply)
+        main(["apply", "--dir", str(project_dir), "--adapter-host", "0.0.0.0"])
+        assert captured["adapter_host"] == "0.0.0.0"
+
+    def test_invalid_adapter_host_rejected(self, project_dir: Path, monkeypatch):
+        captured = {}
+        async def fake_up(args):
+            captured["called"] = True
+            return 0
+        monkeypatch.setattr("baton.cli._cmd_up", fake_up)
+        rc = main(["up", "--dir", str(project_dir), "--adapter-host", "notanip"])
+        assert rc == 1
+        assert "called" not in captured
+
+    # ------------------------------------------------------------------
+    # Integration: adapter binds on the requested host
+    # ------------------------------------------------------------------
+
+    async def test_cmd_up_passes_adapter_host_to_lifecycle(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock, MagicMock
+        import asyncio
+        import baton.collapse as collapse_mod
+        import baton.lifecycle as lifecycle_mod
+        from baton import cli as cli_mod
+
+        self._setup_circuit(project_dir)
+
+        fake_state = MagicMock()
+        fake_state.circuit_name = "default"
+        fake_state.adapters = {}
+        fake_state.live_nodes = []
+        fake_mgr = MagicMock()
+        fake_mgr.up = AsyncMock(return_value=fake_state)
+        fake_mgr.down = AsyncMock()
+        fake_mgr.adapters = {}
+        monkeypatch.setattr(lifecycle_mod, "LifecycleManager", lambda d: fake_mgr)
+
+        fake_mock_server = MagicMock()
+        fake_mock_server.start = AsyncMock()
+        fake_mock_server.stop = AsyncMock()
+        monkeypatch.setattr(collapse_mod, "build_mock_server", lambda *a, **kw: fake_mock_server)
+        monkeypatch.setattr(collapse_mod, "compute_mock_backends", lambda *a, **kw: {})
+
+        pre_set = asyncio.Event()
+        pre_set.set()
+        monkeypatch.setattr(asyncio, "Event", lambda: pre_set)
+
+        args = MagicMock()
+        args.dir = str(project_dir)
+        args.mock = True
+        args.mock_host = "0.0.0.0"
+        args.adapter_host = "0.0.0.0"
+        args.services = False
+
+        await cli_mod._cmd_up(args)
+
+        fake_mgr.up.assert_called_once_with(mock=True, adapter_host="0.0.0.0")
+
+
 class TestLogLevelFlag:
     """Tests for --log-level argument and logging.basicConfig wiring."""
 

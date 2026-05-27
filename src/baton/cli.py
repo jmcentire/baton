@@ -94,6 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     p_up.add_argument("--mock", action="store_true", default=True, help="Start with all nodes mocked (default)")
     p_up.add_argument("--services", action="store_true", help="Derive circuit from service manifests")
     p_up.add_argument("--mock-host", default="127.0.0.1", help="Host to bind mock servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
+    p_up.add_argument("--adapter-host", default="127.0.0.1", help="Host to bind adapter servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
     p_up.add_argument("--dir", default=".", help="Project directory")
     p_up.set_defaults(func=_cmd_up)
 
@@ -111,6 +112,7 @@ def main(argv: list[str] | None = None) -> int:
     p_slot.add_argument("--force", action="store_true", help="Force slot even with low Arbiter trust")
     p_slot.add_argument("--remote", default=None, metavar="HOST[:PORT]", help="Remote baton host; POST /backend directly, no local process management")
     p_slot.add_argument("--mock-host", default="127.0.0.1", help="Host to bind mock servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
+    p_slot.add_argument("--adapter-host", default="127.0.0.1", help="Host to bind adapter servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
     p_slot.add_argument("--dir", default=".", help="Project directory")
     p_slot.set_defaults(func=_cmd_slot)
 
@@ -126,6 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     p_collapse = sub.add_parser("collapse", help="Collapse circuit to minimal mock")
     p_collapse.add_argument("--live", default="", help="Comma-separated nodes to keep live")
     p_collapse.add_argument("--mock-host", default="127.0.0.1", help="Host to bind mock servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
+    p_collapse.add_argument("--adapter-host", default="127.0.0.1", help="Host to bind adapter servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
     p_collapse.add_argument("--dir", default=".", help="Project directory")
     p_collapse.set_defaults(func=_cmd_collapse)
 
@@ -302,6 +305,7 @@ def main(argv: list[str] | None = None) -> int:
     p_apply.add_argument("--dir", default=".", help="Project directory")
     p_apply.add_argument("--dry-run", action="store_true", help="Show what would change without applying")
     p_apply.add_argument("--mock-host", default="127.0.0.1", help="Host to bind mock servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
+    p_apply.add_argument("--adapter-host", default="127.0.0.1", help="Host to bind adapter servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
     p_apply.set_defaults(func=_cmd_apply_dispatch)
 
     # baton export
@@ -439,6 +443,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Error: invalid --mock-host '{mock_host}' (expected a valid IPv4 address)", file=sys.stderr)
             return 1
 
+    adapter_host = getattr(args, "adapter_host", None)
+    if adapter_host is not None:
+        try:
+            socket.inet_aton(adapter_host)
+        except OSError:
+            print(f"Error: invalid --adapter-host '{adapter_host}' (expected a valid IPv4 address)", file=sys.stderr)
+            return 1
+
     try:
         func = args.func
         if inspect.iscoroutinefunction(func):
@@ -474,7 +486,7 @@ async def _cmd_up(args: argparse.Namespace) -> int:
         save_circuit(circuit, args.dir)
 
     mgr = LifecycleManager(args.dir)
-    state = await mgr.up(mock=args.mock)
+    state = await mgr.up(mock=args.mock, adapter_host=args.adapter_host)
 
     if args.mock:
         circuit = load_circuit(args.dir)
@@ -592,7 +604,7 @@ async def _cmd_slot(args: argparse.Namespace) -> int:
     mgr = LifecycleManager(args.dir)
     mock_server = None
     try:
-        state = await mgr.up(mock=False)
+        state = await mgr.up(mock=False, adapter_host=getattr(args, "adapter_host", "127.0.0.1"))
 
         # Wire mocks for all nodes except the one being slotted
         circuit = load_circuit(args.dir)
@@ -861,7 +873,7 @@ async def _cmd_collapse(args: argparse.Namespace) -> int:
     live.discard("")
 
     mgr = LifecycleManager(args.dir)
-    state = await mgr.up(mock=True)
+    state = await mgr.up(mock=True, adapter_host=args.adapter_host)
     circuit = load_circuit(args.dir)
 
     # Egress nodes cannot be live — strip silently
@@ -1775,7 +1787,7 @@ async def _cmd_apply(args: argparse.Namespace) -> int:
         print(f"Note: TLS mode is '{config.security.tls.mode}'", file=sys.stderr)
 
     mgr = LifecycleManager(project_dir)
-    state = await mgr.apply(config)
+    state = await mgr.apply(config, adapter_host=args.adapter_host)
 
     # Wire mock backends for nodes without live services
     mock_server = None
