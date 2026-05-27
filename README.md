@@ -125,6 +125,7 @@ baton edge add <from> <to>                # connect nodes
 baton edge rm <from> <to>                 # disconnect nodes
 baton contract set <node> <spec.yaml>     # attach OpenAPI/JSON Schema contract
 baton status                              # show circuit topology and health
+baton status --remote HOST[:PORT]         # query adapter control APIs on a remote host
 ```
 
 ### Service-First Workflow

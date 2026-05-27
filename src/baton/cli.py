@@ -87,6 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     # baton status
     p_status = sub.add_parser("status", help="Show circuit status")
     p_status.add_argument("--dir", default=".", help="Project directory")
+    p_status.add_argument("--remote", default=None, metavar="HOST[:PORT]", help="Query adapter control APIs on a remote host instead of reading local state")
     p_status.set_defaults(func=_cmd_status)
 
     # baton up
@@ -627,6 +628,45 @@ async def _cmd_slot(args: argparse.Namespace) -> int:
         await mgr.down()
         print("Circuit is down")
     return 0
+
+
+async def _control_get(host: str, port: int, path: str) -> tuple[int, str]:
+    """Minimal HTTP/1.1 GET to an adapter control server. Returns (status, body)."""
+    req = (
+        f"GET {path} HTTP/1.1\r\n"
+        f"Host: {host}:{port}\r\n"
+        f"Connection: close\r\n"
+        f"\r\n"
+    ).encode("ascii")
+
+    reader, writer = await asyncio.open_connection(host, port)
+    try:
+        writer.write(req)
+        await writer.drain()
+        status_line = await reader.readline()
+        parts = status_line.decode("ascii", errors="replace").split(" ", 2)
+        status = int(parts[1]) if len(parts) >= 2 and parts[1].isdigit() else 0
+        content_length = 0
+        while True:
+            line = await reader.readline()
+            if line in (b"\r\n", b"\n", b""):
+                break
+            decoded = line.decode("ascii", errors="replace").strip()
+            if ":" in decoded:
+                k, v = decoded.split(":", 1)
+                if k.strip().lower() == "content-length":
+                    try:
+                        content_length = int(v.strip())
+                    except ValueError:
+                        content_length = 0
+        body_bytes = b""
+        if content_length > 0:
+            body_bytes = await reader.readexactly(content_length)
+        else:
+            body_bytes = await reader.read()
+        return status, body_bytes.decode("utf-8", errors="replace")
+    finally:
+        writer.close()
 
 
 async def _control_post(host: str, port: int, path: str, payload: dict) -> tuple[int, str]:
@@ -1660,7 +1700,57 @@ def _cmd_check(args: argparse.Namespace) -> int:
     return 0 if all_compatible else 1
 
 
+async def _cmd_status_remote(args: argparse.Namespace) -> int:
+    """Query GET /status on each node's management port on the remote host."""
+    import json as _json
+
+    circuit = load_circuit(args.dir)
+    remote = args.remote
+    if ":" in remote:
+        remote_host, _, port_str = remote.rpartition(":")
+        try:
+            port_override: int | None = int(port_str)
+        except ValueError:
+            print(f"Error: invalid port in --remote '{remote}'", file=sys.stderr)
+            return 1
+    else:
+        remote_host = remote
+        port_override = None
+
+    print(f"Circuit: {circuit.name} (v{circuit.version}) — remote {remote_host}")
+    print(f"Nodes:   {len(circuit.nodes)}")
+    print()
+    header = f"  {'Name':<20} {'Role':<10} {'Port':<8} {'Mode':<6} {'Status':<12} {'Backend'}"
+    print(header)
+    print(f"  {'─'*20} {'─'*10} {'─'*8} {'─'*6} {'─'*12} {'─'*20}")
+
+    rc = 0
+    for n in circuit.nodes:
+        mgmt_port = port_override if port_override is not None else n.management_port
+        role = f"[{n.role}]" if n.role != "service" else ""
+        try:
+            status, body = await asyncio.wait_for(
+                _control_get(remote_host, mgmt_port, "/status"), timeout=3.0
+            )
+            if status == 200:
+                data = _json.loads(body)
+                running = "running" if data.get("running") else "stopped"
+                backend = data.get("backend") or "—"
+                line = f"  {n.name:<20} {role:<10} {n.port:<8} {n.proxy_mode:<6} {running:<12} {backend}"
+            else:
+                line = f"  {n.name:<20} {role:<10} {n.port:<8} {n.proxy_mode:<6} error({status})"
+                rc = 1
+        except (OSError, asyncio.TimeoutError):
+            line = f"  {n.name:<20} {role:<10} {n.port:<8} {n.proxy_mode:<6} unreachable"
+            rc = 1
+        print(line)
+
+    return rc
+
+
 def _cmd_status(args: argparse.Namespace) -> int:
+    if getattr(args, "remote", None):
+        return asyncio.run(_cmd_status_remote(args))
     circuit = load_circuit(args.dir)
     state = load_state(args.dir)
 

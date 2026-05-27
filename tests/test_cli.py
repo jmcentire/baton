@@ -934,6 +934,133 @@ class TestStatusCLI:
         assert rc == 1
 
 
+class TestStatusRemoteIntegration:
+    """End-to-end: start a real AdapterControlServer, query it via _cmd_status_remote."""
+
+    async def test_status_remote_against_real_server(self, project_dir: Path, capsys):
+        from unittest.mock import MagicMock
+        from baton.adapter import Adapter
+        from baton.adapter_control import AdapterControlServer
+        from baton.schemas import NodeSpec
+        from baton import cli as cli_mod
+
+        # Use a fixed port that won't conflict with other tests
+        node = NodeSpec(name="api", port=19580, management_port=29580)
+        adapter = Adapter(node)
+        await adapter.start()
+        ctrl = AdapterControlServer(adapter)
+        await ctrl.start()
+
+        main(["init", str(project_dir)])
+        main(["node", "add", "api", "--port", "19580", "--dir", str(project_dir)])
+
+        args = MagicMock()
+        args.dir = str(project_dir)
+        args.remote = f"127.0.0.1:29580"
+
+        try:
+            rc = await cli_mod._cmd_status_remote(args)
+        finally:
+            await ctrl.stop()
+            await adapter.stop()
+
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "api" in out
+        assert "running" in out
+
+
+class TestStatusRemote:
+    """Tests for baton status --remote."""
+
+    def _setup_node(self, d: Path, name: str = "api", port: int = 8001) -> None:
+        main(["init", str(d)])
+        main(["node", "add", name, "--port", str(port), "--dir", str(d)])
+
+    def _make_args(self, d: Path, remote: str):
+        from unittest.mock import MagicMock
+        args = MagicMock()
+        args.dir = str(d)
+        args.remote = remote
+        return args
+
+    async def test_queries_status_endpoint_for_each_node(self, project_dir: Path, monkeypatch, capsys):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        mock_get = AsyncMock(return_value=(200, '{"running": true, "backend": "127.0.0.1:9090", "node": "api", "mode": "http"}'))
+        monkeypatch.setattr(cli_mod, "_control_get", mock_get)
+
+        rc = await cli_mod._cmd_status_remote(self._make_args(project_dir, "baton.cluster.local"))
+
+        assert rc == 0
+        mock_get.assert_called_once()
+        host, port, path = mock_get.call_args.args
+        assert host == "baton.cluster.local"
+        assert port == 8001 + 10000  # management_port
+        assert path == "/status"
+        out = capsys.readouterr().out
+        assert "api" in out
+        assert "running" in out
+
+    async def test_uses_explicit_port_override_for_all_nodes(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        mock_get = AsyncMock(return_value=(200, '{"running": true, "backend": null, "node": "api", "mode": "http"}'))
+        monkeypatch.setattr(cli_mod, "_control_get", mock_get)
+
+        await cli_mod._cmd_status_remote(self._make_args(project_dir, "baton.cluster.local:29999"))
+
+        _, port, _ = mock_get.call_args.args
+        assert port == 29999
+
+    async def test_returns_1_when_node_unreachable(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "_control_get", AsyncMock(side_effect=OSError("connection refused")))
+
+        rc = await cli_mod._cmd_status_remote(self._make_args(project_dir, "baton.cluster.local"))
+
+        assert rc == 1
+
+    async def test_returns_1_on_non_200_response(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "_control_get", AsyncMock(return_value=(503, '{"error": "unavailable"}')))
+
+        rc = await cli_mod._cmd_status_remote(self._make_args(project_dir, "baton.cluster.local"))
+
+        assert rc == 1
+
+    async def test_rejects_invalid_port_in_remote(self, project_dir: Path):
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        rc = await cli_mod._cmd_status_remote(self._make_args(project_dir, "baton.cluster.local:notaport"))
+        assert rc == 1
+
+    async def test_shows_unreachable_for_timeout(self, project_dir: Path, monkeypatch, capsys):
+        import asyncio
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "_control_get", AsyncMock(side_effect=asyncio.TimeoutError()))
+
+        rc = await cli_mod._cmd_status_remote(self._make_args(project_dir, "baton.cluster.local"))
+
+        assert rc == 1
+        out = capsys.readouterr().out
+        assert "unreachable" in out
+
+
 class TestNoCommand:
     def test_no_args(self):
         rc = main([])
