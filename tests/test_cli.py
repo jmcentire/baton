@@ -1599,6 +1599,144 @@ class TestCmdSlotRemote:
         assert rc == 1
 
 
+class TestCmdUnslot:
+    """Tests for _cmd_unslot -- restoring a node to its mock backend."""
+
+    def _setup_node(self, d: Path, port: int = 8001) -> None:
+        main(["init", str(d)])
+        main(["node", "add", "api", "--port", str(port), "--dir", str(d)])
+
+    def _make_args(self, d: Path, *, remote: str | None = None):
+        from unittest.mock import MagicMock
+        args = MagicMock()
+        args.dir = str(d)
+        args.node = "api"
+        args.remote = remote
+        return args
+
+    async def test_posts_mock_port_to_remote_backend(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir, port=8001)
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        rc = await cli_mod._cmd_unslot(self._make_args(project_dir, remote="baton.cluster.local"))
+
+        assert rc == 0
+        host, port, path, body = mock_post.call_args.args
+        assert path == "/backend"
+        assert body == {"host": "127.0.0.1", "port": 8001 + 20000}
+
+    async def test_uses_node_mgmt_port_when_remote_has_no_port(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir, port=8001)
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        await cli_mod._cmd_unslot(self._make_args(project_dir, remote="baton.cluster.local"))
+
+        _, mgmt_port, _, _ = mock_post.call_args.args
+        assert mgmt_port == 8001 + 10000
+
+    async def test_uses_explicit_mgmt_port_in_remote(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        await cli_mod._cmd_unslot(self._make_args(project_dir, remote="baton.cluster.local:29999"))
+
+        remote_host, mgmt_port, _, _ = mock_post.call_args.args
+        assert remote_host == "baton.cluster.local"
+        assert mgmt_port == 29999
+
+    async def test_rejects_unknown_node(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock, MagicMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "_control_post", AsyncMock())
+
+        args = MagicMock()
+        args.dir = str(project_dir)
+        args.node = "nonexistent"
+        args.remote = "baton.cluster.local"
+
+        rc = await cli_mod._cmd_unslot(args)
+        assert rc == 1
+
+    async def test_returns_1_on_non_200_response(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "_control_post", AsyncMock(return_value=(423, '{"error": "locked"}')))
+
+        rc = await cli_mod._cmd_unslot(self._make_args(project_dir, remote="baton.cluster.local"))
+        assert rc == 1
+
+    async def test_rejects_invalid_port_in_remote(self, project_dir: Path, monkeypatch):
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "_control_post", AsyncMock())
+
+        rc = await cli_mod._cmd_unslot(self._make_args(project_dir, remote="baton.cluster.local:notaport"))
+        assert rc == 1
+
+    async def test_local_path_posts_to_localhost_mgmt_port(self, project_dir: Path, monkeypatch):
+        """Local path (no --remote) uses node.host:management_port via _control_post."""
+        from unittest.mock import AsyncMock, MagicMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir, port=8001)
+
+        fake_state = MagicMock()
+        monkeypatch.setattr(cli_mod, "load_state", lambda d: fake_state)
+        monkeypatch.setattr(cli_mod, "_owner_alive", lambda s: True)
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        rc = await cli_mod._cmd_unslot(self._make_args(project_dir, remote=None))
+
+        assert rc == 0
+        host, port, path, body = mock_post.call_args.args
+        assert host == "127.0.0.1"
+        assert port == 8001 + 10000   # management port
+        assert path == "/backend"
+        assert body == {"host": "127.0.0.1", "port": 8001 + 20000}
+
+    async def test_local_path_fails_when_no_circuit_running(self, project_dir: Path, monkeypatch):
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        monkeypatch.setattr(cli_mod, "load_state", lambda d: None)
+
+        rc = await cli_mod._cmd_unslot(self._make_args(project_dir, remote=None))
+        assert rc == 1
+
+    async def test_mock_port_arithmetic(self, project_dir: Path, monkeypatch):
+        """Mock port is always node.port + 20000 regardless of management port."""
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir, port=19569)
+        mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
+        monkeypatch.setattr(cli_mod, "_control_post", mock_post)
+
+        await cli_mod._cmd_unslot(self._make_args(project_dir, remote="baton.cluster.local"))
+
+        _, _, _, body = mock_post.call_args.args
+        assert body["port"] == 19569 + 20000  # 39569
+
+
 class TestCmdRouteSetRemote:
     """Tests for _cmd_route_set with --remote: new target formats and remote dispatch."""
 
@@ -2274,6 +2412,70 @@ class TestLogLevelFlag:
         with pytest.raises(SystemExit) as exc_info:
             main(["--log-level", "NONSENSE", "up", "--dir", str(project_dir)])
         assert exc_info.value.code == 2
+
+
+class TestSlotMockFlag:
+    """baton slot <node> --mock should delegate to _cmd_unslot, not print an error."""
+
+    def _setup_node(self, d: Path, port: int = 8001) -> None:
+        main(["init", str(d)])
+        main(["node", "add", "api", "--port", str(port), "--dir", str(d)])
+
+    def test_slot_mock_delegates_to_unslot(self, project_dir: Path, monkeypatch):
+        """slot --mock must call _cmd_unslot, not print the old error message."""
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        called_with = {}
+        async def fake_unslot(args):
+            called_with["node"] = args.node
+            called_with["remote"] = getattr(args, "remote", None)
+            return 0
+
+        monkeypatch.setattr(cli_mod, "_cmd_unslot", fake_unslot)
+        rc = main(["slot", "api", "--mock", "--dir", str(project_dir)])
+        assert rc == 0
+        assert called_with["node"] == "api"
+
+    def test_slot_mock_with_remote_passes_remote_to_unslot(self, project_dir: Path, monkeypatch):
+        """slot --mock --remote HOST passes remote through to _cmd_unslot."""
+        from unittest.mock import AsyncMock
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+        called_with = {}
+        async def fake_unslot(args):
+            called_with["remote"] = args.remote
+            return 0
+
+        monkeypatch.setattr(cli_mod, "_cmd_unslot", fake_unslot)
+        rc = main(["slot", "api", "--mock", "--remote", "baton.cluster.local", "--dir", str(project_dir)])
+        assert rc == 0
+        assert called_with["remote"] == "baton.cluster.local"
+
+    def test_slot_mock_does_not_require_service_cmd(self, project_dir: Path, monkeypatch, capsys):
+        """slot --mock must not print 'command required' error."""
+        from baton import cli as cli_mod
+
+        self._setup_node(project_dir)
+
+        async def fake_unslot(args):
+            return 0
+
+        monkeypatch.setattr(cli_mod, "_cmd_unslot", fake_unslot)
+        rc = main(["slot", "api", "--mock", "--dir", str(project_dir)])
+        assert rc == 0
+        err = capsys.readouterr().err
+        assert "command required" not in err
+
+    def test_slot_without_mock_still_requires_service_cmd(self, project_dir: Path, capsys):
+        """slot without --mock and without service_cmd must still error."""
+        self._setup_node(project_dir)
+        rc = main(["slot", "api", "--dir", str(project_dir)])
+        assert rc == 1
+        err = capsys.readouterr().err
+        assert "command required" in err
 
 
 class TestDevDependencies:

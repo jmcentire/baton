@@ -117,6 +117,13 @@ def main(argv: list[str] | None = None) -> int:
     p_slot.add_argument("--dir", default=".", help="Project directory")
     p_slot.set_defaults(func=_cmd_slot)
 
+    # baton unslot
+    p_unslot = sub.add_parser("unslot", help="Restore a node to its mock backend")
+    p_unslot.add_argument("node", help="Node name")
+    p_unslot.add_argument("--remote", default=None, metavar="HOST[:PORT]", help="Remote baton host; POST /backend directly")
+    p_unslot.add_argument("--dir", default=".", help="Project directory")
+    p_unslot.set_defaults(func=_cmd_unslot)
+
     # baton swap
     p_swap = sub.add_parser("swap", help="Hot-swap a service in a node")
     p_swap.add_argument("node", help="Node name")
@@ -584,11 +591,10 @@ def _owner_alive(state) -> bool:
 
 
 async def _cmd_slot(args: argparse.Namespace) -> int:
+    if args.mock:
+        return await _cmd_unslot(args)
     if getattr(args, "remote", None):
         return await _cmd_slot_remote(args)
-    if args.mock:
-        print("Use 'baton collapse' to mock nodes in a running circuit")
-        return 1
     if not args.service_cmd:
         print("Error: command required (or use --mock)", file=sys.stderr)
         return 1
@@ -892,6 +898,47 @@ async def _cmd_slot_remote(args: argparse.Namespace) -> int:
         print(f"Error: remote /backend returned {status}: {body}", file=sys.stderr)
         return 1
     print(f"Slotted '{node.name}' → {target_host}:{target_port} via {remote_host}:{mgmt_port}")
+    return 0
+
+
+async def _cmd_unslot(args: argparse.Namespace) -> int:
+    """Restore a node to its mock backend (node.port + 20000)."""
+    circuit = load_circuit(args.dir)
+    node = next((n for n in circuit.nodes if n.name == args.node), None)
+    if node is None:
+        print(f"Error: node '{args.node}' not found in circuit", file=sys.stderr)
+        return 1
+
+    mock_port = node.port + 20000
+
+    if getattr(args, "remote", None):
+        try:
+            remote_host, mgmt_port = _parse_remote(args.remote, node)
+        except ValueError:
+            print(f"Error: invalid port in --remote '{args.remote}'", file=sys.stderr)
+            return 1
+        status, body = await _control_post(
+            remote_host, mgmt_port, "/backend",
+            {"host": "127.0.0.1", "port": mock_port},
+        )
+        if status != 200:
+            print(f"Error: remote /backend returned {status}: {body}", file=sys.stderr)
+            return 1
+        print(f"Unslotted '{node.name}' -> mock on 127.0.0.1:{mock_port} via {remote_host}:{mgmt_port}")
+        return 0
+
+    existing = load_state(args.dir)
+    if existing is None or not _owner_alive(existing):
+        print("Error: no running circuit found; use --remote to target a remote instance", file=sys.stderr)
+        return 1
+    status, body = await _control_post(
+        node.host, node.management_port, "/backend",
+        {"host": "127.0.0.1", "port": mock_port},
+    )
+    if status != 200:
+        print(f"Error: /backend returned {status}: {body}", file=sys.stderr)
+        return 1
+    print(f"Unslotted '{node.name}' -> mock on 127.0.0.1:{mock_port}")
     return 0
 
 

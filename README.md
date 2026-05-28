@@ -145,6 +145,7 @@ baton up --mock --mock-host 0.0.0.0       # bind mock servers on all interfaces 
 baton up --mock --adapter-host 0.0.0.0    # bind adapter servers on all interfaces (e.g. Docker/K8s)
 baton slot <node> <command>               # slot live service into node
 baton slot <node> host:port --remote HOST[:PORT]  # POST /backend to a remote adapter, no local process
+baton unslot <node> [--remote HOST[:PORT]]        # restore node to its mock backend (inverse of slot)
 baton swap <node> <command>               # hot-swap (zero-downtime replace)
 baton collapse [--live n1,n2]             # partial mock (keep some nodes live)
 baton collapse --mock-host 0.0.0.0        # bind mock servers on all interfaces during collapse
