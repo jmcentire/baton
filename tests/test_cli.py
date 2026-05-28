@@ -1004,18 +1004,19 @@ class TestStatusRemote:
         assert "api" in out
         assert "running" in out
 
-    async def test_uses_explicit_port_override_for_all_nodes(self, project_dir: Path, monkeypatch):
+    async def test_ignores_explicit_port_and_uses_node_management_port(self, project_dir: Path, monkeypatch):
+        """Port in --remote HOST:PORT is ignored; each node uses its own management_port."""
         from unittest.mock import AsyncMock
         from baton import cli as cli_mod
 
-        self._setup_node(project_dir)
+        self._setup_node(project_dir, port=8001)  # management_port = 18001
         mock_get = AsyncMock(return_value=(200, '{"running": true, "backend": null, "node": "api", "mode": "http"}'))
         monkeypatch.setattr(cli_mod, "_control_get", mock_get)
 
         await cli_mod._cmd_status_remote(self._make_args(project_dir, "baton.cluster.local:29999"))
 
         _, port, _ = mock_get.call_args.args
-        assert port == 29999
+        assert port == 8001 + 10000  # management_port, not the explicit 29999
 
     async def test_returns_1_when_node_unreachable(self, project_dir: Path, monkeypatch):
         from unittest.mock import AsyncMock
@@ -1039,12 +1040,19 @@ class TestStatusRemote:
 
         assert rc == 1
 
-    async def test_rejects_invalid_port_in_remote(self, project_dir: Path):
+    async def test_strips_port_and_uses_correct_host(self, project_dir: Path, monkeypatch):
+        """Host is extracted from HOST:anything — port suffix is always stripped."""
+        from unittest.mock import AsyncMock
         from baton import cli as cli_mod
 
-        self._setup_node(project_dir)
-        rc = await cli_mod._cmd_status_remote(self._make_args(project_dir, "baton.cluster.local:notaport"))
-        assert rc == 1
+        self._setup_node(project_dir, port=8001)
+        mock_get = AsyncMock(return_value=(200, '{"running": true, "backend": null, "node": "api", "mode": "http"}'))
+        monkeypatch.setattr(cli_mod, "_control_get", mock_get)
+
+        await cli_mod._cmd_status_remote(self._make_args(project_dir, "baton.cluster.local:29569"))
+
+        host, _, _ = mock_get.call_args.args
+        assert host == "baton.cluster.local"
 
     async def test_shows_unreachable_for_timeout(self, project_dir: Path, monkeypatch, capsys):
         import asyncio
