@@ -87,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     # baton status
     p_status = sub.add_parser("status", help="Show circuit status")
     p_status.add_argument("--dir", default=".", help="Project directory")
-    p_status.add_argument("--remote", default=None, metavar="HOST[:PORT]", help="Query adapter control APIs on a remote host instead of reading local state")
+    p_status.add_argument("--remote", default=None, metavar="HOST", help="Query adapter control APIs on a remote host instead of reading local state")
     p_status.set_defaults(func=_cmd_status)
 
     # baton up
@@ -1717,16 +1717,8 @@ async def _cmd_status_remote(args: argparse.Namespace) -> int:
     import json as _json
 
     circuit = load_circuit(args.dir)
-    remote = args.remote
-    if ":" in remote:
-        remote_host, _, port_str = remote.rpartition(":")
-        try:
-            int(port_str)  # validate but don't use — each node has its own management port
-        except ValueError:
-            print(f"Error: invalid port in --remote '{remote}'", file=sys.stderr)
-            return 1
-    else:
-        remote_host = remote
+    # Strip any accidental :port — each node is queried on its own management port
+    remote_host = args.remote.rpartition(":")[0] if ":" in args.remote else args.remote
 
     print(f"Circuit: {circuit.name} (v{circuit.version}) — remote {remote_host}")
     print(f"Nodes:   {len(circuit.nodes)}")
