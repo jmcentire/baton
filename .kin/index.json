@@ -1,0 +1,1739 @@
+{
+  "domains": [
+    "code",
+    "python"
+  ],
+  "node_count": 157,
+  "nodes": [
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-0d8ab0c151e4",
+      "title": "src/baton/certs.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-0edc20155866",
+      "title": "src/baton/mcp_server.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-164282595ee6",
+      "title": "src/baton/taint.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-192ef66f2cfb",
+      "title": "src/baton/service_log.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-1d7caeee7176",
+      "title": "src/baton/schemas.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-24424894e869",
+      "title": "src/baton/arbiter_exporter.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-2bb5601a20de",
+      "title": "src/baton/protocols/http.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-39f7303a81be",
+      "title": "src/baton/protocols/protobuf.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-42df5588373a",
+      "title": "src/baton/audit_sidecar.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-463d7ab9c929",
+      "title": "src/baton/migrate.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-4655ba0d0b02",
+      "title": "src/baton/manifest.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-4bd2ceea610d",
+      "title": "src/baton/lifecycle.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-4eaf0432dea3",
+      "title": "src/baton/providers/local.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-5fb185404b36",
+      "title": "src/baton/canary.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-63804a3c317a",
+      "title": "src/baton/config.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-66eae7e10507",
+      "title": "src/baton/image.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-679e652048f5",
+      "title": "src/baton/federation.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-6982cbc46afe",
+      "title": "src/baton/dora.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-69ad499c36ab",
+      "title": "src/baton/dashboard.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-6c2072d99b74",
+      "title": "src/baton/ledger.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-6db445c67b3e",
+      "title": "src/baton/mock.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-70f08e52b7b1",
+      "title": "src/baton/signals.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-769187c66c43",
+      "title": "src/baton/otel.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-785ac93a2dd0",
+      "title": "src/baton/constrain.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-7d222de50377",
+      "title": "src/baton/collapse.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-89ed2c1b2fac",
+      "title": "src/baton/circuit.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-8f7569ef92a2",
+      "title": "src/baton/providers/__init__.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-90848bd704b7",
+      "title": "src/baton/protocols/soap.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-940f3ef7b600",
+      "title": "src/baton/adapter_control.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-94d15dcad62e",
+      "title": "src/baton/protocols/tcp.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-9620dd8a767a",
+      "title": "src/baton/__init__.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-a99e85a49447",
+      "title": "src/baton/dashboard_server.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-b64e4699d677",
+      "title": "src/baton/custodian.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-b75babdee1bd",
+      "title": "src/baton/tracing.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-c00b36c6f838",
+      "title": "src/baton/arbiter.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-d58e290dcf6e",
+      "title": "src/baton/cli.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-db04e272aae9",
+      "title": "src/baton/routing.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-dfc8edb9358f",
+      "title": "src/baton/providers/gcp.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-e2e2be755ae2",
+      "title": "src/baton/registry.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-e38b6b90d411",
+      "title": "src/baton/adapter.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-e3a0f84e675c",
+      "title": "src/baton/protocols/__init__.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-eccbff6ed1c1",
+      "title": "src/baton/process.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-f59fc9e4eb23",
+      "title": "src/baton/state.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-f76cc4c9e9ab",
+      "title": "src/baton/compat.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-mod-baton-fa3ca2f7eaa9",
+      "title": "src/baton/telemetry.py",
+      "type": "artifact",
+      "updated_at": "2026-05-30T14:47:15",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-035499f1109d",
+      "title": "ArbiterClient",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-041d928aeea5",
+      "title": "CanaryGenerator",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-0637353f267f",
+      "title": "RepairPlaybook",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-0691b197b5d9",
+      "title": "AuditChannelConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-0b013984aebf",
+      "title": "CompositeSpanExporter",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-0cf5a1f22d4b",
+      "title": "NullExporter",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-124da063aab8",
+      "title": "FederationEdge",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-14db721bfdeb",
+      "title": "CertificateInfo",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-15b2f28690cb",
+      "title": "BackendTarget",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-18393075fa98",
+      "title": "LedgerConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-184691a6c764",
+      "title": "DependencySpec",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-1b650189e4b6",
+      "title": "CanaryController",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-1c8c382d29b9",
+      "title": "TaintRegistry",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-21588a77c687",
+      "title": "FederationConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-21c0012852e8",
+      "title": "RoutingConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-28201f5d42ef",
+      "title": "DataAccessSpec",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-298204db8a7b",
+      "title": "EventType",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-2fd28c4d6337",
+      "title": "TLSConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-38c528921b1d",
+      "title": "ObservabilityConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-3968a40697af",
+      "title": "ProtobufHandler",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-3e95a8a99613",
+      "title": "RuntimeProbeResult",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-405ac59ef9f9",
+      "title": "TelemetryClassRule",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-40784e4a3a0d",
+      "title": "CircuitConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-40c037b3d044",
+      "title": "TelemetryCollector",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-420b01d780ef",
+      "title": "RuntimeValidationResult",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-45c3be984d68",
+      "title": "NodeSnapshot",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-47b67db63cc0",
+      "title": "ServiceManifest",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-50f6282c1555",
+      "title": "FieldMask",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-51ca99c874fc",
+      "title": "TrustScore",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-51ff79697913",
+      "title": "DeploymentProvider",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-52f5d64c9a0f",
+      "title": "RoutingStrategy",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-54f69d518ac0",
+      "title": "EdgeSpec",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-565d89b8c1b5",
+      "title": "ImageInfo",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-5a765975b018",
+      "title": "CompatIssue",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-5b73dd0f7e11",
+      "title": "ServiceEvent",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-5be01711a319",
+      "title": "ImageBuilder",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-5da3cd8ae333",
+      "title": "ClusterIdentity",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-6305b6ff7bb1",
+      "title": "JsonlExporter",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-6432a7754b45",
+      "title": "FederationServer",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-66d040cd432b",
+      "title": "AdapterMetrics",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-6818279d5f77",
+      "title": "Adapter",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-696d2dd560e6",
+      "title": "ServiceLogCollector",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-6ab4d48c27b1",
+      "title": "CertificateMonitor",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-6b74cc238d94",
+      "title": "TaintConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-6c546c45dd9e",
+      "title": "OtlpEndpointConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-713b084dd350",
+      "title": "CollapseLevel",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-719d072ef557",
+      "title": "AnomalyDetector",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-74a0a54aa7c5",
+      "title": "RoutingTarget",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-76ff0317af1b",
+      "title": "AuditEvent",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-783ce3ee919a",
+      "title": "AdapterState",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-784f64ef1b6d",
+      "title": "EdgePolicy",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-792728dfe6ad",
+      "title": "HTTPHandler",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-7c9a5b54c427",
+      "title": "ConnectionContext",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-7d10e51b0d71",
+      "title": "DashboardServer",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-7e88929ee3b9",
+      "title": "ArbiterSpanForwarder",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-806b4169bc89",
+      "title": "ArbiterConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-814c0a37f4ba",
+      "title": "LifecycleManager",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-83bd86a15b12",
+      "title": "CompatReport",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-83c9fd3c0e39",
+      "title": "CertificateRotator",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-86b76fbe9f3c",
+      "title": "NodeRole",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-89809d03f0cf",
+      "title": "SOAPHandler",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-8a2f099d98cc",
+      "title": "MockServer",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-8d88f3dda72a",
+      "title": "OtelSpanExporter",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-907b1d050b59",
+      "title": "CertificateEvent",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-9171b9c83598",
+      "title": "FederationManager",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-948996414a5f",
+      "title": "CircuitSpec",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-9a7d84096e08",
+      "title": "CircuitState",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-9af2adce4337",
+      "title": "HealthVerdict",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-9c1586db291c",
+      "title": "DeclarationGapResult",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-9c96191cdce0",
+      "title": "NodeSpec",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-9e84f4beb112",
+      "title": "SecurityConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-9f79a090e51e",
+      "title": "NodeStatus",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-a1cdd06fc6f3",
+      "title": "MetricExporter",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-a3d350783478",
+      "title": "ControlAuthConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-a5f873ff0cbd",
+      "title": "Custodian",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-a62b157bf7ff",
+      "title": "DORAMetrics",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-a84afdeb4f4d",
+      "title": "PeerState",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-a9a15074f307",
+      "title": "OtelMetricExporter",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-ae7cf090802b",
+      "title": "ProcessManager",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-b2d978bf22c7",
+      "title": "NodeTelemetryConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-b428fc721110",
+      "title": "ServiceSlot",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-b523c34c4949",
+      "title": "CanaryDatum",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-b5f13c61479c",
+      "title": "TaintScanner",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-b60c026b715b",
+      "title": "SpanExporter",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-b7c9477a182a",
+      "title": "SignalRecord",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-b976b22fccf9",
+      "title": "CustodianEvent",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-ba8d0b350080",
+      "title": "CanaryLifecycle",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-bbd85f811a7b",
+      "title": "AdapterControlServer",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-be017ae25f78",
+      "title": "LedgerClient",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-bfc893f1ad8f",
+      "title": "TCPHandler",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-c03fc5e5c70c",
+      "title": "RoutingRule",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-c050b8f1ee9f",
+      "title": "SignalAggregator",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-c8b0c8ecb910",
+      "title": "ProcessInfo",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-cd65856583be",
+      "title": "LocalProvider",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-d6219353bf8e",
+      "title": "DeploymentTarget",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-d72bef68e11e",
+      "title": "HealthCheck",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-d7e9079fb772",
+      "title": "CustodianAction",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-d93ff4a6cde6",
+      "title": "TaintViolation",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-da0c5cb4d63c",
+      "title": "CertificateManager",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-dc93d3083fe9",
+      "title": "ProxyMode",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-e574a54b87fb",
+      "title": "AuditSidecar",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-e754d4f03eb2",
+      "title": "TraceContext",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-e88d1eda213a",
+      "title": "EgressNodeConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-e8b3f404bcf1",
+      "title": "DeployConfig",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-eeafeee2a8fd",
+      "title": "SpanData",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-f66deb876eaf",
+      "title": "TLSMode",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-f676a8cf84b3",
+      "title": "PathStat",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-f6a838c5aacf",
+      "title": "DashboardSnapshot",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-f7e3ddf9d149",
+      "title": "MultiEndpointSpanExporter",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-f973fe4b4012",
+      "title": "LifecycleActions",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-fb51e4fd5c6f",
+      "title": "ProtocolHandler",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    },
+    {
+      "domains": [
+        "code",
+        "python"
+      ],
+      "id": "code-sym-baton-fc56c30695a3",
+      "title": "GCPProvider",
+      "type": "concept",
+      "updated_at": "2026-05-30T14:47:14",
+      "weight": 0.5
+    }
+  ],
+  "repo": "baton",
+  "source_updated_at": "2026-05-30T14:47:15",
+  "version": 1
+}
