@@ -1,3512 +1,830 @@
 {
-  "version": "1.0.0",
-  "project": {
-    "name": "baton",
-    "description": "Code map exported from Kindex for baton.",
-    "languages": [
-      "Python"
-    ],
-    "frameworks": [],
-    "analyzedAt": "2026-05-24T14:49:19",
-    "gitCommitHash": "4fc88cc9725f126948ace05e7225679a16c2901c"
-  },
-  "nodes": [
-    {
-      "id": "code-mod-baton-8f7569ef92a2",
-      "type": "file",
-      "name": "src/baton/providers/__init__.py",
-      "filePath": "src/baton/providers/__init__.py",
-      "summary": "Language: Python | Path: src/baton/providers/__init__.py | ~23 lines ## Classes - DeploymentProvider(Protocol)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-6c2072d99b74",
-      "type": "file",
-      "name": "src/baton/ledger.py",
-      "filePath": "src/baton/ledger.py",
-      "summary": "Language: Python | Path: src/baton/ledger.py | ~115 lines ## Classes - EgressNodeConfig",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-679e652048f5",
-      "type": "file",
-      "name": "src/baton/federation.py",
-      "filePath": "src/baton/federation.py",
-      "summary": "Language: Python | Path: src/baton/federation.py | ~374 lines ## Classes - FederationManager",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-dfc8edb9358f",
-      "type": "file",
-      "name": "src/baton/providers/gcp.py",
-      "filePath": "src/baton/providers/gcp.py",
-      "summary": "Language: Python | Path: src/baton/providers/gcp.py | ~271 lines ## Classes - GCPProvider",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-769187c66c43",
-      "type": "file",
-      "name": "src/baton/otel.py",
-      "filePath": "src/baton/otel.py",
-      "summary": "Language: Python | Path: src/baton/otel.py | ~302 lines ## Classes - MultiEndpointSpanExporter",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 6,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-2bb5601a20de",
-      "type": "file",
-      "name": "src/baton/protocols/http.py",
-      "filePath": "src/baton/protocols/http.py",
-      "summary": "Language: Python | Path: src/baton/protocols/http.py | ~35 lines ## Classes - HTTPHandler",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-66eae7e10507",
-      "type": "file",
-      "name": "src/baton/image.py",
-      "filePath": "src/baton/image.py",
-      "summary": "Language: Python | Path: src/baton/image.py | ~211 lines ## Classes - ImageBuilder",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-b75babdee1bd",
-      "type": "file",
-      "name": "src/baton/tracing.py",
-      "filePath": "src/baton/tracing.py",
-      "summary": "Language: Python | Path: src/baton/tracing.py | ~157 lines ## Classes - JsonlExporter",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 13,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-39f7303a81be",
-      "type": "file",
-      "name": "src/baton/protocols/protobuf.py",
-      "filePath": "src/baton/protocols/protobuf.py",
-      "summary": "Language: Python | Path: src/baton/protocols/protobuf.py | ~111 lines ## Classes - ProtobufHandler",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-192ef66f2cfb",
-      "type": "file",
-      "name": "src/baton/service_log.py",
-      "filePath": "src/baton/service_log.py",
-      "summary": "Language: Python | Path: src/baton/service_log.py | ~108 lines ## Classes - ServiceLogCollector",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-4bd2ceea610d",
-      "type": "file",
-      "name": "src/baton/lifecycle.py",
-      "filePath": "src/baton/lifecycle.py",
-      "summary": "Language: Python | Path: src/baton/lifecycle.py | ~1045 lines ## Classes - LifecycleManager",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 5,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-4eaf0432dea3",
-      "type": "file",
-      "name": "src/baton/providers/local.py",
-      "filePath": "src/baton/providers/local.py",
-      "summary": "Language: Python | Path: src/baton/providers/local.py | ~89 lines ## Classes - LocalProvider",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-4655ba0d0b02",
-      "type": "file",
-      "name": "src/baton/manifest.py",
-      "filePath": "src/baton/manifest.py",
-      "summary": "Language: Python | Path: src/baton/manifest.py | ~33 lines ## Functions - load_manifest(service_dir: str | Path) -> ServiceManifest",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-fa3ca2f7eaa9",
-      "type": "file",
-      "name": "src/baton/telemetry.py",
-      "filePath": "src/baton/telemetry.py",
-      "summary": "Language: Python | Path: src/baton/telemetry.py | ~110 lines ## Classes - TelemetryCollector",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-6db445c67b3e",
-      "type": "file",
-      "name": "src/baton/mock.py",
-      "filePath": "src/baton/mock.py",
-      "summary": "Language: Python | Path: src/baton/mock.py | ~220 lines ## Classes - MockServer",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 5,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-70f08e52b7b1",
-      "type": "file",
-      "name": "src/baton/signals.py",
-      "filePath": "src/baton/signals.py",
-      "summary": "Language: Python | Path: src/baton/signals.py | ~177 lines ## Classes - PathStat",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-eccbff6ed1c1",
-      "type": "file",
-      "name": "src/baton/process.py",
-      "filePath": "src/baton/process.py",
-      "summary": "Language: Python | Path: src/baton/process.py | ~161 lines ## Classes - ProcessInfo",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-90848bd704b7",
-      "type": "file",
-      "name": "src/baton/protocols/soap.py",
-      "filePath": "src/baton/protocols/soap.py",
-      "summary": "Language: Python | Path: src/baton/protocols/soap.py | ~218 lines ## Classes - SOAPHandler",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 5,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-94d15dcad62e",
-      "type": "file",
-      "name": "src/baton/protocols/tcp.py",
-      "filePath": "src/baton/protocols/tcp.py",
-      "summary": "Language: Python | Path: src/baton/protocols/tcp.py | ~89 lines ## Classes - TCPHandler",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-9620dd8a767a",
-      "type": "file",
-      "name": "src/baton/__init__.py",
-      "filePath": "src/baton/__init__.py",
-      "summary": "Language: Python | Path: src/baton/__init__.py | ~3 lines",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-463d7ab9c929",
-      "type": "file",
-      "name": "src/baton/migrate.py",
-      "filePath": "src/baton/migrate.py",
-      "summary": "Language: Python | Path: src/baton/migrate.py | ~121 lines ## Functions - detect_version(raw: dict) -> int",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 7,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-0edc20155866",
-      "type": "file",
-      "name": "src/baton/mcp_server.py",
-      "filePath": "src/baton/mcp_server.py",
-      "summary": "Language: Python | Path: src/baton/mcp_server.py | ~470 lines ## Functions - circuit_overview() -> str",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 20,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-e2e2be755ae2",
-      "type": "file",
-      "name": "src/baton/registry.py",
-      "filePath": "src/baton/registry.py",
-      "summary": "Language: Python | Path: src/baton/registry.py | ~94 lines ## Functions - derive_circuit( manifests: list[ServiceManifest], circuit_name: str = \"default\", ) -> CircuitSpec",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-db04e272aae9",
-      "type": "file",
-      "name": "src/baton/routing.py",
-      "filePath": "src/baton/routing.py",
-      "summary": "Language: Python | Path: src/baton/routing.py | ~76 lines ## Functions - ab_split( host: str, port_a: int, port_b: int, pct_a: int = 80, ) -> RoutingConfig",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 4,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-7d222de50377",
-      "type": "file",
-      "name": "src/baton/collapse.py",
-      "filePath": "src/baton/collapse.py",
-      "summary": "Language: Python | Path: src/baton/collapse.py | ~67 lines ## Functions - build_mock_server( circuit: CircuitSpec, live_nodes: set[str], project_dir: str | Path = \".\", ) -> MockServer",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-785ac93a2dd0",
-      "type": "file",
-      "name": "src/baton/constrain.py",
-      "filePath": "src/baton/constrain.py",
-      "summary": "Language: Python | Path: src/baton/constrain.py | ~124 lines ## Functions - generate_and_save( constrain_dir: str | Path, output_dir: str | Path, circuit_name: str = \"default\", start_port: int = 8001, ) -> Path",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-bfc893f1ad8f",
-      "type": "class",
-      "name": "TCPHandler",
-      "filePath": "src/baton/protocols/tcp.py",
-      "summary": "class TCPHandler (src/baton/protocols/tcp.py:23) ## Methods - handle_connection( self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ctx: ConnectionContext, ) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-ae7cf090802b",
-      "type": "class",
-      "name": "ProcessManager",
-      "filePath": "src/baton/process.py",
-      "summary": "class ProcessManager (src/baton/process.py:54) ## Methods - get_pid(self, node_name: str) -> int|None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 6,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-89809d03f0cf",
-      "type": "class",
-      "name": "SOAPHandler",
-      "filePath": "src/baton/protocols/soap.py",
-      "summary": "class SOAPHandler (src/baton/protocols/soap.py:28) ## Methods - handle_connection( self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ctx: ConnectionContext, ) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-f676a8cf84b3",
-      "type": "class",
-      "name": "PathStat",
-      "filePath": "src/baton/signals.py",
-      "summary": "class PathStat (src/baton/signals.py:25) ## Methods - error_rate(self) -> float",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-c050b8f1ee9f",
-      "type": "class",
-      "name": "SignalAggregator",
-      "filePath": "src/baton/signals.py",
-      "summary": "class SignalAggregator (src/baton/signals.py:38) ## Methods - buffer_size(self) -> int",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 8,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-c8b0c8ecb910",
-      "type": "class",
-      "name": "ProcessInfo",
-      "filePath": "src/baton/process.py",
-      "summary": "class ProcessInfo (src/baton/process.py:20)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-40c037b3d044",
-      "type": "class",
-      "name": "TelemetryCollector",
-      "filePath": "src/baton/telemetry.py",
-      "summary": "class TelemetryCollector (src/baton/telemetry.py:25) ## Methods - flush_now(self) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 6,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-8a2f099d98cc",
-      "type": "class",
-      "name": "MockServer",
-      "filePath": "src/baton/mock.py",
-      "summary": "class MockServer (src/baton/mock.py:165) ## Methods - add_default_routes(self, port: int) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 6,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-814c0a37f4ba",
-      "type": "class",
-      "name": "LifecycleManager",
-      "filePath": "src/baton/lifecycle.py",
-      "summary": "class LifecycleManager (src/baton/lifecycle.py:75) ## Methods - adapters(self) -> dict[str,Adapter]",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 15,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-cd65856583be",
-      "type": "class",
-      "name": "LocalProvider",
-      "filePath": "src/baton/providers/local.py",
-      "summary": "class LocalProvider (src/baton/providers/local.py:27) ## Methods - deploy(self, circuit: CircuitSpec, target: DeploymentTarget) -> CircuitState",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-3968a40697af",
-      "type": "class",
-      "name": "ProtobufHandler",
-      "filePath": "src/baton/protocols/protobuf.py",
-      "summary": "class ProtobufHandler (src/baton/protocols/protobuf.py:29) ## Methods - handle_connection( self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ctx: ConnectionContext, ) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-696d2dd560e6",
-      "type": "class",
-      "name": "ServiceLogCollector",
-      "filePath": "src/baton/service_log.py",
-      "summary": "class ServiceLogCollector (src/baton/service_log.py:43) ## Methods - handler(self, node_name: str, stream: str, line: str) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-0cf5a1f22d4b",
-      "type": "class",
-      "name": "NullExporter",
-      "filePath": "src/baton/tracing.py",
-      "summary": "class NullExporter (src/baton/tracing.py:62) ## Methods - export(self, spans: list[SpanData]) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-eeafeee2a8fd",
-      "type": "class",
-      "name": "SpanData",
-      "filePath": "src/baton/tracing.py",
-      "summary": "class SpanData (src/baton/tracing.py:33)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-b60c026b715b",
-      "type": "class",
-      "name": "SpanExporter",
-      "filePath": "src/baton/tracing.py",
-      "summary": "class SpanExporter(Protocol) (src/baton/tracing.py:48) ## Methods - export(self, spans: list[SpanData]) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-e754d4f03eb2",
-      "type": "class",
-      "name": "TraceContext",
-      "filePath": "src/baton/tracing.py",
-      "summary": "class TraceContext (src/baton/tracing.py:23)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-5be01711a319",
-      "type": "class",
-      "name": "ImageBuilder",
-      "filePath": "src/baton/image.py",
-      "summary": "class ImageBuilder (src/baton/image.py:44) ## Methods - build( self, node_name: str, service_dir: str | Path, tag: str = \"\", ) -> ImageInfo",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 5,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-6305b6ff7bb1",
-      "type": "class",
-      "name": "JsonlExporter",
-      "filePath": "src/baton/tracing.py",
-      "summary": "class JsonlExporter (src/baton/tracing.py:72) ## Methods - export(self, spans: list[SpanData]) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-a1cdd06fc6f3",
-      "type": "class",
-      "name": "MetricExporter",
-      "filePath": "src/baton/tracing.py",
-      "summary": "class MetricExporter(Protocol) (src/baton/tracing.py:55) ## Methods - export(self, metrics: dict) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-792728dfe6ad",
-      "type": "class",
-      "name": "HTTPHandler",
-      "filePath": "src/baton/protocols/http.py",
-      "summary": "class HTTPHandler (src/baton/protocols/http.py:24) ## Methods - handle_connection( self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ctx: ConnectionContext, ) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-f7e3ddf9d149",
-      "type": "class",
-      "name": "MultiEndpointSpanExporter",
-      "filePath": "src/baton/otel.py",
-      "summary": "class MultiEndpointSpanExporter (src/baton/otel.py:86) ## Methods - export(self, spans: list[SpanData]) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-a9a15074f307",
-      "type": "class",
-      "name": "OtelMetricExporter",
-      "filePath": "src/baton/otel.py",
-      "summary": "class OtelMetricExporter (src/baton/otel.py:167) ## Methods - export(self, metrics: dict) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-8d88f3dda72a",
-      "type": "class",
-      "name": "OtelSpanExporter",
-      "filePath": "src/baton/otel.py",
-      "summary": "class OtelSpanExporter (src/baton/otel.py:133) ## Methods - export(self, spans: list[SpanData]) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-9171b9c83598",
-      "type": "class",
-      "name": "FederationManager",
-      "filePath": "src/baton/federation.py",
-      "summary": "class FederationManager (src/baton/federation.py:193) ## Methods - events(self) -> list[dict]",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 5,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-6432a7754b45",
-      "type": "class",
-      "name": "FederationServer",
-      "filePath": "src/baton/federation.py",
-      "summary": "class FederationServer (src/baton/federation.py:33) ## Methods - peer_states(self) -> dict[str,PeerState]",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 4,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-fc56c30695a3",
-      "type": "class",
-      "name": "GCPProvider",
-      "filePath": "src/baton/providers/gcp.py",
-      "summary": "class GCPProvider (src/baton/providers/gcp.py:39) ## Methods - deploy(self, circuit: CircuitSpec, target: DeploymentTarget) -> CircuitState",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-51ff79697913",
-      "type": "class",
-      "name": "DeploymentProvider",
-      "filePath": "src/baton/providers/__init__.py",
-      "summary": "class DeploymentProvider(Protocol) (src/baton/providers/__init__.py:10) ## Methods - deploy(self, circuit: CircuitSpec, target: DeploymentTarget) -> CircuitState",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-e88d1eda213a",
-      "type": "class",
-      "name": "EgressNodeConfig",
-      "filePath": "src/baton/ledger.py",
-      "summary": "class EgressNodeConfig (src/baton/ledger.py:29)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-50f6282c1555",
-      "type": "class",
-      "name": "FieldMask",
-      "filePath": "src/baton/ledger.py",
-      "summary": "class FieldMask (src/baton/ledger.py:21)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-be017ae25f78",
-      "type": "class",
-      "name": "LedgerClient",
-      "filePath": "src/baton/ledger.py",
-      "summary": "class LedgerClient (src/baton/ledger.py:39) ## Methods - api_endpoint(self) -> str",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 4,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-bbd85f811a7b",
-      "type": "class",
-      "name": "AdapterControlServer",
-      "filePath": "src/baton/adapter_control.py",
-      "summary": "class AdapterControlServer (src/baton/adapter_control.py:20) ## Methods - drain_service_events(self) -> list[dict]",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 4,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-940f3ef7b600",
-      "type": "file",
-      "name": "src/baton/adapter_control.py",
-      "filePath": "src/baton/adapter_control.py",
-      "summary": "Language: Python | Path: src/baton/adapter_control.py | ~280 lines ## Classes - AdapterControlServer",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-d58e290dcf6e",
-      "type": "file",
-      "name": "src/baton/cli.py",
-      "filePath": "src/baton/cli.py",
-      "summary": "Language: Python | Path: src/baton/cli.py | ~2150 lines ## Functions - main(argv: list[str] | None = None) -> int",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 51,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-a99e85a49447",
-      "type": "file",
-      "name": "src/baton/dashboard_server.py",
-      "filePath": "src/baton/dashboard_server.py",
-      "summary": "Language: Python | Path: src/baton/dashboard_server.py | ~252 lines ## Classes - DashboardServer",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-7d10e51b0d71",
-      "type": "class",
-      "name": "DashboardServer",
-      "filePath": "src/baton/dashboard_server.py",
-      "summary": "class DashboardServer (src/baton/dashboard_server.py:31) ## Methods - is_running(self) -> bool",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-b64e4699d677",
-      "type": "file",
-      "name": "src/baton/custodian.py",
-      "filePath": "src/baton/custodian.py",
-      "summary": "Language: Python | Path: src/baton/custodian.py | ~251 lines ## Classes - AnomalyDetector",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 4,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-719d072ef557",
-      "type": "class",
-      "name": "AnomalyDetector",
-      "filePath": "src/baton/custodian.py",
-      "summary": "class AnomalyDetector (src/baton/custodian.py:40) ## Methods - check( self, adapter: Adapter, slo_rules: list[TelemetryClassRule] | None = None, ) -> list[str]",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-a5f873ff0cbd",
-      "type": "class",
-      "name": "Custodian",
-      "filePath": "src/baton/custodian.py",
-      "summary": "class Custodian (src/baton/custodian.py:160) ## Methods - check_once(self) -> list[CustodianEvent]",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 5,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-f973fe4b4012",
-      "type": "class",
-      "name": "LifecycleActions",
-      "filePath": "src/baton/custodian.py",
-      "summary": "class LifecycleActions(Protocol) (src/baton/custodian.py:33) ## Methods - restart_service(self, node_name: str) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-0637353f267f",
-      "type": "class",
-      "name": "RepairPlaybook",
-      "filePath": "src/baton/custodian.py",
-      "summary": "class RepairPlaybook (src/baton/custodian.py:98) ## Methods - classify( self, adapter_state: AdapterState, anomalies: list[str] | None = None, ) -> str",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-c00b36c6f838",
-      "type": "file",
-      "name": "src/baton/arbiter.py",
-      "filePath": "src/baton/arbiter.py",
-      "summary": "Language: Python | Path: src/baton/arbiter.py | ~162 lines ## Classes - ArbiterClient",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-035499f1109d",
-      "type": "class",
-      "name": "ArbiterClient",
-      "filePath": "src/baton/arbiter.py",
-      "summary": "class ArbiterClient (src/baton/arbiter.py:44) ## Methods - api_endpoint(self) -> str",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 6,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-9c1586db291c",
-      "type": "class",
-      "name": "DeclarationGapResult",
-      "filePath": "src/baton/arbiter.py",
-      "summary": "class DeclarationGapResult (src/baton/arbiter.py:37)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-51ca99c874fc",
-      "type": "class",
-      "name": "TrustScore",
-      "filePath": "src/baton/arbiter.py",
-      "summary": "class TrustScore (src/baton/arbiter.py:23) ## Methods - is_low_trust_authoritative(self) -> bool",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-24424894e869",
-      "type": "file",
-      "name": "src/baton/arbiter_exporter.py",
-      "filePath": "src/baton/arbiter_exporter.py",
-      "summary": "Language: Python | Path: src/baton/arbiter_exporter.py | ~144 lines ## Classes - ArbiterSpanForwarder",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-7e88929ee3b9",
-      "type": "class",
-      "name": "ArbiterSpanForwarder",
-      "filePath": "src/baton/arbiter_exporter.py",
-      "summary": "class ArbiterSpanForwarder (src/baton/arbiter_exporter.py:17) ## Methods - drop_rate(self) -> float",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 6,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-0b013984aebf",
-      "type": "class",
-      "name": "CompositeSpanExporter",
-      "filePath": "src/baton/arbiter_exporter.py",
-      "summary": "class CompositeSpanExporter(SpanExporter) (src/baton/arbiter_exporter.py:134) ## Methods - export(self, spans: list[SpanData]) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-42df5588373a",
-      "type": "file",
-      "name": "src/baton/audit_sidecar.py",
-      "filePath": "src/baton/audit_sidecar.py",
-      "summary": "Language: Python | Path: src/baton/audit_sidecar.py | ~175 lines ## Classes - AuditEvent",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-76ff0317af1b",
-      "type": "class",
-      "name": "AuditEvent",
-      "filePath": "src/baton/audit_sidecar.py",
-      "summary": "class AuditEvent (src/baton/audit_sidecar.py:19) ## Methods - to_dict(self) -> dict",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-e574a54b87fb",
-      "type": "class",
-      "name": "AuditSidecar",
-      "filePath": "src/baton/audit_sidecar.py",
-      "summary": "class AuditSidecar (src/baton/audit_sidecar.py:56) ## Methods - drain_events(self) -> list[AuditEvent]",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 7,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-f59fc9e4eb23",
-      "type": "file",
-      "name": "src/baton/state.py",
-      "filePath": "src/baton/state.py",
-      "summary": "Language: Python | Path: src/baton/state.py | ~76 lines ## Functions - append_jsonl(project_dir: str | Path, filename: str, data: dict) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 8,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-6982cbc46afe",
-      "type": "file",
-      "name": "src/baton/dora.py",
-      "filePath": "src/baton/dora.py",
-      "summary": "Language: Python | Path: src/baton/dora.py | ~352 lines ## Classes - DORAMetrics",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 11,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-a62b157bf7ff",
-      "type": "class",
-      "name": "DORAMetrics",
-      "filePath": "src/baton/dora.py",
-      "summary": "class DORAMetrics (src/baton/dora.py:75) ## Methods - to_dict(self) -> dict",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-298204db8a7b",
-      "type": "class",
-      "name": "EventType",
-      "filePath": "src/baton/dora.py",
-      "summary": "class EventType (src/baton/dora.py:34)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-164282595ee6",
-      "type": "file",
-      "name": "src/baton/taint.py",
-      "filePath": "src/baton/taint.py",
-      "summary": "Language: Python | Path: src/baton/taint.py | ~234 lines ## Classes - CanaryDatum",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 5,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-b523c34c4949",
-      "type": "class",
-      "name": "CanaryDatum",
-      "filePath": "src/baton/taint.py",
-      "summary": "class CanaryDatum (src/baton/taint.py:23) ## Methods - from_dict(cls, d: dict) -> CanaryDatum",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-041d928aeea5",
-      "type": "class",
-      "name": "CanaryGenerator",
-      "filePath": "src/baton/taint.py",
-      "summary": "class CanaryGenerator (src/baton/taint.py:80) ## Methods - generate(self, category: str, seed_node: str) -> CanaryDatum",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-1c8c382d29b9",
-      "type": "class",
-      "name": "TaintRegistry",
-      "filePath": "src/baton/taint.py",
-      "summary": "class TaintRegistry (src/baton/taint.py:131) ## Methods - all_canaries(self) -> list[CanaryDatum]",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 7,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-b5f13c61479c",
-      "type": "class",
-      "name": "TaintScanner",
-      "filePath": "src/baton/taint.py",
-      "summary": "class TaintScanner (src/baton/taint.py:213) ## Methods - rebuild_pattern(self) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-d93ff4a6cde6",
-      "type": "class",
-      "name": "TaintViolation",
-      "filePath": "src/baton/taint.py",
-      "summary": "class TaintViolation (src/baton/taint.py:53) ## Methods - to_dict(self) -> dict",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-63804a3c317a",
-      "type": "file",
-      "name": "src/baton/config.py",
-      "filePath": "src/baton/config.py",
-      "summary": "Language: Python | Path: src/baton/config.py | ~706 lines ## Functions - add_service_path(project_dir: str | Path, service_path: str) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 30,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-5fb185404b36",
-      "type": "file",
-      "name": "src/baton/canary.py",
-      "filePath": "src/baton/canary.py",
-      "summary": "Language: Python | Path: src/baton/canary.py | ~272 lines ## Classes - CanaryController",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-1b650189e4b6",
-      "type": "class",
-      "name": "CanaryController",
-      "filePath": "src/baton/canary.py",
-      "summary": "class CanaryController (src/baton/canary.py:79) ## Methods - is_running(self) -> bool",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 4,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-ba8d0b350080",
-      "type": "class",
-      "name": "CanaryLifecycle",
-      "filePath": "src/baton/canary.py",
-      "summary": "class CanaryLifecycle(Protocol) (src/baton/canary.py:73) ## Methods - set_routing(self, node_name: str, config: RoutingConfig) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-0d8ab0c151e4",
-      "type": "file",
-      "name": "src/baton/certs.py",
-      "filePath": "src/baton/certs.py",
-      "summary": "Language: Python | Path: src/baton/certs.py | ~283 lines ## Classes - CertificateEvent",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 7,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-907b1d050b59",
-      "type": "class",
-      "name": "CertificateEvent",
-      "filePath": "src/baton/certs.py",
-      "summary": "class CertificateEvent (src/baton/certs.py:42)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-14db721bfdeb",
-      "type": "class",
-      "name": "CertificateInfo",
-      "filePath": "src/baton/certs.py",
-      "summary": "class CertificateInfo (src/baton/certs.py:24) ## Methods - is_expired(self) -> bool",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-da0c5cb4d63c",
-      "type": "class",
-      "name": "CertificateManager",
-      "filePath": "src/baton/certs.py",
-      "summary": "class CertificateManager (src/baton/certs.py:213) ## Methods - check_now(self) -> tuple[CertificateInfo|None,list[CertificateEvent]]",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 6,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-6ab4d48c27b1",
-      "type": "class",
-      "name": "CertificateMonitor",
-      "filePath": "src/baton/certs.py",
-      "summary": "class CertificateMonitor (src/baton/certs.py:102) ## Methods - cert_path(self) -> Path",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-83c9fd3c0e39",
-      "type": "class",
-      "name": "CertificateRotator",
-      "filePath": "src/baton/certs.py",
-      "summary": "class CertificateRotator (src/baton/certs.py:188) ## Methods - rotate(self) -> bool",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-f76cc4c9e9ab",
-      "type": "file",
-      "name": "src/baton/compat.py",
-      "filePath": "src/baton/compat.py",
-      "summary": "Language: Python | Path: src/baton/compat.py | ~383 lines ## Classes - CompatIssue",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 12,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-5a765975b018",
-      "type": "class",
-      "name": "CompatIssue",
-      "filePath": "src/baton/compat.py",
-      "summary": "class CompatIssue (src/baton/compat.py:20)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-83bd86a15b12",
-      "type": "class",
-      "name": "CompatReport",
-      "filePath": "src/baton/compat.py",
-      "summary": "class CompatReport (src/baton/compat.py:32) ## Methods - add(self, issue: CompatIssue) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-3e95a8a99613",
-      "type": "class",
-      "name": "RuntimeProbeResult",
-      "filePath": "src/baton/compat.py",
-      "summary": "class RuntimeProbeResult (src/baton/compat.py:201)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-420b01d780ef",
-      "type": "class",
-      "name": "RuntimeValidationResult",
-      "filePath": "src/baton/compat.py",
-      "summary": "class RuntimeValidationResult (src/baton/compat.py:211) ## Methods - add(self, issue: CompatIssue) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-e3a0f84e675c",
-      "type": "file",
-      "name": "src/baton/protocols/__init__.py",
-      "filePath": "src/baton/protocols/__init__.py",
-      "summary": "Language: Python | Path: src/baton/protocols/__init__.py | ~87 lines ## Classes - ConnectionContext",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 5,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-7c9a5b54c427",
-      "type": "class",
-      "name": "ConnectionContext",
-      "filePath": "src/baton/protocols/__init__.py",
-      "summary": "class ConnectionContext (src/baton/protocols/__init__.py:20)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-fb51e4fd5c6f",
-      "type": "class",
-      "name": "ProtocolHandler",
-      "filePath": "src/baton/protocols/__init__.py",
-      "summary": "class ProtocolHandler(Protocol) (src/baton/protocols/__init__.py:31) ## Methods - handle_connection( self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ctx: ConnectionContext, ) -> None",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 2,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-89ed2c1b2fac",
-      "type": "file",
-      "name": "src/baton/circuit.py",
-      "filePath": "src/baton/circuit.py",
-      "summary": "Language: Python | Path: src/baton/circuit.py | ~227 lines ## Functions - add_edge(circuit: CircuitSpec, source: str, target: str, label: str = \"\") -> CircuitSpec",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 10,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-mod-baton-69ad499c36ab",
-      "type": "file",
-      "name": "src/baton/dashboard.py",
-      "filePath": "src/baton/dashboard.py",
-      "summary": "Language: Python | Path: src/baton/dashboard.py | ~107 lines ## Classes - DashboardSnapshot",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 4,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-f6a838c5aacf",
-      "type": "class",
-      "name": "DashboardSnapshot",
-      "filePath": "src/baton/dashboard.py",
-      "summary": "class DashboardSnapshot (src/baton/dashboard.py:36)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-45c3be984d68",
-      "type": "class",
-      "name": "NodeSnapshot",
-      "filePath": "src/baton/dashboard.py",
-      "summary": "class NodeSnapshot (src/baton/dashboard.py:16)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-1d7caeee7176",
-      "type": "file",
-      "name": "src/baton/schemas.py",
-      "filePath": "src/baton/schemas.py",
-      "summary": "Language: Python | Path: src/baton/schemas.py | ~704 lines ## Classes - AdapterState(BaseModel)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 44,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-783ce3ee919a",
-      "type": "class",
-      "name": "AdapterState",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class AdapterState(BaseModel) (src/baton/schemas.py:358)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-806b4169bc89",
-      "type": "class",
-      "name": "ArbiterConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class ArbiterConfig(BaseModel) (src/baton/schemas.py:82)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-0691b197b5d9",
-      "type": "class",
-      "name": "AuditChannelConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class AuditChannelConfig(BaseModel) (src/baton/schemas.py:94)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-40784e4a3a0d",
-      "type": "class",
-      "name": "CircuitConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class CircuitConfig(BaseModel) (src/baton/schemas.py:645) ## Methods - edges_reference_existing_nodes(self) -> CircuitConfig",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 5,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-948996414a5f",
-      "type": "class",
-      "name": "CircuitSpec",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class CircuitSpec(BaseModel) (src/baton/schemas.py:188) ## Methods - dependents(self, name: str) -> list[str]",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 9,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-9a7d84096e08",
-      "type": "class",
-      "name": "CircuitState",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class CircuitState(BaseModel) (src/baton/schemas.py:371)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-5da3cd8ae333",
-      "type": "class",
-      "name": "ClusterIdentity",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class ClusterIdentity(BaseModel) (src/baton/schemas.py:599)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-713b084dd350",
-      "type": "class",
-      "name": "CollapseLevel",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class CollapseLevel(StrEnum) (src/baton/schemas.py:40)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-a3d350783478",
-      "type": "class",
-      "name": "ControlAuthConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class ControlAuthConfig(BaseModel) (src/baton/schemas.py:496)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-d7e9079fb772",
-      "type": "class",
-      "name": "CustodianAction",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class CustodianAction(StrEnum) (src/baton/schemas.py:53)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-b976b22fccf9",
-      "type": "class",
-      "name": "CustodianEvent",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class CustodianEvent(BaseModel) (src/baton/schemas.py:436)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-28201f5d42ef",
-      "type": "class",
-      "name": "DataAccessSpec",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class DataAccessSpec(BaseModel) (src/baton/schemas.py:73)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-184691a6c764",
-      "type": "class",
-      "name": "DependencySpec",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class DependencySpec(BaseModel) (src/baton/schemas.py:178)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-e8b3f404bcf1",
-      "type": "class",
-      "name": "DeployConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class DeployConfig(BaseModel) (src/baton/schemas.py:583)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-d6219353bf8e",
-      "type": "class",
-      "name": "DeploymentTarget",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class DeploymentTarget(BaseModel) (src/baton/schemas.py:462)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-784f64ef1b6d",
-      "type": "class",
-      "name": "EdgePolicy",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class EdgePolicy(BaseModel) (src/baton/schemas.py:167)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-54f69d518ac0",
-      "type": "class",
-      "name": "EdgeSpec",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class EdgeSpec(BaseModel) (src/baton/schemas.py:148) ## Methods - no_self_loop(self) -> EdgeSpec",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-21588a77c687",
-      "type": "class",
-      "name": "FederationConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class FederationConfig(BaseModel) (src/baton/schemas.py:631)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-124da063aab8",
-      "type": "class",
-      "name": "FederationEdge",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class FederationEdge(BaseModel) (src/baton/schemas.py:610)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-d72bef68e11e",
-      "type": "class",
-      "name": "HealthCheck",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class HealthCheck(BaseModel) (src/baton/schemas.py:388)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-9af2adce4337",
-      "type": "class",
-      "name": "HealthVerdict",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class HealthVerdict(StrEnum) (src/baton/schemas.py:46)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-565d89b8c1b5",
-      "type": "class",
-      "name": "ImageInfo",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class ImageInfo(BaseModel) (src/baton/schemas.py:450)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-18393075fa98",
-      "type": "class",
-      "name": "LedgerConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class LedgerConfig(BaseModel) (src/baton/schemas.py:103)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-86b76fbe9f3c",
-      "type": "class",
-      "name": "NodeRole",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class NodeRole(StrEnum) (src/baton/schemas.py:34)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-9c96191cdce0",
-      "type": "class",
-      "name": "NodeSpec",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class NodeSpec(BaseModel) (src/baton/schemas.py:115) ## Methods - auto_management_port(self) -> NodeSpec",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-9f79a090e51e",
-      "type": "class",
-      "name": "NodeStatus",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class NodeStatus(StrEnum) (src/baton/schemas.py:18)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-b2d978bf22c7",
-      "type": "class",
-      "name": "NodeTelemetryConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class NodeTelemetryConfig(BaseModel) (src/baton/schemas.py:525)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-38c528921b1d",
-      "type": "class",
-      "name": "ObservabilityConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class ObservabilityConfig(BaseModel) (src/baton/schemas.py:543) ## Methods - synthesize_default_endpoints(self) -> ObservabilityConfig",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-6c546c45dd9e",
-      "type": "class",
-      "name": "OtlpEndpointConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class OtlpEndpointConfig(BaseModel) (src/baton/schemas.py:533)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-a84afdeb4f4d",
-      "type": "class",
-      "name": "PeerState",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class PeerState(BaseModel) (src/baton/schemas.py:620)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-dc93d3083fe9",
-      "type": "class",
-      "name": "ProxyMode",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class ProxyMode(StrEnum) (src/baton/schemas.py:26)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-21c0012852e8",
-      "type": "class",
-      "name": "RoutingConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class RoutingConfig(BaseModel) (src/baton/schemas.py:303) ## Methods - header_requires_rules(self) -> RoutingConfig",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 3,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-c03fc5e5c70c",
-      "type": "class",
-      "name": "RoutingRule",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class RoutingRule(BaseModel) (src/baton/schemas.py:293)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-52f5d64c9a0f",
-      "type": "class",
-      "name": "RoutingStrategy",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class RoutingStrategy(StrEnum) (src/baton/schemas.py:63)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-74a0a54aa7c5",
-      "type": "class",
-      "name": "RoutingTarget",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class RoutingTarget(BaseModel) (src/baton/schemas.py:282)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-9e84f4beb112",
-      "type": "class",
-      "name": "SecurityConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class SecurityConfig(BaseModel) (src/baton/schemas.py:505)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-5b73dd0f7e11",
-      "type": "class",
-      "name": "ServiceEvent",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class ServiceEvent(BaseModel) (src/baton/schemas.py:420)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-47b67db63cc0",
-      "type": "class",
-      "name": "ServiceManifest",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class ServiceManifest(BaseModel) (src/baton/schemas.py:262)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-b428fc721110",
-      "type": "class",
-      "name": "ServiceSlot",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class ServiceSlot(BaseModel) (src/baton/schemas.py:349)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-b7c9477a182a",
-      "type": "class",
-      "name": "SignalRecord",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class SignalRecord(BaseModel) (src/baton/schemas.py:400)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-2fd28c4d6337",
-      "type": "class",
-      "name": "TLSConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class TLSConfig(BaseModel) (src/baton/schemas.py:482)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-f66deb876eaf",
-      "type": "class",
-      "name": "TLSMode",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class TLSMode(StrEnum) (src/baton/schemas.py:476)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-6b74cc238d94",
-      "type": "class",
-      "name": "TaintConfig",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class TaintConfig(BaseModel) (src/baton/schemas.py:570)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-405ac59ef9f9",
-      "type": "class",
-      "name": "TelemetryClassRule",
-      "filePath": "src/baton/schemas.py",
-      "summary": "class TelemetryClassRule(BaseModel) (src/baton/schemas.py:514)",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-mod-baton-e38b6b90d411",
-      "type": "file",
-      "name": "src/baton/adapter.py",
-      "filePath": "src/baton/adapter.py",
-      "summary": "Language: Python | Path: src/baton/adapter.py | ~896 lines ## Classes - Adapter",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 9,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "artifact",
-        "toolTier": "C"
-      }
-    },
-    {
-      "id": "code-sym-baton-6818279d5f77",
-      "type": "class",
-      "name": "Adapter",
-      "filePath": "src/baton/adapter.py",
-      "summary": "class Adapter (src/baton/adapter.py:112) ## Methods - backend(self) -> BackendTarget",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 24,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-66d040cd432b",
-      "type": "class",
-      "name": "AdapterMetrics",
-      "filePath": "src/baton/adapter.py",
-      "summary": "class AdapterMetrics (src/baton/adapter.py:58) ## Methods - p50(self) -> float",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 5,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    },
-    {
-      "id": "code-sym-baton-15b2f28690cb",
-      "type": "class",
-      "name": "BackendTarget",
-      "filePath": "src/baton/adapter.py",
-      "summary": "class BackendTarget (src/baton/adapter.py:46) ## Methods - is_configured(self) -> bool",
-      "tags": [
-        "code",
-        "python"
-      ],
-      "complexity": 1,
-      "languageNotes": {
-        "language": "Python",
-        "kindexType": "concept",
-        "toolTier": ""
-      }
-    }
-  ],
   "edges": [
     {
+      "direction": "outbound",
       "source": "code-mod-baton-4bd2ceea610d",
       "target": "code-mod-baton-5fb185404b36",
       "type": "depends_on",
-      "direction": "outbound",
       "weight": 0.5
     },
     {
-      "source": "code-sym-baton-bfc893f1ad8f",
-      "target": "code-mod-baton-94d15dcad62e",
-      "type": "contains",
       "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-ae7cf090802b",
-      "target": "code-mod-baton-eccbff6ed1c1",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-89809d03f0cf",
-      "target": "code-mod-baton-90848bd704b7",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-f676a8cf84b3",
-      "target": "code-mod-baton-70f08e52b7b1",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-c050b8f1ee9f",
-      "target": "code-mod-baton-70f08e52b7b1",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-c8b0c8ecb910",
-      "target": "code-mod-baton-eccbff6ed1c1",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-40c037b3d044",
-      "target": "code-mod-baton-fa3ca2f7eaa9",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-8a2f099d98cc",
-      "target": "code-mod-baton-6db445c67b3e",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-814c0a37f4ba",
-      "target": "code-mod-baton-4bd2ceea610d",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-cd65856583be",
-      "target": "code-mod-baton-4eaf0432dea3",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-3968a40697af",
-      "target": "code-mod-baton-39f7303a81be",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-696d2dd560e6",
-      "target": "code-mod-baton-192ef66f2cfb",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-0cf5a1f22d4b",
-      "target": "code-mod-baton-b75babdee1bd",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-eeafeee2a8fd",
-      "target": "code-mod-baton-b75babdee1bd",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-b60c026b715b",
-      "target": "code-mod-baton-b75babdee1bd",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-e754d4f03eb2",
-      "target": "code-mod-baton-b75babdee1bd",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-5be01711a319",
-      "target": "code-mod-baton-66eae7e10507",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-6305b6ff7bb1",
-      "target": "code-mod-baton-b75babdee1bd",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-a1cdd06fc6f3",
-      "target": "code-mod-baton-b75babdee1bd",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-792728dfe6ad",
+      "source": "code-mod-baton-e38b6b90d411",
       "target": "code-mod-baton-2bb5601a20de",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
+      "type": "depends_on",
+      "weight": 0.5
     },
     {
-      "source": "code-sym-baton-f7e3ddf9d149",
-      "target": "code-mod-baton-769187c66c43",
-      "type": "contains",
       "direction": "outbound",
-      "weight": 0.6
+      "source": "code-mod-baton-e38b6b90d411",
+      "target": "code-mod-baton-39f7303a81be",
+      "type": "depends_on",
+      "weight": 0.5
     },
     {
-      "source": "code-sym-baton-a9a15074f307",
-      "target": "code-mod-baton-769187c66c43",
-      "type": "contains",
       "direction": "outbound",
-      "weight": 0.6
+      "source": "code-mod-baton-e38b6b90d411",
+      "target": "code-mod-baton-90848bd704b7",
+      "type": "depends_on",
+      "weight": 0.5
     },
     {
-      "source": "code-sym-baton-8d88f3dda72a",
-      "target": "code-mod-baton-769187c66c43",
-      "type": "contains",
       "direction": "outbound",
-      "weight": 0.6
+      "source": "code-mod-baton-e38b6b90d411",
+      "target": "code-mod-baton-94d15dcad62e",
+      "type": "depends_on",
+      "weight": 0.5
     },
     {
-      "source": "code-sym-baton-9171b9c83598",
-      "target": "code-mod-baton-679e652048f5",
-      "type": "contains",
       "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-6432a7754b45",
-      "target": "code-mod-baton-679e652048f5",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-fc56c30695a3",
-      "target": "code-mod-baton-dfc8edb9358f",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-51ff79697913",
-      "target": "code-mod-baton-8f7569ef92a2",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-e88d1eda213a",
-      "target": "code-mod-baton-6c2072d99b74",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-50f6282c1555",
-      "target": "code-mod-baton-6c2072d99b74",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-be017ae25f78",
-      "target": "code-mod-baton-6c2072d99b74",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-bbd85f811a7b",
-      "target": "code-mod-baton-940f3ef7b600",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-7d10e51b0d71",
-      "target": "code-mod-baton-a99e85a49447",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.6
-    },
-    {
-      "source": "code-sym-baton-719d072ef557",
-      "target": "code-mod-baton-b64e4699d677",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-a5f873ff0cbd",
-      "target": "code-mod-baton-b64e4699d677",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-f973fe4b4012",
-      "target": "code-mod-baton-b64e4699d677",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-0637353f267f",
-      "target": "code-mod-baton-b64e4699d677",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
       "source": "code-sym-baton-035499f1109d",
       "target": "code-mod-baton-c00b36c6f838",
       "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
+      "weight": 0.6
     },
     {
-      "source": "code-sym-baton-9c1586db291c",
-      "target": "code-mod-baton-c00b36c6f838",
-      "type": "contains",
       "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-51ca99c874fc",
-      "target": "code-mod-baton-c00b36c6f838",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-7e88929ee3b9",
-      "target": "code-mod-baton-24424894e869",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-0b013984aebf",
-      "target": "code-mod-baton-24424894e869",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-76ff0317af1b",
-      "target": "code-mod-baton-42df5588373a",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-e574a54b87fb",
-      "target": "code-mod-baton-42df5588373a",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-a62b157bf7ff",
-      "target": "code-mod-baton-6982cbc46afe",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-298204db8a7b",
-      "target": "code-mod-baton-6982cbc46afe",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-b523c34c4949",
-      "target": "code-mod-baton-164282595ee6",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
       "source": "code-sym-baton-041d928aeea5",
       "target": "code-mod-baton-164282595ee6",
       "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
+      "weight": 0.6
     },
     {
-      "source": "code-sym-baton-1c8c382d29b9",
-      "target": "code-mod-baton-164282595ee6",
+      "direction": "outbound",
+      "source": "code-sym-baton-0637353f267f",
+      "target": "code-mod-baton-b64e4699d677",
       "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
+      "weight": 0.6
     },
     {
-      "source": "code-sym-baton-b5f13c61479c",
-      "target": "code-mod-baton-164282595ee6",
-      "type": "contains",
       "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-d93ff4a6cde6",
-      "target": "code-mod-baton-164282595ee6",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-1b650189e4b6",
-      "target": "code-mod-baton-5fb185404b36",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-ba8d0b350080",
-      "target": "code-mod-baton-5fb185404b36",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-907b1d050b59",
-      "target": "code-mod-baton-0d8ab0c151e4",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-14db721bfdeb",
-      "target": "code-mod-baton-0d8ab0c151e4",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-da0c5cb4d63c",
-      "target": "code-mod-baton-0d8ab0c151e4",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-6ab4d48c27b1",
-      "target": "code-mod-baton-0d8ab0c151e4",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-83c9fd3c0e39",
-      "target": "code-mod-baton-0d8ab0c151e4",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-5a765975b018",
-      "target": "code-mod-baton-f76cc4c9e9ab",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-83bd86a15b12",
-      "target": "code-mod-baton-f76cc4c9e9ab",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-3e95a8a99613",
-      "target": "code-mod-baton-f76cc4c9e9ab",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-420b01d780ef",
-      "target": "code-mod-baton-f76cc4c9e9ab",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-7c9a5b54c427",
-      "target": "code-mod-baton-e3a0f84e675c",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-fb51e4fd5c6f",
-      "target": "code-mod-baton-e3a0f84e675c",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-f6a838c5aacf",
-      "target": "code-mod-baton-69ad499c36ab",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-45c3be984d68",
-      "target": "code-mod-baton-69ad499c36ab",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-783ce3ee919a",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-806b4169bc89",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
       "source": "code-sym-baton-0691b197b5d9",
       "target": "code-mod-baton-1d7caeee7176",
       "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
+      "weight": 0.6
     },
     {
-      "source": "code-sym-baton-40784e4a3a0d",
-      "target": "code-mod-baton-1d7caeee7176",
+      "direction": "outbound",
+      "source": "code-sym-baton-0b013984aebf",
+      "target": "code-mod-baton-24424894e869",
       "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
+      "weight": 0.6
     },
     {
-      "source": "code-sym-baton-948996414a5f",
-      "target": "code-mod-baton-1d7caeee7176",
+      "direction": "outbound",
+      "source": "code-sym-baton-0cf5a1f22d4b",
+      "target": "code-mod-baton-b75babdee1bd",
       "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
+      "weight": 0.6
     },
     {
-      "source": "code-sym-baton-9a7d84096e08",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
       "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-5da3cd8ae333",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-713b084dd350",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-a3d350783478",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-d7e9079fb772",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-b976b22fccf9",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-28201f5d42ef",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-184691a6c764",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-e8b3f404bcf1",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-d6219353bf8e",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-784f64ef1b6d",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-54f69d518ac0",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-21588a77c687",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
       "source": "code-sym-baton-124da063aab8",
       "target": "code-mod-baton-1d7caeee7176",
       "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
+      "weight": 0.6
     },
     {
-      "source": "code-sym-baton-d72bef68e11e",
-      "target": "code-mod-baton-1d7caeee7176",
+      "direction": "outbound",
+      "source": "code-sym-baton-14db721bfdeb",
+      "target": "code-mod-baton-0d8ab0c151e4",
       "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
+      "weight": 0.6
     },
     {
-      "source": "code-sym-baton-9af2adce4337",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
       "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-565d89b8c1b5",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-18393075fa98",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-86b76fbe9f3c",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-9c96191cdce0",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-9f79a090e51e",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-b2d978bf22c7",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-38c528921b1d",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-6c546c45dd9e",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-a84afdeb4f4d",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-dc93d3083fe9",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-21c0012852e8",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-c03fc5e5c70c",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-52f5d64c9a0f",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-74a0a54aa7c5",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-9e84f4beb112",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-5b73dd0f7e11",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-47b67db63cc0",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-b428fc721110",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-b7c9477a182a",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-2fd28c4d6337",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-f66deb876eaf",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-6b74cc238d94",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-405ac59ef9f9",
-      "target": "code-mod-baton-1d7caeee7176",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-mod-baton-e38b6b90d411",
-      "target": "code-mod-baton-2bb5601a20de",
-      "type": "depends_on",
-      "direction": "outbound",
-      "weight": 0.5
-    },
-    {
-      "source": "code-mod-baton-e38b6b90d411",
-      "target": "code-mod-baton-94d15dcad62e",
-      "type": "depends_on",
-      "direction": "outbound",
-      "weight": 0.5
-    },
-    {
-      "source": "code-mod-baton-e38b6b90d411",
-      "target": "code-mod-baton-39f7303a81be",
-      "type": "depends_on",
-      "direction": "outbound",
-      "weight": 0.5
-    },
-    {
-      "source": "code-mod-baton-e38b6b90d411",
-      "target": "code-mod-baton-90848bd704b7",
-      "type": "depends_on",
-      "direction": "outbound",
-      "weight": 0.5
-    },
-    {
-      "source": "code-sym-baton-6818279d5f77",
-      "target": "code-mod-baton-e38b6b90d411",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
-      "source": "code-sym-baton-66d040cd432b",
-      "target": "code-mod-baton-e38b6b90d411",
-      "type": "contains",
-      "direction": "outbound",
-      "weight": 0.0108
-    },
-    {
       "source": "code-sym-baton-15b2f28690cb",
       "target": "code-mod-baton-e38b6b90d411",
       "type": "contains",
+      "weight": 0.6
+    },
+    {
       "direction": "outbound",
-      "weight": 0.0108
+      "source": "code-sym-baton-18393075fa98",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-184691a6c764",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-1b650189e4b6",
+      "target": "code-mod-baton-5fb185404b36",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-1c8c382d29b9",
+      "target": "code-mod-baton-164282595ee6",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-21588a77c687",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-21c0012852e8",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-28201f5d42ef",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-298204db8a7b",
+      "target": "code-mod-baton-6982cbc46afe",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-2fd28c4d6337",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-38c528921b1d",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-3968a40697af",
+      "target": "code-mod-baton-39f7303a81be",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-3e95a8a99613",
+      "target": "code-mod-baton-f76cc4c9e9ab",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-405ac59ef9f9",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-40784e4a3a0d",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-40c037b3d044",
+      "target": "code-mod-baton-fa3ca2f7eaa9",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-420b01d780ef",
+      "target": "code-mod-baton-f76cc4c9e9ab",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-45c3be984d68",
+      "target": "code-mod-baton-69ad499c36ab",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-47b67db63cc0",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-50f6282c1555",
+      "target": "code-mod-baton-6c2072d99b74",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-51ca99c874fc",
+      "target": "code-mod-baton-c00b36c6f838",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-51ff79697913",
+      "target": "code-mod-baton-8f7569ef92a2",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-52f5d64c9a0f",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-54f69d518ac0",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-565d89b8c1b5",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-5a765975b018",
+      "target": "code-mod-baton-f76cc4c9e9ab",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-5b73dd0f7e11",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-5be01711a319",
+      "target": "code-mod-baton-66eae7e10507",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-5da3cd8ae333",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-6305b6ff7bb1",
+      "target": "code-mod-baton-b75babdee1bd",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-6432a7754b45",
+      "target": "code-mod-baton-679e652048f5",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-66d040cd432b",
+      "target": "code-mod-baton-e38b6b90d411",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-6818279d5f77",
+      "target": "code-mod-baton-e38b6b90d411",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-696d2dd560e6",
+      "target": "code-mod-baton-192ef66f2cfb",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-6ab4d48c27b1",
+      "target": "code-mod-baton-0d8ab0c151e4",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-6b74cc238d94",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-6c546c45dd9e",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-713b084dd350",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-719d072ef557",
+      "target": "code-mod-baton-b64e4699d677",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-74a0a54aa7c5",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-76ff0317af1b",
+      "target": "code-mod-baton-42df5588373a",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-783ce3ee919a",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-784f64ef1b6d",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-792728dfe6ad",
+      "target": "code-mod-baton-2bb5601a20de",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-7c9a5b54c427",
+      "target": "code-mod-baton-e3a0f84e675c",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-7d10e51b0d71",
+      "target": "code-mod-baton-a99e85a49447",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-7e88929ee3b9",
+      "target": "code-mod-baton-24424894e869",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-806b4169bc89",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-814c0a37f4ba",
+      "target": "code-mod-baton-4bd2ceea610d",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-83bd86a15b12",
+      "target": "code-mod-baton-f76cc4c9e9ab",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-83c9fd3c0e39",
+      "target": "code-mod-baton-0d8ab0c151e4",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-86b76fbe9f3c",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-89809d03f0cf",
+      "target": "code-mod-baton-90848bd704b7",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-8a2f099d98cc",
+      "target": "code-mod-baton-6db445c67b3e",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-8d88f3dda72a",
+      "target": "code-mod-baton-769187c66c43",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-907b1d050b59",
+      "target": "code-mod-baton-0d8ab0c151e4",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-9171b9c83598",
+      "target": "code-mod-baton-679e652048f5",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-948996414a5f",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-9a7d84096e08",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-9af2adce4337",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-9c1586db291c",
+      "target": "code-mod-baton-c00b36c6f838",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-9c96191cdce0",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-9e84f4beb112",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-9f79a090e51e",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-a1cdd06fc6f3",
+      "target": "code-mod-baton-b75babdee1bd",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-a3d350783478",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-a5f873ff0cbd",
+      "target": "code-mod-baton-b64e4699d677",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-a62b157bf7ff",
+      "target": "code-mod-baton-6982cbc46afe",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-a84afdeb4f4d",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-a9a15074f307",
+      "target": "code-mod-baton-769187c66c43",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-ae7cf090802b",
+      "target": "code-mod-baton-eccbff6ed1c1",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-b2d978bf22c7",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-b428fc721110",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-b523c34c4949",
+      "target": "code-mod-baton-164282595ee6",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-b5f13c61479c",
+      "target": "code-mod-baton-164282595ee6",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-b60c026b715b",
+      "target": "code-mod-baton-b75babdee1bd",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-b7c9477a182a",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-b976b22fccf9",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-ba8d0b350080",
+      "target": "code-mod-baton-5fb185404b36",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-bbd85f811a7b",
+      "target": "code-mod-baton-940f3ef7b600",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-be017ae25f78",
+      "target": "code-mod-baton-6c2072d99b74",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-bfc893f1ad8f",
+      "target": "code-mod-baton-94d15dcad62e",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-c03fc5e5c70c",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-c050b8f1ee9f",
+      "target": "code-mod-baton-70f08e52b7b1",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-c8b0c8ecb910",
+      "target": "code-mod-baton-eccbff6ed1c1",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-cd65856583be",
+      "target": "code-mod-baton-4eaf0432dea3",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-d6219353bf8e",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-d72bef68e11e",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-d7e9079fb772",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-d93ff4a6cde6",
+      "target": "code-mod-baton-164282595ee6",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-da0c5cb4d63c",
+      "target": "code-mod-baton-0d8ab0c151e4",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-dc93d3083fe9",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-e574a54b87fb",
+      "target": "code-mod-baton-42df5588373a",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-e754d4f03eb2",
+      "target": "code-mod-baton-b75babdee1bd",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-e88d1eda213a",
+      "target": "code-mod-baton-6c2072d99b74",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-e8b3f404bcf1",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-eeafeee2a8fd",
+      "target": "code-mod-baton-b75babdee1bd",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-f66deb876eaf",
+      "target": "code-mod-baton-1d7caeee7176",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-f676a8cf84b3",
+      "target": "code-mod-baton-70f08e52b7b1",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-f6a838c5aacf",
+      "target": "code-mod-baton-69ad499c36ab",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-f7e3ddf9d149",
+      "target": "code-mod-baton-769187c66c43",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-f973fe4b4012",
+      "target": "code-mod-baton-b64e4699d677",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-fb51e4fd5c6f",
+      "target": "code-mod-baton-e3a0f84e675c",
+      "type": "contains",
+      "weight": 0.6
+    },
+    {
+      "direction": "outbound",
+      "source": "code-sym-baton-fc56c30695a3",
+      "target": "code-mod-baton-dfc8edb9358f",
+      "type": "contains",
+      "weight": 0.6
     }
   ],
   "layers": [
     {
+      "description": "Kindex-inferred core layer.",
       "id": "core",
       "name": "Core",
-      "description": "Kindex-inferred core layer.",
       "nodeIds": [
         "code-mod-baton-0d8ab0c151e4",
         "code-mod-baton-0edc20155866",
@@ -3553,17 +871,17 @@
       ]
     },
     {
+      "description": "Kindex-inferred data layer.",
       "id": "data",
       "name": "Data",
-      "description": "Kindex-inferred data layer.",
       "nodeIds": [
         "code-mod-baton-1d7caeee7176"
       ]
     },
     {
+      "description": "Kindex-inferred domain layer.",
       "id": "domain",
       "name": "Domain",
-      "description": "Kindex-inferred domain layer.",
       "nodeIds": [
         "code-sym-baton-035499f1109d",
         "code-sym-baton-041d928aeea5",
@@ -3680,26 +998,2705 @@
       ]
     },
     {
+      "description": "Kindex-inferred service layer.",
       "id": "service",
       "name": "Service",
-      "description": "Kindex-inferred service layer.",
       "nodeIds": [
         "code-mod-baton-192ef66f2cfb"
       ]
     },
     {
+      "description": "Kindex-inferred ui layer.",
       "id": "ui",
       "name": "Ui",
-      "description": "Kindex-inferred ui layer.",
       "nodeIds": [
         "code-mod-baton-89ed2c1b2fac"
       ]
     }
   ],
+  "nodes": [
+    {
+      "complexity": 1,
+      "filePath": "src/baton/__init__.py",
+      "id": "code-mod-baton-9620dd8a767a",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/__init__.py",
+      "summary": "Language: Python | Path: src/baton/__init__.py | ~3 lines",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/adapter.py",
+      "id": "code-sym-baton-15b2f28690cb",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "BackendTarget",
+      "summary": "class BackendTarget (src/baton/adapter.py:46) ## Methods - is_configured(self) -> bool",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 5,
+      "filePath": "src/baton/adapter.py",
+      "id": "code-sym-baton-66d040cd432b",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "AdapterMetrics",
+      "summary": "class AdapterMetrics (src/baton/adapter.py:58) ## Methods - p50(self) -> float",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 24,
+      "filePath": "src/baton/adapter.py",
+      "id": "code-sym-baton-6818279d5f77",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "Adapter",
+      "summary": "class Adapter (src/baton/adapter.py:112) ## Methods - backend(self) -> BackendTarget",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 9,
+      "filePath": "src/baton/adapter.py",
+      "id": "code-mod-baton-e38b6b90d411",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/adapter.py",
+      "summary": "Language: Python | Path: src/baton/adapter.py | ~896 lines ## Classes - Adapter",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 4,
+      "filePath": "src/baton/adapter_control.py",
+      "id": "code-sym-baton-bbd85f811a7b",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "AdapterControlServer",
+      "summary": "class AdapterControlServer (src/baton/adapter_control.py:20) ## Methods - drain_service_events(self) -> list[dict]",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/adapter_control.py",
+      "id": "code-mod-baton-940f3ef7b600",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/adapter_control.py",
+      "summary": "Language: Python | Path: src/baton/adapter_control.py | ~310 lines ## Classes - AdapterControlServer",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 6,
+      "filePath": "src/baton/arbiter.py",
+      "id": "code-sym-baton-035499f1109d",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ArbiterClient",
+      "summary": "class ArbiterClient (src/baton/arbiter.py:44) ## Methods - api_endpoint(self) -> str",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/arbiter.py",
+      "id": "code-sym-baton-51ca99c874fc",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "TrustScore",
+      "summary": "class TrustScore (src/baton/arbiter.py:23) ## Methods - is_low_trust_authoritative(self) -> bool",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/arbiter.py",
+      "id": "code-sym-baton-9c1586db291c",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "DeclarationGapResult",
+      "summary": "class DeclarationGapResult (src/baton/arbiter.py:37)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/arbiter.py",
+      "id": "code-mod-baton-c00b36c6f838",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/arbiter.py",
+      "summary": "Language: Python | Path: src/baton/arbiter.py | ~162 lines ## Classes - ArbiterClient",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/arbiter_exporter.py",
+      "id": "code-sym-baton-0b013984aebf",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CompositeSpanExporter",
+      "summary": "class CompositeSpanExporter(SpanExporter) (src/baton/arbiter_exporter.py:134) ## Methods - export(self, spans: list[SpanData]) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 6,
+      "filePath": "src/baton/arbiter_exporter.py",
+      "id": "code-sym-baton-7e88929ee3b9",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ArbiterSpanForwarder",
+      "summary": "class ArbiterSpanForwarder (src/baton/arbiter_exporter.py:17) ## Methods - drop_rate(self) -> float",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/arbiter_exporter.py",
+      "id": "code-mod-baton-24424894e869",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/arbiter_exporter.py",
+      "summary": "Language: Python | Path: src/baton/arbiter_exporter.py | ~144 lines ## Classes - ArbiterSpanForwarder",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/audit_sidecar.py",
+      "id": "code-sym-baton-76ff0317af1b",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "AuditEvent",
+      "summary": "class AuditEvent (src/baton/audit_sidecar.py:19) ## Methods - to_dict(self) -> dict",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 7,
+      "filePath": "src/baton/audit_sidecar.py",
+      "id": "code-sym-baton-e574a54b87fb",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "AuditSidecar",
+      "summary": "class AuditSidecar (src/baton/audit_sidecar.py:56) ## Methods - drain_events(self) -> list[AuditEvent]",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/audit_sidecar.py",
+      "id": "code-mod-baton-42df5588373a",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/audit_sidecar.py",
+      "summary": "Language: Python | Path: src/baton/audit_sidecar.py | ~175 lines ## Classes - AuditEvent",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 4,
+      "filePath": "src/baton/canary.py",
+      "id": "code-sym-baton-1b650189e4b6",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CanaryController",
+      "summary": "class CanaryController (src/baton/canary.py:79) ## Methods - is_running(self) -> bool",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/canary.py",
+      "id": "code-sym-baton-ba8d0b350080",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CanaryLifecycle",
+      "summary": "class CanaryLifecycle(Protocol) (src/baton/canary.py:73) ## Methods - set_routing(self, node_name: str, config: RoutingConfig) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/canary.py",
+      "id": "code-mod-baton-5fb185404b36",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/canary.py",
+      "summary": "Language: Python | Path: src/baton/canary.py | ~272 lines ## Classes - CanaryController",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/certs.py",
+      "id": "code-sym-baton-14db721bfdeb",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CertificateInfo",
+      "summary": "class CertificateInfo (src/baton/certs.py:24) ## Methods - is_expired(self) -> bool",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/certs.py",
+      "id": "code-sym-baton-6ab4d48c27b1",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CertificateMonitor",
+      "summary": "class CertificateMonitor (src/baton/certs.py:102) ## Methods - cert_path(self) -> Path",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/certs.py",
+      "id": "code-sym-baton-83c9fd3c0e39",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CertificateRotator",
+      "summary": "class CertificateRotator (src/baton/certs.py:188) ## Methods - rotate(self) -> bool",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/certs.py",
+      "id": "code-sym-baton-907b1d050b59",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CertificateEvent",
+      "summary": "class CertificateEvent (src/baton/certs.py:42)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 6,
+      "filePath": "src/baton/certs.py",
+      "id": "code-sym-baton-da0c5cb4d63c",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CertificateManager",
+      "summary": "class CertificateManager (src/baton/certs.py:213) ## Methods - check_now(self) -> tuple[CertificateInfo|None,list[CertificateEvent]]",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 7,
+      "filePath": "src/baton/certs.py",
+      "id": "code-mod-baton-0d8ab0c151e4",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/certs.py",
+      "summary": "Language: Python | Path: src/baton/certs.py | ~283 lines ## Classes - CertificateEvent",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 10,
+      "filePath": "src/baton/circuit.py",
+      "id": "code-mod-baton-89ed2c1b2fac",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/circuit.py",
+      "summary": "Language: Python | Path: src/baton/circuit.py | ~227 lines ## Functions - add_edge(circuit: CircuitSpec, source: str, target: str, label: str = \"\") -> CircuitSpec",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 56,
+      "filePath": "src/baton/cli.py",
+      "id": "code-mod-baton-d58e290dcf6e",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/cli.py",
+      "summary": "Language: Python | Path: src/baton/cli.py | ~2397 lines ## Functions - main(argv: list[str] | None = None) -> int",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/collapse.py",
+      "id": "code-mod-baton-7d222de50377",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/collapse.py",
+      "summary": "Language: Python | Path: src/baton/collapse.py | ~67 lines ## Functions - build_mock_server( circuit: CircuitSpec, live_nodes: set[str], project_dir: str | Path = \".\", ) -> MockServer",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/compat.py",
+      "id": "code-sym-baton-3e95a8a99613",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "RuntimeProbeResult",
+      "summary": "class RuntimeProbeResult (src/baton/compat.py:201)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/compat.py",
+      "id": "code-sym-baton-420b01d780ef",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "RuntimeValidationResult",
+      "summary": "class RuntimeValidationResult (src/baton/compat.py:211) ## Methods - add(self, issue: CompatIssue) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/compat.py",
+      "id": "code-sym-baton-5a765975b018",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CompatIssue",
+      "summary": "class CompatIssue (src/baton/compat.py:20)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/compat.py",
+      "id": "code-sym-baton-83bd86a15b12",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CompatReport",
+      "summary": "class CompatReport (src/baton/compat.py:32) ## Methods - add(self, issue: CompatIssue) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 12,
+      "filePath": "src/baton/compat.py",
+      "id": "code-mod-baton-f76cc4c9e9ab",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/compat.py",
+      "summary": "Language: Python | Path: src/baton/compat.py | ~383 lines ## Classes - CompatIssue",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 30,
+      "filePath": "src/baton/config.py",
+      "id": "code-mod-baton-63804a3c317a",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/config.py",
+      "summary": "Language: Python | Path: src/baton/config.py | ~706 lines ## Functions - add_service_path(project_dir: str | Path, service_path: str) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/constrain.py",
+      "id": "code-mod-baton-785ac93a2dd0",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/constrain.py",
+      "summary": "Language: Python | Path: src/baton/constrain.py | ~124 lines ## Functions - generate_and_save( constrain_dir: str | Path, output_dir: str | Path, circuit_name: str = \"default\", start_port: int = 8001, ) -> Path",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/custodian.py",
+      "id": "code-sym-baton-0637353f267f",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "RepairPlaybook",
+      "summary": "class RepairPlaybook (src/baton/custodian.py:98) ## Methods - classify( self, adapter_state: AdapterState, anomalies: list[str] | None = None, ) -> str",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/custodian.py",
+      "id": "code-sym-baton-719d072ef557",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "AnomalyDetector",
+      "summary": "class AnomalyDetector (src/baton/custodian.py:40) ## Methods - check( self, adapter: Adapter, slo_rules: list[TelemetryClassRule] | None = None, ) -> list[str]",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 5,
+      "filePath": "src/baton/custodian.py",
+      "id": "code-sym-baton-a5f873ff0cbd",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "Custodian",
+      "summary": "class Custodian (src/baton/custodian.py:160) ## Methods - check_once(self) -> list[CustodianEvent]",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/custodian.py",
+      "id": "code-sym-baton-f973fe4b4012",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "LifecycleActions",
+      "summary": "class LifecycleActions(Protocol) (src/baton/custodian.py:33) ## Methods - restart_service(self, node_name: str) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 4,
+      "filePath": "src/baton/custodian.py",
+      "id": "code-mod-baton-b64e4699d677",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/custodian.py",
+      "summary": "Language: Python | Path: src/baton/custodian.py | ~251 lines ## Classes - AnomalyDetector",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/dashboard.py",
+      "id": "code-sym-baton-45c3be984d68",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "NodeSnapshot",
+      "summary": "class NodeSnapshot (src/baton/dashboard.py:16)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/dashboard.py",
+      "id": "code-sym-baton-f6a838c5aacf",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "DashboardSnapshot",
+      "summary": "class DashboardSnapshot (src/baton/dashboard.py:36)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 4,
+      "filePath": "src/baton/dashboard.py",
+      "id": "code-mod-baton-69ad499c36ab",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/dashboard.py",
+      "summary": "Language: Python | Path: src/baton/dashboard.py | ~107 lines ## Classes - DashboardSnapshot",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/dashboard_server.py",
+      "id": "code-sym-baton-7d10e51b0d71",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "DashboardServer",
+      "summary": "class DashboardServer (src/baton/dashboard_server.py:31) ## Methods - is_running(self) -> bool",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/dashboard_server.py",
+      "id": "code-mod-baton-a99e85a49447",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/dashboard_server.py",
+      "summary": "Language: Python | Path: src/baton/dashboard_server.py | ~252 lines ## Classes - DashboardServer",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/dora.py",
+      "id": "code-sym-baton-298204db8a7b",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "EventType",
+      "summary": "class EventType (src/baton/dora.py:34)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/dora.py",
+      "id": "code-sym-baton-a62b157bf7ff",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "DORAMetrics",
+      "summary": "class DORAMetrics (src/baton/dora.py:75) ## Methods - to_dict(self) -> dict",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 11,
+      "filePath": "src/baton/dora.py",
+      "id": "code-mod-baton-6982cbc46afe",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/dora.py",
+      "summary": "Language: Python | Path: src/baton/dora.py | ~352 lines ## Classes - DORAMetrics",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 4,
+      "filePath": "src/baton/federation.py",
+      "id": "code-sym-baton-6432a7754b45",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "FederationServer",
+      "summary": "class FederationServer (src/baton/federation.py:33) ## Methods - peer_states(self) -> dict[str,PeerState]",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 5,
+      "filePath": "src/baton/federation.py",
+      "id": "code-sym-baton-9171b9c83598",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "FederationManager",
+      "summary": "class FederationManager (src/baton/federation.py:193) ## Methods - events(self) -> list[dict]",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/federation.py",
+      "id": "code-mod-baton-679e652048f5",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/federation.py",
+      "summary": "Language: Python | Path: src/baton/federation.py | ~374 lines ## Classes - FederationManager",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 5,
+      "filePath": "src/baton/image.py",
+      "id": "code-sym-baton-5be01711a319",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ImageBuilder",
+      "summary": "class ImageBuilder (src/baton/image.py:44) ## Methods - build( self, node_name: str, service_dir: str | Path, tag: str = \"\", ) -> ImageInfo",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/image.py",
+      "id": "code-mod-baton-66eae7e10507",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/image.py",
+      "summary": "Language: Python | Path: src/baton/image.py | ~211 lines ## Classes - ImageBuilder",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/ledger.py",
+      "id": "code-sym-baton-50f6282c1555",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "FieldMask",
+      "summary": "class FieldMask (src/baton/ledger.py:21)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 4,
+      "filePath": "src/baton/ledger.py",
+      "id": "code-sym-baton-be017ae25f78",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "LedgerClient",
+      "summary": "class LedgerClient (src/baton/ledger.py:39) ## Methods - api_endpoint(self) -> str",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/ledger.py",
+      "id": "code-sym-baton-e88d1eda213a",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "EgressNodeConfig",
+      "summary": "class EgressNodeConfig (src/baton/ledger.py:29)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/ledger.py",
+      "id": "code-mod-baton-6c2072d99b74",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/ledger.py",
+      "summary": "Language: Python | Path: src/baton/ledger.py | ~115 lines ## Classes - EgressNodeConfig",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 15,
+      "filePath": "src/baton/lifecycle.py",
+      "id": "code-sym-baton-814c0a37f4ba",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "LifecycleManager",
+      "summary": "class LifecycleManager (src/baton/lifecycle.py:75) ## Methods - adapters(self) -> dict[str,Adapter]",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 5,
+      "filePath": "src/baton/lifecycle.py",
+      "id": "code-mod-baton-4bd2ceea610d",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/lifecycle.py",
+      "summary": "Language: Python | Path: src/baton/lifecycle.py | ~1050 lines ## Classes - LifecycleManager",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/manifest.py",
+      "id": "code-mod-baton-4655ba0d0b02",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/manifest.py",
+      "summary": "Language: Python | Path: src/baton/manifest.py | ~33 lines ## Functions - load_manifest(service_dir: str | Path) -> ServiceManifest",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 20,
+      "filePath": "src/baton/mcp_server.py",
+      "id": "code-mod-baton-0edc20155866",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/mcp_server.py",
+      "summary": "Language: Python | Path: src/baton/mcp_server.py | ~470 lines ## Functions - circuit_overview() -> str",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 7,
+      "filePath": "src/baton/migrate.py",
+      "id": "code-mod-baton-463d7ab9c929",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/migrate.py",
+      "summary": "Language: Python | Path: src/baton/migrate.py | ~121 lines ## Functions - detect_version(raw: dict) -> int",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 6,
+      "filePath": "src/baton/mock.py",
+      "id": "code-sym-baton-8a2f099d98cc",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "MockServer",
+      "summary": "class MockServer (src/baton/mock.py:165) ## Methods - add_default_routes(self, port: int) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 5,
+      "filePath": "src/baton/mock.py",
+      "id": "code-mod-baton-6db445c67b3e",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/mock.py",
+      "summary": "Language: Python | Path: src/baton/mock.py | ~220 lines ## Classes - MockServer",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/otel.py",
+      "id": "code-sym-baton-8d88f3dda72a",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "OtelSpanExporter",
+      "summary": "class OtelSpanExporter (src/baton/otel.py:133) ## Methods - export(self, spans: list[SpanData]) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/otel.py",
+      "id": "code-sym-baton-a9a15074f307",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "OtelMetricExporter",
+      "summary": "class OtelMetricExporter (src/baton/otel.py:167) ## Methods - export(self, metrics: dict) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/otel.py",
+      "id": "code-sym-baton-f7e3ddf9d149",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "MultiEndpointSpanExporter",
+      "summary": "class MultiEndpointSpanExporter (src/baton/otel.py:86) ## Methods - export(self, spans: list[SpanData]) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 6,
+      "filePath": "src/baton/otel.py",
+      "id": "code-mod-baton-769187c66c43",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/otel.py",
+      "summary": "Language: Python | Path: src/baton/otel.py | ~302 lines ## Classes - MultiEndpointSpanExporter",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 6,
+      "filePath": "src/baton/process.py",
+      "id": "code-sym-baton-ae7cf090802b",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ProcessManager",
+      "summary": "class ProcessManager (src/baton/process.py:54) ## Methods - get_pid(self, node_name: str) -> int|None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/process.py",
+      "id": "code-sym-baton-c8b0c8ecb910",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ProcessInfo",
+      "summary": "class ProcessInfo (src/baton/process.py:20)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/process.py",
+      "id": "code-mod-baton-eccbff6ed1c1",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/process.py",
+      "summary": "Language: Python | Path: src/baton/process.py | ~161 lines ## Classes - ProcessInfo",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/protocols/__init__.py",
+      "id": "code-sym-baton-7c9a5b54c427",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ConnectionContext",
+      "summary": "class ConnectionContext (src/baton/protocols/__init__.py:20)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/protocols/__init__.py",
+      "id": "code-sym-baton-fb51e4fd5c6f",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ProtocolHandler",
+      "summary": "class ProtocolHandler(Protocol) (src/baton/protocols/__init__.py:31) ## Methods - handle_connection( self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ctx: ConnectionContext, ) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 5,
+      "filePath": "src/baton/protocols/__init__.py",
+      "id": "code-mod-baton-e3a0f84e675c",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/protocols/__init__.py",
+      "summary": "Language: Python | Path: src/baton/protocols/__init__.py | ~87 lines ## Classes - ConnectionContext",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/protocols/http.py",
+      "id": "code-sym-baton-792728dfe6ad",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "HTTPHandler",
+      "summary": "class HTTPHandler (src/baton/protocols/http.py:24) ## Methods - handle_connection( self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ctx: ConnectionContext, ) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/protocols/http.py",
+      "id": "code-mod-baton-2bb5601a20de",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/protocols/http.py",
+      "summary": "Language: Python | Path: src/baton/protocols/http.py | ~35 lines ## Classes - HTTPHandler",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/protocols/protobuf.py",
+      "id": "code-sym-baton-3968a40697af",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ProtobufHandler",
+      "summary": "class ProtobufHandler (src/baton/protocols/protobuf.py:29) ## Methods - handle_connection( self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ctx: ConnectionContext, ) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/protocols/protobuf.py",
+      "id": "code-mod-baton-39f7303a81be",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/protocols/protobuf.py",
+      "summary": "Language: Python | Path: src/baton/protocols/protobuf.py | ~111 lines ## Classes - ProtobufHandler",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/protocols/soap.py",
+      "id": "code-sym-baton-89809d03f0cf",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "SOAPHandler",
+      "summary": "class SOAPHandler (src/baton/protocols/soap.py:28) ## Methods - handle_connection( self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ctx: ConnectionContext, ) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 5,
+      "filePath": "src/baton/protocols/soap.py",
+      "id": "code-mod-baton-90848bd704b7",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/protocols/soap.py",
+      "summary": "Language: Python | Path: src/baton/protocols/soap.py | ~218 lines ## Classes - SOAPHandler",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/protocols/tcp.py",
+      "id": "code-sym-baton-bfc893f1ad8f",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "TCPHandler",
+      "summary": "class TCPHandler (src/baton/protocols/tcp.py:23) ## Methods - handle_connection( self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, ctx: ConnectionContext, ) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/protocols/tcp.py",
+      "id": "code-mod-baton-94d15dcad62e",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/protocols/tcp.py",
+      "summary": "Language: Python | Path: src/baton/protocols/tcp.py | ~89 lines ## Classes - TCPHandler",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/providers/__init__.py",
+      "id": "code-sym-baton-51ff79697913",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "DeploymentProvider",
+      "summary": "class DeploymentProvider(Protocol) (src/baton/providers/__init__.py:10) ## Methods - deploy(self, circuit: CircuitSpec, target: DeploymentTarget) -> CircuitState",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/providers/__init__.py",
+      "id": "code-mod-baton-8f7569ef92a2",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/providers/__init__.py",
+      "summary": "Language: Python | Path: src/baton/providers/__init__.py | ~23 lines ## Classes - DeploymentProvider(Protocol)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/providers/gcp.py",
+      "id": "code-sym-baton-fc56c30695a3",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "GCPProvider",
+      "summary": "class GCPProvider (src/baton/providers/gcp.py:39) ## Methods - deploy(self, circuit: CircuitSpec, target: DeploymentTarget) -> CircuitState",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/providers/gcp.py",
+      "id": "code-mod-baton-dfc8edb9358f",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/providers/gcp.py",
+      "summary": "Language: Python | Path: src/baton/providers/gcp.py | ~271 lines ## Classes - GCPProvider",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/providers/local.py",
+      "id": "code-sym-baton-cd65856583be",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "LocalProvider",
+      "summary": "class LocalProvider (src/baton/providers/local.py:27) ## Methods - deploy(self, circuit: CircuitSpec, target: DeploymentTarget) -> CircuitState",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/providers/local.py",
+      "id": "code-mod-baton-4eaf0432dea3",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/providers/local.py",
+      "summary": "Language: Python | Path: src/baton/providers/local.py | ~89 lines ## Classes - LocalProvider",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/registry.py",
+      "id": "code-mod-baton-e2e2be755ae2",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/registry.py",
+      "summary": "Language: Python | Path: src/baton/registry.py | ~94 lines ## Functions - derive_circuit( manifests: list[ServiceManifest], circuit_name: str = \"default\", ) -> CircuitSpec",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 4,
+      "filePath": "src/baton/routing.py",
+      "id": "code-mod-baton-db04e272aae9",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/routing.py",
+      "summary": "Language: Python | Path: src/baton/routing.py | ~76 lines ## Functions - ab_split( host: str, port_a: int, port_b: int, pct_a: int = 80, ) -> RoutingConfig",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-0691b197b5d9",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "AuditChannelConfig",
+      "summary": "class AuditChannelConfig(BaseModel) (src/baton/schemas.py:94)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-124da063aab8",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "FederationEdge",
+      "summary": "class FederationEdge(BaseModel) (src/baton/schemas.py:610)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-18393075fa98",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "LedgerConfig",
+      "summary": "class LedgerConfig(BaseModel) (src/baton/schemas.py:103)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-184691a6c764",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "DependencySpec",
+      "summary": "class DependencySpec(BaseModel) (src/baton/schemas.py:178)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-21588a77c687",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "FederationConfig",
+      "summary": "class FederationConfig(BaseModel) (src/baton/schemas.py:631)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-21c0012852e8",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "RoutingConfig",
+      "summary": "class RoutingConfig(BaseModel) (src/baton/schemas.py:303) ## Methods - header_requires_rules(self) -> RoutingConfig",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-28201f5d42ef",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "DataAccessSpec",
+      "summary": "class DataAccessSpec(BaseModel) (src/baton/schemas.py:73)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-2fd28c4d6337",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "TLSConfig",
+      "summary": "class TLSConfig(BaseModel) (src/baton/schemas.py:482)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-38c528921b1d",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ObservabilityConfig",
+      "summary": "class ObservabilityConfig(BaseModel) (src/baton/schemas.py:543) ## Methods - synthesize_default_endpoints(self) -> ObservabilityConfig",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-405ac59ef9f9",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "TelemetryClassRule",
+      "summary": "class TelemetryClassRule(BaseModel) (src/baton/schemas.py:514)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 5,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-40784e4a3a0d",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CircuitConfig",
+      "summary": "class CircuitConfig(BaseModel) (src/baton/schemas.py:645) ## Methods - edges_reference_existing_nodes(self) -> CircuitConfig",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-47b67db63cc0",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ServiceManifest",
+      "summary": "class ServiceManifest(BaseModel) (src/baton/schemas.py:262)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-52f5d64c9a0f",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "RoutingStrategy",
+      "summary": "class RoutingStrategy(StrEnum) (src/baton/schemas.py:63)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-54f69d518ac0",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "EdgeSpec",
+      "summary": "class EdgeSpec(BaseModel) (src/baton/schemas.py:148) ## Methods - no_self_loop(self) -> EdgeSpec",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-565d89b8c1b5",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ImageInfo",
+      "summary": "class ImageInfo(BaseModel) (src/baton/schemas.py:450)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-5b73dd0f7e11",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ServiceEvent",
+      "summary": "class ServiceEvent(BaseModel) (src/baton/schemas.py:420)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-5da3cd8ae333",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ClusterIdentity",
+      "summary": "class ClusterIdentity(BaseModel) (src/baton/schemas.py:599)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-6b74cc238d94",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "TaintConfig",
+      "summary": "class TaintConfig(BaseModel) (src/baton/schemas.py:570)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-6c546c45dd9e",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "OtlpEndpointConfig",
+      "summary": "class OtlpEndpointConfig(BaseModel) (src/baton/schemas.py:533)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-713b084dd350",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CollapseLevel",
+      "summary": "class CollapseLevel(StrEnum) (src/baton/schemas.py:40)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-74a0a54aa7c5",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "RoutingTarget",
+      "summary": "class RoutingTarget(BaseModel) (src/baton/schemas.py:282)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-783ce3ee919a",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "AdapterState",
+      "summary": "class AdapterState(BaseModel) (src/baton/schemas.py:358)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-784f64ef1b6d",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "EdgePolicy",
+      "summary": "class EdgePolicy(BaseModel) (src/baton/schemas.py:167)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-806b4169bc89",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ArbiterConfig",
+      "summary": "class ArbiterConfig(BaseModel) (src/baton/schemas.py:82)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-86b76fbe9f3c",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "NodeRole",
+      "summary": "class NodeRole(StrEnum) (src/baton/schemas.py:34)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 9,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-948996414a5f",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CircuitSpec",
+      "summary": "class CircuitSpec(BaseModel) (src/baton/schemas.py:188) ## Methods - dependents(self, name: str) -> list[str]",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-9a7d84096e08",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CircuitState",
+      "summary": "class CircuitState(BaseModel) (src/baton/schemas.py:371)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-9af2adce4337",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "HealthVerdict",
+      "summary": "class HealthVerdict(StrEnum) (src/baton/schemas.py:46)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-9c96191cdce0",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "NodeSpec",
+      "summary": "class NodeSpec(BaseModel) (src/baton/schemas.py:115) ## Methods - auto_management_port(self) -> NodeSpec",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-9e84f4beb112",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "SecurityConfig",
+      "summary": "class SecurityConfig(BaseModel) (src/baton/schemas.py:505)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-9f79a090e51e",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "NodeStatus",
+      "summary": "class NodeStatus(StrEnum) (src/baton/schemas.py:18)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-a3d350783478",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ControlAuthConfig",
+      "summary": "class ControlAuthConfig(BaseModel) (src/baton/schemas.py:496)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-a84afdeb4f4d",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "PeerState",
+      "summary": "class PeerState(BaseModel) (src/baton/schemas.py:620)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-b2d978bf22c7",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "NodeTelemetryConfig",
+      "summary": "class NodeTelemetryConfig(BaseModel) (src/baton/schemas.py:525)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-b428fc721110",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ServiceSlot",
+      "summary": "class ServiceSlot(BaseModel) (src/baton/schemas.py:349)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-b7c9477a182a",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "SignalRecord",
+      "summary": "class SignalRecord(BaseModel) (src/baton/schemas.py:400)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-b976b22fccf9",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CustodianEvent",
+      "summary": "class CustodianEvent(BaseModel) (src/baton/schemas.py:436)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-c03fc5e5c70c",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "RoutingRule",
+      "summary": "class RoutingRule(BaseModel) (src/baton/schemas.py:293)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-d6219353bf8e",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "DeploymentTarget",
+      "summary": "class DeploymentTarget(BaseModel) (src/baton/schemas.py:462)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-d72bef68e11e",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "HealthCheck",
+      "summary": "class HealthCheck(BaseModel) (src/baton/schemas.py:388)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-d7e9079fb772",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CustodianAction",
+      "summary": "class CustodianAction(StrEnum) (src/baton/schemas.py:53)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-dc93d3083fe9",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ProxyMode",
+      "summary": "class ProxyMode(StrEnum) (src/baton/schemas.py:26)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-e8b3f404bcf1",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "DeployConfig",
+      "summary": "class DeployConfig(BaseModel) (src/baton/schemas.py:583)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-sym-baton-f66deb876eaf",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "TLSMode",
+      "summary": "class TLSMode(StrEnum) (src/baton/schemas.py:476)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 44,
+      "filePath": "src/baton/schemas.py",
+      "id": "code-mod-baton-1d7caeee7176",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/schemas.py",
+      "summary": "Language: Python | Path: src/baton/schemas.py | ~704 lines ## Classes - AdapterState(BaseModel)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 3,
+      "filePath": "src/baton/service_log.py",
+      "id": "code-sym-baton-696d2dd560e6",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "ServiceLogCollector",
+      "summary": "class ServiceLogCollector (src/baton/service_log.py:43) ## Methods - handler(self, node_name: str, stream: str, line: str) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/service_log.py",
+      "id": "code-mod-baton-192ef66f2cfb",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/service_log.py",
+      "summary": "Language: Python | Path: src/baton/service_log.py | ~108 lines ## Classes - ServiceLogCollector",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 8,
+      "filePath": "src/baton/signals.py",
+      "id": "code-sym-baton-c050b8f1ee9f",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "SignalAggregator",
+      "summary": "class SignalAggregator (src/baton/signals.py:38) ## Methods - buffer_size(self) -> int",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/signals.py",
+      "id": "code-sym-baton-f676a8cf84b3",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "PathStat",
+      "summary": "class PathStat (src/baton/signals.py:25) ## Methods - error_rate(self) -> float",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/signals.py",
+      "id": "code-mod-baton-70f08e52b7b1",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/signals.py",
+      "summary": "Language: Python | Path: src/baton/signals.py | ~177 lines ## Classes - PathStat",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 8,
+      "filePath": "src/baton/state.py",
+      "id": "code-mod-baton-f59fc9e4eb23",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/state.py",
+      "summary": "Language: Python | Path: src/baton/state.py | ~76 lines ## Functions - append_jsonl(project_dir: str | Path, filename: str, data: dict) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/taint.py",
+      "id": "code-sym-baton-041d928aeea5",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CanaryGenerator",
+      "summary": "class CanaryGenerator (src/baton/taint.py:80) ## Methods - generate(self, category: str, seed_node: str) -> CanaryDatum",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 7,
+      "filePath": "src/baton/taint.py",
+      "id": "code-sym-baton-1c8c382d29b9",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "TaintRegistry",
+      "summary": "class TaintRegistry (src/baton/taint.py:131) ## Methods - all_canaries(self) -> list[CanaryDatum]",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/taint.py",
+      "id": "code-sym-baton-b523c34c4949",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "CanaryDatum",
+      "summary": "class CanaryDatum (src/baton/taint.py:23) ## Methods - from_dict(cls, d: dict) -> CanaryDatum",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/taint.py",
+      "id": "code-sym-baton-b5f13c61479c",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "TaintScanner",
+      "summary": "class TaintScanner (src/baton/taint.py:213) ## Methods - rebuild_pattern(self) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/taint.py",
+      "id": "code-sym-baton-d93ff4a6cde6",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "TaintViolation",
+      "summary": "class TaintViolation (src/baton/taint.py:53) ## Methods - to_dict(self) -> dict",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 5,
+      "filePath": "src/baton/taint.py",
+      "id": "code-mod-baton-164282595ee6",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/taint.py",
+      "summary": "Language: Python | Path: src/baton/taint.py | ~234 lines ## Classes - CanaryDatum",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 6,
+      "filePath": "src/baton/telemetry.py",
+      "id": "code-sym-baton-40c037b3d044",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "TelemetryCollector",
+      "summary": "class TelemetryCollector (src/baton/telemetry.py:25) ## Methods - flush_now(self) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/telemetry.py",
+      "id": "code-mod-baton-fa3ca2f7eaa9",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/telemetry.py",
+      "summary": "Language: Python | Path: src/baton/telemetry.py | ~110 lines ## Classes - TelemetryCollector",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/tracing.py",
+      "id": "code-sym-baton-0cf5a1f22d4b",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "NullExporter",
+      "summary": "class NullExporter (src/baton/tracing.py:62) ## Methods - export(self, spans: list[SpanData]) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/tracing.py",
+      "id": "code-sym-baton-6305b6ff7bb1",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "JsonlExporter",
+      "summary": "class JsonlExporter (src/baton/tracing.py:72) ## Methods - export(self, spans: list[SpanData]) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/tracing.py",
+      "id": "code-sym-baton-a1cdd06fc6f3",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "MetricExporter",
+      "summary": "class MetricExporter(Protocol) (src/baton/tracing.py:55) ## Methods - export(self, metrics: dict) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 2,
+      "filePath": "src/baton/tracing.py",
+      "id": "code-sym-baton-b60c026b715b",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "SpanExporter",
+      "summary": "class SpanExporter(Protocol) (src/baton/tracing.py:48) ## Methods - export(self, spans: list[SpanData]) -> None",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/tracing.py",
+      "id": "code-sym-baton-e754d4f03eb2",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "TraceContext",
+      "summary": "class TraceContext (src/baton/tracing.py:23)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 1,
+      "filePath": "src/baton/tracing.py",
+      "id": "code-sym-baton-eeafeee2a8fd",
+      "languageNotes": {
+        "kindexType": "concept",
+        "language": "Python",
+        "toolTier": ""
+      },
+      "name": "SpanData",
+      "summary": "class SpanData (src/baton/tracing.py:33)",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "class"
+    },
+    {
+      "complexity": 13,
+      "filePath": "src/baton/tracing.py",
+      "id": "code-mod-baton-b75babdee1bd",
+      "languageNotes": {
+        "kindexType": "artifact",
+        "language": "Python",
+        "toolTier": "C"
+      },
+      "name": "src/baton/tracing.py",
+      "summary": "Language: Python | Path: src/baton/tracing.py | ~157 lines ## Classes - JsonlExporter",
+      "tags": [
+        "code",
+        "python"
+      ],
+      "type": "file"
+    }
+  ],
+  "project": {
+    "analyzedAt": "2026-05-28T11:12:20-07:00",
+    "description": "Code map exported from Kindex for baton.",
+    "frameworks": [],
+    "gitCommitHash": "c28e8e8a4d6dd42eedfb01739d87a7e05198723c",
+    "languages": [
+      "Python"
+    ],
+    "name": "baton"
+  },
   "tour": [
     {
-      "order": 1,
-      "title": "Core",
       "description": "Review 42 node(s) in the Core layer.",
       "nodeIds": [
         "code-mod-baton-0d8ab0c151e4",
@@ -3727,19 +3724,19 @@
         "code-mod-baton-7d222de50377",
         "code-mod-baton-8f7569ef92a2",
         "code-mod-baton-90848bd704b7"
-      ]
+      ],
+      "order": 1,
+      "title": "Core"
     },
     {
-      "order": 2,
-      "title": "Data",
       "description": "Review 1 node(s) in the Data layer.",
       "nodeIds": [
         "code-mod-baton-1d7caeee7176"
-      ]
+      ],
+      "order": 2,
+      "title": "Data"
     },
     {
-      "order": 3,
-      "title": "Domain",
       "description": "Review 112 node(s) in the Domain layer.",
       "nodeIds": [
         "code-sym-baton-035499f1109d",
@@ -3767,23 +3764,26 @@
         "code-sym-baton-40784e4a3a0d",
         "code-sym-baton-40c037b3d044",
         "code-sym-baton-420b01d780ef"
-      ]
+      ],
+      "order": 3,
+      "title": "Domain"
     },
     {
-      "order": 4,
-      "title": "Service",
       "description": "Review 1 node(s) in the Service layer.",
       "nodeIds": [
         "code-mod-baton-192ef66f2cfb"
-      ]
+      ],
+      "order": 4,
+      "title": "Service"
     },
     {
-      "order": 5,
-      "title": "Ui",
       "description": "Review 1 node(s) in the Ui layer.",
       "nodeIds": [
         "code-mod-baton-89ed2c1b2fac"
-      ]
+      ],
+      "order": 5,
+      "title": "Ui"
     }
-  ]
+  ],
+  "version": "1.0.0"
 }
