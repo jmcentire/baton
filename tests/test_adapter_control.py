@@ -5,11 +5,19 @@ from __future__ import annotations
 import asyncio
 import json
 
-import pytest
-
 from baton.adapter import Adapter, BackendTarget
 from baton.adapter_control import AdapterControlServer
 from baton.schemas import ControlAuthConfig, NodeSpec, RoutingConfig, RoutingStrategy, RoutingTarget, SecurityConfig
+
+
+class _OutcomeAuthorizer:
+    """Credential-free auth decision stub for control-plane route tests."""
+
+    def __init__(self, accepted: bool):
+        self._accepted = accepted
+
+    def authorize(self, _headers: dict[str, str]) -> bool:
+        return self._accepted
 
 
 async def _http_post(port: int, path: str, body_obj: dict) -> tuple[int, dict]:
@@ -427,15 +435,16 @@ class TestControlAuth:
         finally:
             await ctrl.stop()
 
-    async def test_auth_rejects_no_token(self, monkeypatch):
-        """Auth enabled, no Authorization header -> 401."""
-        monkeypatch.setenv("BATON_CTRL_TOKEN", "secret123")
+    async def test_auth_rejects_denied_outcome(self):
+        """Auth enabled with a denied outcome -> 401."""
         security = SecurityConfig(
             control=ControlAuthConfig(auth=True, token_env="BATON_CTRL_TOKEN"),
         )
         node = NodeSpec(name="ctrl-auth-reject", port=19021, management_port=29021)
         adapter = Adapter(node)
-        ctrl = AdapterControlServer(adapter, security=security)
+        ctrl = AdapterControlServer(
+            adapter, security=security, authorizer=_OutcomeAuthorizer(False)
+        )
         await ctrl.start()
         try:
             status, body = await _http_get(29021, "/health")
@@ -444,34 +453,38 @@ class TestControlAuth:
         finally:
             await ctrl.stop()
 
-    async def test_auth_rejects_wrong_token(self, monkeypatch):
-        """Wrong Bearer token -> 401."""
-        monkeypatch.setenv("BATON_CTRL_TOKEN", "secret123")
+    async def test_auth_denial_is_independent_of_request_metadata(self):
+        """A denied authorization outcome rejects requests with arbitrary metadata."""
         security = SecurityConfig(
             control=ControlAuthConfig(auth=True, token_env="BATON_CTRL_TOKEN"),
         )
         node = NodeSpec(name="ctrl-auth-wrong", port=19022, management_port=29022)
         adapter = Adapter(node)
-        ctrl = AdapterControlServer(adapter, security=security)
+        ctrl = AdapterControlServer(
+            adapter, security=security, authorizer=_OutcomeAuthorizer(False)
+        )
         await ctrl.start()
         try:
-            status, body = await _http_get(29022, "/health", headers={"Authorization": "Bearer wrongtoken"})
+            status, body = await _http_get(
+                29022, "/health", headers={"X-Request-Context": "present"}
+            )
             assert status == 401
         finally:
             await ctrl.stop()
 
-    async def test_auth_accepts_correct_token(self, monkeypatch):
-        """Correct Bearer token -> 200."""
-        monkeypatch.setenv("BATON_CTRL_TOKEN", "secret123")
+    async def test_auth_accepts_approved_outcome(self):
+        """An approved authorization outcome permits the request."""
         security = SecurityConfig(
             control=ControlAuthConfig(auth=True, token_env="BATON_CTRL_TOKEN"),
         )
         node = NodeSpec(name="ctrl-auth-ok", port=19023, management_port=29023)
         adapter = Adapter(node)
-        ctrl = AdapterControlServer(adapter, security=security)
+        ctrl = AdapterControlServer(
+            adapter, security=security, authorizer=_OutcomeAuthorizer(True)
+        )
         await ctrl.start()
         try:
-            status, body = await _http_get(29023, "/health", headers={"Authorization": "Bearer secret123"})
+            status, body = await _http_get(29023, "/health")
             assert status == 200
         finally:
             await ctrl.stop()
@@ -493,8 +506,8 @@ class TestControlAuth:
         finally:
             await ctrl.stop()
 
-    async def test_auth_no_token_env_rejects_even_with_bearer(self, monkeypatch):
-        """Auth enabled, token env not set -> 503 even with a Bearer header."""
+    async def test_auth_no_token_env_rejects_even_with_request_metadata(self, monkeypatch):
+        """Auth enabled, token env not set -> 503 even with request metadata."""
         monkeypatch.delenv("BATON_CTRL_TOKEN", raising=False)
         security = SecurityConfig(
             control=ControlAuthConfig(auth=True, token_env="BATON_CTRL_TOKEN"),
@@ -504,7 +517,9 @@ class TestControlAuth:
         ctrl = AdapterControlServer(adapter, security=security)
         await ctrl.start()
         try:
-            status, body = await _http_get(29025, "/health", headers={"Authorization": "Bearer anytoken"})
+            status, body = await _http_get(
+                29025, "/health", headers={"X-Request-Context": "present"}
+            )
             assert status == 503
             assert body["error"] == "auth misconfigured"
         finally:

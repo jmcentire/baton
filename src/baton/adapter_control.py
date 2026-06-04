@@ -7,31 +7,61 @@ A small HTTP server on each adapter's management port exposing
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 import os
+from typing import Protocol
 
 from baton.adapter import Adapter
-from baton.schemas import HealthVerdict, SecurityConfig
+from baton.schemas import SecurityConfig
 
 logger = logging.getLogger(__name__)
+
+
+class ControlAuthorizer(Protocol):
+    """Authorization decision boundary for management API requests."""
+
+    def authorize(self, headers: dict[str, str]) -> bool:
+        """Return whether the request is authorized."""
+        ...
+
+
+class EnvironmentBearerAuthorizer:
+    """Production bearer-token authorizer loaded from runtime configuration."""
+
+    def __init__(self, expected_token: str):
+        self._expected_token = expected_token
+
+    def authorize(self, headers: dict[str, str]) -> bool:
+        auth_value = headers.get("authorization", "")
+        return auth_value.startswith("Bearer ") and hmac.compare_digest(
+            auth_value[7:], self._expected_token
+        )
 
 
 class AdapterControlServer:
     """Management HTTP server for a single adapter."""
 
-    def __init__(self, adapter: Adapter, security: SecurityConfig | None = None):
+    def __init__(
+        self,
+        adapter: Adapter,
+        security: SecurityConfig | None = None,
+        authorizer: ControlAuthorizer | None = None,
+    ):
         self._adapter = adapter
         self._server: asyncio.Server | None = None
         self._security = security
         self._auth_required = False
-        self._auth_token: str | None = None
+        self._authorizer = authorizer
         self._service_events: list[dict] = []
         if security and security.control.auth:
             self._auth_required = True
-            if security.control.token_env:
-                self._auth_token = os.environ.get(security.control.token_env)
-            if not self._auth_token:
+            if self._authorizer is None and security.control.token_env:
+                runtime_token = os.environ.get(security.control.token_env)
+                if runtime_token:
+                    self._authorizer = EnvironmentBearerAuthorizer(runtime_token)
+            if self._authorizer is None:
                 logger.warning(
                     f"Auth enabled but token not found (env: {security.control.token_env}). "
                     "All control API requests will be rejected."
@@ -104,15 +134,14 @@ class AdapterControlServer:
             method = parts[0] if parts else ""
             path = parts[1] if len(parts) > 1 else ""
 
-            # Auth check (fail-closed: if auth required but token missing, reject all)
+            # Auth check (fail-closed: if auth required but no authorizer exists, reject all)
             if self._auth_required:
-                if self._auth_token is None:
+                if self._authorizer is None:
                     self._write_response(writer, 503, json.dumps({"error": "auth misconfigured"}))
                     await writer.drain()
                     writer.close()
                     return
-                auth_val = headers.get("authorization", "")
-                if not auth_val.startswith("Bearer ") or auth_val[7:] != self._auth_token:
+                if not self._authorizer.authorize(headers):
                     self._write_response(writer, 401, json.dumps({"error": "unauthorized"}))
                     await writer.drain()
                     writer.close()
