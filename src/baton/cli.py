@@ -87,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     # baton status
     p_status = sub.add_parser("status", help="Show circuit status")
     p_status.add_argument("--dir", default=".", help="Project directory")
-    p_status.add_argument("--remote", default=None, metavar="HOST", help="Query adapter control APIs on a remote host instead of reading local state")
+    p_status.add_argument("--remote", default=None, metavar="HOST", type=_validate_remote_host, help="Query adapter control APIs on a remote host instead of reading local state")
     p_status.set_defaults(func=_cmd_status)
 
     # baton up
@@ -111,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
     p_slot.add_argument("--mock", action="store_true", help="Slot a mock instead")
     p_slot.add_argument("--skip-validate", action="store_true", help="Skip runtime interface validation")
     p_slot.add_argument("--force", action="store_true", help="Force slot even with low Arbiter trust")
-    p_slot.add_argument("--remote", default=None, metavar="HOST[:PORT]", help="Remote baton host; POST /backend directly, no local process management")
+    p_slot.add_argument("--remote", default=None, metavar="HOST", type=_validate_remote_host, help="Remote baton host; POST /backend directly, no local process management")
     p_slot.add_argument("--mock-host", default="127.0.0.1", help="Host to bind mock servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
     p_slot.add_argument("--adapter-host", default="127.0.0.1", help="Host to bind adapter servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)")
     p_slot.add_argument("--dir", default=".", help="Project directory")
@@ -120,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
     # baton unslot
     p_unslot = sub.add_parser("unslot", help="Restore a node to its mock backend")
     p_unslot.add_argument("node", help="Node name")
-    p_unslot.add_argument("--remote", default=None, metavar="HOST[:PORT]", help="Remote baton host; POST /backend directly")
+    p_unslot.add_argument("--remote", default=None, metavar="HOST", type=_validate_remote_host, help="Remote baton host; POST /backend directly")
     p_unslot.add_argument("--dir", default=".", help="Project directory")
     p_unslot.set_defaults(func=_cmd_unslot)
 
@@ -200,7 +200,7 @@ def main(argv: list[str] | None = None) -> int:
     p_route_set.add_argument("--header", default="", help="Header name (required for header strategy)")
     p_route_set.add_argument("--rules", default="", help="Rules: value:target,... (for header strategy)")
     p_route_set.add_argument("--default", default="", help="Default target (for header strategy)")
-    p_route_set.add_argument("--remote", default=None, metavar="HOST[:PORT]", help="Remote baton host; POST /routing directly")
+    p_route_set.add_argument("--remote", default=None, metavar="HOST", type=_validate_remote_host, help="Remote baton host; POST /routing directly")
     p_route_set.add_argument("--dir", default=".", help="Project directory")
     p_route_set.set_defaults(func=_cmd_route_set)
 
@@ -896,11 +896,17 @@ async def _cmd_slot_attach(args: argparse.Namespace, state) -> int:
     return 0 if restore_ok else 1
 
 
+def _validate_remote_host(value: str) -> str:
+    if ":" in value:
+        raise argparse.ArgumentTypeError(
+            f"invalid host '{value}' — --remote takes a hostname only "
+            "(management port is always derived from the circuit definition)"
+        )
+    return value
+
+
 def _parse_remote(remote: str, node) -> tuple[str, int]:
-    """Return (host, mgmt_port) from a HOST[:PORT] string, falling back to node.management_port."""
-    if ":" in remote:
-        host, _, port_str = remote.rpartition(":")
-        return host, int(port_str)
+    """Return (host, mgmt_port) for a remote HOST, using node.management_port as the port."""
     return remote, node.management_port
 
 
@@ -926,19 +932,17 @@ async def _cmd_slot_remote(args: argparse.Namespace) -> int:
         print(f"Error: invalid port in target '{target}'", file=sys.stderr)
         return 1
 
-    try:
-        remote_host, mgmt_port = _parse_remote(args.remote, node)
-    except ValueError:
-        print(f"Error: invalid port in --remote '{args.remote}'", file=sys.stderr)
-        return 1
-
+    remote_host, mgmt_port = _parse_remote(args.remote, node)
     try:
         status, body = await _control_post(
             remote_host, mgmt_port, "/backend",
             {"host": target_host, "port": target_port},
         )
     except OSError as e:
-        print(f"Error: could not reach adapter at {remote_host}:{mgmt_port}: {e}", file=sys.stderr)
+        print(
+            f"Error: could not reach adapter at {remote_host}:{mgmt_port} — {e}",
+            file=sys.stderr,
+        )
         return 1
     if status != 200:
         print(f"Error: remote /backend returned {status}: {body}", file=sys.stderr)
@@ -958,11 +962,7 @@ async def _cmd_unslot(args: argparse.Namespace) -> int:
     mock_port = service_port_for(node.port)
 
     if getattr(args, "remote", None):
-        try:
-            remote_host, mgmt_port = _parse_remote(args.remote, node)
-        except ValueError:
-            print(f"Error: invalid port in --remote '{args.remote}'", file=sys.stderr)
-            return 1
+        remote_host, mgmt_port = _parse_remote(args.remote, node)
         try:
             status, body = await _control_post(
                 remote_host, mgmt_port, "/backend",
@@ -1251,19 +1251,11 @@ async def _cmd_route_set(args: argparse.Namespace) -> int:
         if node is None:
             print(f"Error: node '{args.node}' not found in circuit", file=sys.stderr)
             return 1
-        try:
-            remote_host, mgmt_port = _parse_remote(remote, node)
-        except ValueError:
-            print(f"Error: invalid port in --remote '{remote}'", file=sys.stderr)
-            return 1
-        try:
-            status, body = await _control_post(
-                remote_host, mgmt_port, "/routing",
-                config.model_dump(),
-            )
-        except OSError as e:
-            print(f"Error: could not reach adapter at {remote_host}:{mgmt_port}: {e}", file=sys.stderr)
-            return 1
+        remote_host, mgmt_port = _parse_remote(remote, node)
+        status, body = await _control_post(
+            remote_host, mgmt_port, "/routing",
+            config.model_dump(),
+        )
         if status != 200:
             print(f"Error: remote /routing returned {status}: {body}", file=sys.stderr)
             return 1
@@ -1824,8 +1816,7 @@ async def _cmd_status_remote(args: argparse.Namespace) -> int:
     import json as _json
 
     circuit = load_circuit(args.dir)
-    # Strip any accidental :port — each node is queried on its own management port
-    remote_host = args.remote.rpartition(":")[0] if ":" in args.remote else args.remote
+    remote_host = args.remote
 
     print(f"Circuit: {circuit.name} (v{circuit.version}) — remote {remote_host}")
     print(f"Nodes:   {len(circuit.nodes)}")
