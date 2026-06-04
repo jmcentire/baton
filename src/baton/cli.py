@@ -14,7 +14,7 @@ from pathlib import Path
 
 from baton.circuit import add_edge, add_node, remove_edge, remove_node, set_contract
 from baton.config import CONFIG_FILENAME, load_circuit, load_circuit_config, save_circuit, save_circuit_config, _serialize_circuit_config
-from baton.schemas import CircuitSpec, CollapseLevel, NodeStatus
+from baton.schemas import AdapterState, CircuitSpec, CollapseLevel, NodeStatus, ServiceSlot, service_port_for
 from baton.state import ensure_baton_dir, load_circuit_spec, load_state, save_state
 
 
@@ -735,6 +735,23 @@ async def _control_post(host: str, port: int, path: str, payload: dict) -> tuple
             pass
 
 
+def _mark_node_mocked(state, circuit, node, *, faulted: bool = False) -> None:
+    """Update persisted state after a live node is detached from its service."""
+    state.live_nodes = [name for name in state.live_nodes if name != node.name]
+    live_count = len(state.live_nodes)
+    if live_count == 0:
+        state.collapse_level = CollapseLevel.FULL_MOCK
+    elif live_count >= len(circuit.nodes):
+        state.collapse_level = CollapseLevel.FULL_LIVE
+    else:
+        state.collapse_level = CollapseLevel.PARTIAL
+
+    adapter_state = state.adapters.get(node.name, AdapterState(node_name=node.name))
+    adapter_state.status = NodeStatus.FAULTED if faulted else NodeStatus.LISTENING
+    adapter_state.service = ServiceSlot()
+    state.adapters[node.name] = adapter_state
+
+
 async def _cmd_slot_attach(args: argparse.Namespace, state) -> int:
     """Attach a live service to a node in a circuit that's already running
     in another process (started via `baton up` or `baton apply`).
@@ -792,10 +809,18 @@ async def _cmd_slot_attach(args: argparse.Namespace, state) -> int:
             print(f"Error: interface validation failed: {issues}", file=sys.stderr)
             return 1
 
-    status, body = await _control_post(
-        node.host, node.management_port, "/backend",
-        {"host": "127.0.0.1", "port": service_port},
-    )
+    try:
+        status, body = await _control_post(
+            node.host, node.management_port, "/backend",
+            {"host": "127.0.0.1", "port": service_port},
+        )
+    except OSError as e:
+        await pm.stop(node.name)
+        print(
+            f"Error: could not reach adapter at {node.host}:{node.management_port}: {e}",
+            file=sys.stderr,
+        )
+        return 1
     if status != 200:
         await pm.stop(node.name)
         print(
@@ -807,6 +832,10 @@ async def _cmd_slot_attach(args: argparse.Namespace, state) -> int:
 
     if node.name not in state.live_nodes:
         state.live_nodes = list(state.live_nodes) + [node.name]
+    adapter_state = state.adapters.get(node.name, AdapterState(node_name=node.name))
+    adapter_state.status = NodeStatus.ACTIVE
+    adapter_state.service = ServiceSlot(command=args.service_cmd, is_mock=False, pid=info.pid)
+    state.adapters[node.name] = adapter_state
     total_nodes = len(circuit.nodes)
     live_count = len(state.live_nodes)
     if live_count == 0:
@@ -823,6 +852,7 @@ async def _cmd_slot_attach(args: argparse.Namespace, state) -> int:
         loop.add_signal_handler(sig, stop_event.set)
     print("Press Ctrl+C to stop (circuit will keep running)")
 
+    restore_ok = True
     try:
         await stop_event.wait()
     except asyncio.CancelledError:
@@ -831,27 +861,39 @@ async def _cmd_slot_attach(args: argparse.Namespace, state) -> int:
         # Restore the mock backend for this node so the owning process keeps serving.
         mock_backends = compute_mock_backends(circuit, live_nodes=set())
         restore = mock_backends.get(node.name)
-        if restore is not None:
+        restore_ok = restore is not None
+        if restore is None:
+            print(
+                f"Warning: no mock backend available to restore for '{node.name}'",
+                file=sys.stderr,
+            )
+        else:
             try:
-                await _control_post(
+                status, body = await _control_post(
                     node.host, node.management_port, "/backend",
                     {"host": restore.host, "port": restore.port},
                 )
+                if status != 200:
+                    restore_ok = False
+                    print(
+                        f"Warning: failed to restore mock backend for '{node.name}': "
+                        f"control returned {status}: {body}",
+                        file=sys.stderr,
+                    )
             except Exception as e:
-                logger_msg = f"Warning: failed to restore mock backend: {e}"
-                print(logger_msg, file=sys.stderr)
-        state.live_nodes = [n for n in state.live_nodes if n != node.name]
-        live_count = len(state.live_nodes)
-        if live_count == 0:
-            state.collapse_level = CollapseLevel.FULL_MOCK
-        elif live_count >= total_nodes:
-            state.collapse_level = CollapseLevel.FULL_LIVE
-        else:
-            state.collapse_level = CollapseLevel.PARTIAL
-        save_state(state, args.dir)
+                restore_ok = False
+                print(
+                    f"Warning: failed to restore mock backend for '{node.name}': {e}",
+                    file=sys.stderr,
+                )
         await pm.stop(node.name)
-        print(f"Detached from '{node.name}'")
-    return 0
+        _mark_node_mocked(state, circuit, node, faulted=not restore_ok)
+        save_state(state, args.dir)
+        if restore_ok:
+            print(f"Detached from '{node.name}'")
+        else:
+            print(f"Detached from '{node.name}'; adapter marked faulted", file=sys.stderr)
+    return 0 if restore_ok else 1
 
 
 def _parse_remote(remote: str, node) -> tuple[str, int]:
@@ -890,10 +932,14 @@ async def _cmd_slot_remote(args: argparse.Namespace) -> int:
         print(f"Error: invalid port in --remote '{args.remote}'", file=sys.stderr)
         return 1
 
-    status, body = await _control_post(
-        remote_host, mgmt_port, "/backend",
-        {"host": target_host, "port": target_port},
-    )
+    try:
+        status, body = await _control_post(
+            remote_host, mgmt_port, "/backend",
+            {"host": target_host, "port": target_port},
+        )
+    except OSError as e:
+        print(f"Error: could not reach adapter at {remote_host}:{mgmt_port}: {e}", file=sys.stderr)
+        return 1
     if status != 200:
         print(f"Error: remote /backend returned {status}: {body}", file=sys.stderr)
         return 1
@@ -902,14 +948,14 @@ async def _cmd_slot_remote(args: argparse.Namespace) -> int:
 
 
 async def _cmd_unslot(args: argparse.Namespace) -> int:
-    """Restore a node to its mock backend (node.port + 20000)."""
+    """Restore a node to its bounded mock backend port."""
     circuit = load_circuit(args.dir)
     node = next((n for n in circuit.nodes if n.name == args.node), None)
     if node is None:
         print(f"Error: node '{args.node}' not found in circuit", file=sys.stderr)
         return 1
 
-    mock_port = node.port + 20000
+    mock_port = service_port_for(node.port)
 
     if getattr(args, "remote", None):
         try:
@@ -917,10 +963,14 @@ async def _cmd_unslot(args: argparse.Namespace) -> int:
         except ValueError:
             print(f"Error: invalid port in --remote '{args.remote}'", file=sys.stderr)
             return 1
-        status, body = await _control_post(
-            remote_host, mgmt_port, "/backend",
-            {"host": "127.0.0.1", "port": mock_port},
-        )
+        try:
+            status, body = await _control_post(
+                remote_host, mgmt_port, "/backend",
+                {"host": "127.0.0.1", "port": mock_port},
+            )
+        except OSError as e:
+            print(f"Error: could not reach adapter at {remote_host}:{mgmt_port}: {e}", file=sys.stderr)
+            return 1
         if status != 200:
             print(f"Error: remote /backend returned {status}: {body}", file=sys.stderr)
             return 1
@@ -931,13 +981,19 @@ async def _cmd_unslot(args: argparse.Namespace) -> int:
     if existing is None or not _owner_alive(existing):
         print("Error: no running circuit found; use --remote to target a remote instance", file=sys.stderr)
         return 1
-    status, body = await _control_post(
-        node.host, node.management_port, "/backend",
-        {"host": "127.0.0.1", "port": mock_port},
-    )
+    try:
+        status, body = await _control_post(
+            node.host, node.management_port, "/backend",
+            {"host": "127.0.0.1", "port": mock_port},
+        )
+    except OSError as e:
+        print(f"Error: could not reach adapter at {node.host}:{node.management_port}: {e}", file=sys.stderr)
+        return 1
     if status != 200:
         print(f"Error: /backend returned {status}: {body}", file=sys.stderr)
         return 1
+    _mark_node_mocked(existing, circuit, node)
+    save_state(existing, args.dir)
     print(f"Unslotted '{node.name}' -> mock on 127.0.0.1:{mock_port}")
     return 0
 
@@ -1200,10 +1256,14 @@ async def _cmd_route_set(args: argparse.Namespace) -> int:
         except ValueError:
             print(f"Error: invalid port in --remote '{remote}'", file=sys.stderr)
             return 1
-        status, body = await _control_post(
-            remote_host, mgmt_port, "/routing",
-            config.model_dump(),
-        )
+        try:
+            status, body = await _control_post(
+                remote_host, mgmt_port, "/routing",
+                config.model_dump(),
+            )
+        except OSError as e:
+            print(f"Error: could not reach adapter at {remote_host}:{mgmt_port}: {e}", file=sys.stderr)
+            return 1
         if status != 200:
             print(f"Error: remote /routing returned {status}: {body}", file=sys.stderr)
             return 1

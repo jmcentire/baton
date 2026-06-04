@@ -112,6 +112,35 @@ class LedgerConfig(BaseModel):
 # -- Circuit Definition (frozen) --
 
 
+def _derived_port(base_port: int, offsets: tuple[int, ...]) -> int:
+    """Choose the first bounded derived port for a node-owned listener."""
+    for offset in offsets:
+        candidate = base_port + offset
+        if 1024 <= candidate <= 65535:
+            return candidate
+    raise ValueError(f"No bounded derived port available for node port {base_port}")
+
+
+def management_port_for(base_port: int) -> int:
+    """Allocate a management port while retaining historical preferred offsets."""
+    return _derived_port(base_port, (10000, 1000, -1000, -10000))
+
+
+def service_port_for(base_port: int, instance: int = 0) -> int:
+    """Allocate a mock/service port, with optional distinct instance offset."""
+    if instance < 0:
+        raise ValueError("Service port instance must be non-negative")
+    return _derived_port(
+        base_port,
+        (
+            20000 + instance,
+            5000 + instance,
+            -5000 - instance,
+            -20000 - instance,
+        ),
+    )
+
+
 class NodeSpec(BaseModel):
     """A named slot in the circuit with a pre-assigned address."""
 
@@ -123,7 +152,7 @@ class NodeSpec(BaseModel):
     proxy_mode: ProxyMode = ProxyMode.HTTP
     contract: str = ""
     role: NodeRole = NodeRole.SERVICE
-    management_port: int = 0
+    management_port: int = Field(default=0, ge=0, le=65535)
     metadata: dict[str, str] = Field(default_factory=dict)
     data_access: DataAccessSpec | None = None
     authority: list[str] = Field(default_factory=list)
@@ -132,10 +161,7 @@ class NodeSpec(BaseModel):
     @model_validator(mode="after")
     def auto_management_port(self) -> NodeSpec:
         if self.management_port == 0:
-            mgmt = self.port + 10000
-            if mgmt > 65535:
-                mgmt = self.port + 1000
-            object.__setattr__(self, "management_port", mgmt)
+            object.__setattr__(self, "management_port", management_port_for(self.port))
         # Validate metadata values contain no control characters
         for key, val in self.metadata.items():
             if any(c in val for c in ("\r", "\n", "\x00")):

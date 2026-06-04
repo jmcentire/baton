@@ -10,7 +10,7 @@ import pytest
 import yaml
 
 from baton.collapse import build_mock_server, compute_mock_backends
-from baton.schemas import CircuitSpec, EdgeSpec, NodeSpec
+from baton.schemas import CircuitSpec, EdgeSpec, NodeSpec, service_port_for
 
 
 @pytest.fixture
@@ -157,3 +157,10 @@ class TestComputeMockBackends:
             sample_circuit, live_nodes={"api", "service", "db"}
         )
         assert len(backends) == 0
+
+    def test_high_node_port_produces_bounded_mock_backend(self):
+        circuit = CircuitSpec(name="high", nodes=[NodeSpec(name="api", port=65000)])
+        backend = compute_mock_backends(circuit, live_nodes=set())["api"]
+
+        assert backend.port == service_port_for(65000)
+        assert 1024 <= backend.port <= 65535
