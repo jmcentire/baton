@@ -27,6 +27,7 @@ from baton.schemas import (
     RoutingConfig,
     SecurityConfig,
     ServiceSlot,
+    service_port_for,
 )
 from baton.state import ensure_baton_dir, load_state, save_circuit_spec, save_state
 from baton.tracing import SpanExporter, create_span_exporter
@@ -254,10 +255,7 @@ class LifecycleManager:
                     f"Declaration gap for [{node_name}]: unauthorized tiers {gap.unauthorized_tiers}"
                 )
 
-        # Service listens on a dynamically assigned port
-        service_port = node.port + 20000
-        if service_port > 65535:
-            service_port = node.port + 5000
+        service_port = service_port_for(node.port)
 
         env = dict(env or {})
         env["BATON_SERVICE_PORT"] = str(service_port)
@@ -344,9 +342,7 @@ class LifecycleManager:
         old_pid = self._process_mgr.get_pid(node_name)
 
         node = adapter.node
-        service_port = node.port + 20000
-        if service_port > 65535:
-            service_port = node.port + 5000
+        service_port = service_port_for(node.port)
 
         env = dict(env or {})
         env["BATON_SERVICE_PORT"] = str(service_port)
@@ -442,7 +438,7 @@ class LifecycleManager:
     ) -> None:
         """Start two instances and configure weighted routing.
 
-        Instance A runs on node.port + 20000, Instance B on node.port + 20001.
+        Instance ports use the node's bounded service-port allocation.
         """
         adapter = self._adapters.get(node_name)
         if adapter is None:
@@ -452,10 +448,8 @@ class LifecycleManager:
             raise RuntimeError(f"Cannot slot_ab into '{node_name}': routing config is locked")
 
         node = adapter.node
-        port_a = node.port + 20000
-        if port_a > 65535:
-            port_a = node.port + 5000
-        port_b = port_a + 1
+        port_a = service_port_for(node.port)
+        port_b = service_port_for(node.port, instance=1)
 
         env_a = {
             "BATON_SERVICE_PORT": str(port_a),
@@ -522,9 +516,7 @@ class LifecycleManager:
             raise RuntimeError(f"Cannot route_ab on '{node_name}': routing config is locked")
 
         node = adapter.node
-        port_a = node.port + 20000
-        if port_a > 65535:
-            port_a = node.port + 5000
+        port_a = service_port_for(node.port)
 
         # Verify instance A is running
         if not self._process_mgr.is_running(node_name) and not adapter.backend.is_configured:
@@ -539,7 +531,7 @@ class LifecycleManager:
             if node_name in self._process_mgr._processes:
                 self._process_mgr._processes[key_a] = self._process_mgr._processes.pop(node_name)
 
-        port_b = port_a + 1
+        port_b = service_port_for(node.port, instance=1)
         env_b = {
             "BATON_SERVICE_PORT": str(port_b),
             "BATON_NODE_NAME": node_name,
@@ -637,7 +629,7 @@ class LifecycleManager:
     ) -> "CanaryController":
         """Start a canary deployment with automatic promotion/rollback.
 
-        Starts the canary instance on port+20001, configures canary routing
+        Starts the canary instance on a distinct bounded service port, configures canary routing
         at the initial percentage, and returns a running CanaryController.
         """
         from baton.canary import CanaryController
@@ -652,10 +644,8 @@ class LifecycleManager:
 
         node = adapter.node
 
-        # Stable runs on port+20000 (already running from a previous slot)
-        port_stable = node.port + 20000
-        if port_stable > 65535:
-            port_stable = node.port + 5000
+        # Stable already runs on this bounded service port from a previous slot.
+        port_stable = service_port_for(node.port)
 
         # Verify stable instance is running
         if not self._process_mgr.is_running(node_name) and not adapter.backend.is_configured:
@@ -670,7 +660,7 @@ class LifecycleManager:
                 self._process_mgr._processes[key_stable] = self._process_mgr._processes.pop(node_name)
 
         # Start canary instance
-        port_canary = port_stable + 1
+        port_canary = service_port_for(node.port, instance=1)
         env = {
             "BATON_SERVICE_PORT": str(port_canary),
             "BATON_NODE_NAME": node_name,

@@ -35,6 +35,8 @@ from baton.schemas import (
     SignalRecord,
     TLSConfig,
     TLSMode,
+    management_port_for,
+    service_port_for,
 )
 
 
@@ -58,9 +60,24 @@ class TestNodeSpec:
         # 60000 + 10000 > 65535, so falls back to + 1000
         assert n.management_port == 61000
 
+    def test_auto_management_port_at_max_is_bounded(self):
+        n = NodeSpec(name="api", port=65535)
+        assert n.management_port == 64535
+        assert 1024 <= n.management_port <= 65535
+
     def test_explicit_management_port(self):
         n = NodeSpec(name="api", port=8001, management_port=9999)
         assert n.management_port == 9999
+
+    def test_explicit_management_port_rejects_overflow(self):
+        with pytest.raises(ValidationError):
+            NodeSpec(name="api", port=8001, management_port=65536)
+
+    def test_derived_service_ports_are_bounded_and_distinct(self):
+        assert management_port_for(65000) == 64000
+        assert service_port_for(65000) == 60000
+        assert service_port_for(65000, instance=1) == 59999
+        assert len({65000, 64000, 60000, 59999}) == 4
 
     def test_name_must_start_with_letter(self):
         with pytest.raises(ValidationError):

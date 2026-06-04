@@ -11,7 +11,7 @@ from pathlib import Path
 
 from baton.adapter import BackendTarget
 from baton.mock import MockServer, load_routes
-from baton.schemas import CircuitSpec, NodeRole
+from baton.schemas import CircuitSpec, NodeRole, service_port_for
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +41,7 @@ def build_mock_server(
         if node.name in effective_live:
             continue
 
-        service_port = node.port + 20000
-        if service_port > 65535:
-            service_port = node.port + 5000
+        service_port = service_port_for(node.port)
 
         if node.contract:
             spec_path = str(Path(project_dir) / node.contract)
@@ -81,9 +79,7 @@ def compute_mock_backends(
         if node.name in effective_live:
             continue
 
-        service_port = node.port + 20000
-        if service_port > 65535:
-            service_port = node.port + 5000
+        service_port = service_port_for(node.port)
 
         backends[node.name] = BackendTarget(host="127.0.0.1", port=service_port)
 
