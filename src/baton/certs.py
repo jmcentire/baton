@@ -12,10 +12,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import ssl
-import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -107,10 +107,13 @@ class CertificateMonitor:
         cert_path: str | Path,
         warning_days: int = 30,
         critical_days: int = 7,
+        *,
+        parser: Callable[[str | Path], CertificateInfo] | None = None,
     ):
         self._cert_path = Path(cert_path)
         self._warning_days = warning_days
         self._critical_days = critical_days
+        self._parser = parser or parse_certificate
         self._last_mtime: float = 0.0
         self._last_fingerprint: str = ""
 
@@ -135,7 +138,7 @@ class CertificateMonitor:
             return None, events
 
         try:
-            info = parse_certificate(self._cert_path)
+            info = self._parser(self._cert_path)
         except Exception as e:
             events.append(CertificateEvent(
                 event_type="error",
@@ -188,10 +191,18 @@ class CertificateMonitor:
 class CertificateRotator:
     """Hot-reloads certificates into an existing SSLContext."""
 
-    def __init__(self, ssl_context: ssl.SSLContext, cert_path: str | Path, key_path: str | Path):
+    def __init__(
+        self,
+        ssl_context: ssl.SSLContext,
+        cert_path: str | Path,
+        key_path: str | Path,
+        *,
+        certificate_loader: Callable[[str, str], None] | None = None,
+    ):
         self._ssl_context = ssl_context
         self._cert_path = Path(cert_path)
         self._key_path = Path(key_path)
+        self._certificate_loader = certificate_loader or ssl_context.load_cert_chain
 
     def rotate(self) -> bool:
         """Reload the certificate into the SSLContext.
@@ -200,7 +211,7 @@ class CertificateRotator:
         New connections will use the new cert. Existing connections are unaffected.
         """
         try:
-            self._ssl_context.load_cert_chain(
+            self._certificate_loader(
                 str(self._cert_path), str(self._key_path)
             )
             logger.info(f"Certificate rotated: {self._cert_path}")
@@ -225,9 +236,16 @@ class CertificateManager:
         check_interval: float = 3600.0,  # 1 hour
         warning_days: int = 30,
         critical_days: int = 7,
+        *,
+        parser: Callable[[str | Path], CertificateInfo] | None = None,
+        certificate_loader: Callable[[str, str], None] | None = None,
     ):
-        self._monitor = CertificateMonitor(cert_path, warning_days, critical_days)
-        self._rotator = CertificateRotator(ssl_context, cert_path, key_path)
+        self._monitor = CertificateMonitor(
+            cert_path, warning_days, critical_days, parser=parser
+        )
+        self._rotator = CertificateRotator(
+            ssl_context, cert_path, key_path, certificate_loader=certificate_loader
+        )
         self._check_interval = check_interval
         self._running = False
         self._events: list[CertificateEvent] = []
