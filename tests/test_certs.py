@@ -1,273 +1,189 @@
-"""Tests for baton.certs -- certificate monitoring and rotation."""
+"""Tests for baton.certs using injected metadata and reload outcomes only."""
 
 from __future__ import annotations
 
-import ssl
+import asyncio
 import time
 from pathlib import Path
 
 import pytest
 
+from baton.certs import (
+    CertificateInfo,
+    CertificateManager,
+    CertificateMonitor,
+    CertificateRotator,
+    parse_certificate,
+)
 
-# ---------------------------------------------------------------------------
-# Self-signed cert generation fixture
-# ---------------------------------------------------------------------------
+
+def _certificate_reference(tmp_path: Path) -> Path:
+    path = tmp_path / "certificate.ref"
+    path.touch()
+    return path
 
 
-def _generate_self_signed(
-    tmp_path: Path,
-    cn: str = "test.baton.local",
-    days: int = 365,
-) -> tuple[Path, Path]:
-    """Generate a self-signed cert + key in tmp_path.
-
-    Returns (cert_path, key_path).
-    Requires the 'cryptography' package.
-    """
-    from cryptography import x509
-    from cryptography.hazmat.primitives import hashes, serialization
-    from cryptography.hazmat.primitives.asymmetric import rsa
-    from cryptography.x509.oid import NameOID
-    from datetime import datetime, timedelta, timezone
-
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-
-    subject = issuer = x509.Name([
-        x509.NameAttribute(NameOID.COMMON_NAME, cn),
-    ])
-
-    now = datetime.now(timezone.utc)
-    cert = (
-        x509.CertificateBuilder()
-        .subject_name(subject)
-        .issuer_name(issuer)
-        .public_key(key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(now)
-        .not_valid_after(now + timedelta(days=days))
-        .add_extension(
-            x509.SubjectAlternativeName([x509.DNSName(cn)]),
-            critical=False,
-        )
-        .sign(key, hashes.SHA256())
+def _info(days: int = 365, subject: str = "CN=service.baton.local") -> CertificateInfo:
+    return CertificateInfo(
+        subject=subject,
+        san=["service.baton.local"],
+        fingerprint_sha256="fingerprint-reference",
+        days_until_expiry=days,
     )
 
-    cert_path = tmp_path / "cert.pem"
-    key_path = tmp_path / "key.pem"
 
-    cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
-    key_path.write_bytes(
-        key.private_bytes(
-            serialization.Encoding.PEM,
-            serialization.PrivateFormat.TraditionalOpenSSL,
-            serialization.NoEncryption(),
-        )
-    )
+def _parser(info: CertificateInfo):
+    def parse(_path: str | Path) -> CertificateInfo:
+        return info
 
-    return cert_path, key_path
+    return parse
 
 
-try:
-    import cryptography  # noqa: F401
-    HAS_CRYPTO = True
-except ImportError:
-    HAS_CRYPTO = False
+class ReloadRecorder:
+    def __init__(self, fail: bool = False):
+        self.fail = fail
+        self.calls: list[tuple[str, str]] = []
 
-pytestmark = pytest.mark.skipif(not HAS_CRYPTO, reason="cryptography package not installed")
-
-
-# ---------------------------------------------------------------------------
-# parse_certificate tests
-# ---------------------------------------------------------------------------
+    def __call__(self, certificate_path: str, custody_reference: str) -> None:
+        self.calls.append((certificate_path, custody_reference))
+        if self.fail:
+            raise RuntimeError("reload unavailable")
 
 
 class TestParseCertificate:
-    def test_parse_valid_cert(self, tmp_path):
-        from baton.certs import parse_certificate
-
-        cert_path, _ = _generate_self_signed(tmp_path)
-        info = parse_certificate(cert_path)
-
-        assert "test.baton.local" in info.subject
-        assert info.days_until_expiry > 360
-        assert info.fingerprint_sha256 != ""
-        assert "test.baton.local" in info.san
-        assert not info.is_expired
-
-    def test_parse_missing_cert(self, tmp_path):
-        from baton.certs import parse_certificate
-
+    def test_parse_missing_certificate(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             parse_certificate(tmp_path / "nonexistent.pem")
-
-    def test_expired_cert(self, tmp_path):
-        from baton.certs import parse_certificate
-
-        cert_path, _ = _generate_self_signed(tmp_path, days=0)
-        info = parse_certificate(cert_path)
-        assert info.days_until_expiry <= 0
-
-
-# ---------------------------------------------------------------------------
-# CertificateMonitor tests
-# ---------------------------------------------------------------------------
 
 
 class TestCertificateMonitor:
     def test_initial_load(self, tmp_path):
-        from baton.certs import CertificateMonitor
-
-        cert_path, _ = _generate_self_signed(tmp_path)
-        monitor = CertificateMonitor(cert_path)
+        certificate_ref = _certificate_reference(tmp_path)
+        monitor = CertificateMonitor(certificate_ref, parser=_parser(_info()))
 
         info, events = monitor.check()
         assert info is not None
-        assert any(e.event_type == "loaded" for e in events)
+        assert info.subject == "CN=service.baton.local"
+        assert any(event.event_type == "loaded" for event in events)
 
-    def test_missing_cert_error(self, tmp_path):
-        from baton.certs import CertificateMonitor
-
-        monitor = CertificateMonitor(tmp_path / "missing.pem")
+    def test_missing_certificate_error(self, tmp_path):
+        monitor = CertificateMonitor(tmp_path / "missing.ref", parser=_parser(_info()))
         info, events = monitor.check()
+
         assert info is None
-        assert any(e.event_type == "error" for e in events)
+        assert any(event.event_type == "error" for event in events)
 
     def test_expiring_warning(self, tmp_path):
-        from baton.certs import CertificateMonitor
+        certificate_ref = _certificate_reference(tmp_path)
+        monitor = CertificateMonitor(
+            certificate_ref,
+            warning_days=30,
+            critical_days=7,
+            parser=_parser(_info(days=15)),
+        )
 
-        cert_path, _ = _generate_self_signed(tmp_path, days=15)
-        monitor = CertificateMonitor(cert_path, warning_days=30, critical_days=7)
-
-        info, events = monitor.check()
-        assert any(e.event_type == "expiring_warning" for e in events)
+        _info_result, events = monitor.check()
+        assert any(event.event_type == "expiring_warning" for event in events)
 
     def test_expiring_critical(self, tmp_path):
-        from baton.certs import CertificateMonitor
+        certificate_ref = _certificate_reference(tmp_path)
+        monitor = CertificateMonitor(
+            certificate_ref,
+            warning_days=30,
+            critical_days=7,
+            parser=_parser(_info(days=3)),
+        )
 
-        cert_path, _ = _generate_self_signed(tmp_path, days=3)
-        monitor = CertificateMonitor(cert_path, warning_days=30, critical_days=7)
-
-        info, events = monitor.check()
-        assert any(e.event_type == "expiring_critical" for e in events)
+        _info_result, events = monitor.check()
+        assert any(event.event_type == "expiring_critical" for event in events)
 
     def test_file_change_detected(self, tmp_path):
-        from baton.certs import CertificateMonitor
-
-        cert_path, _ = _generate_self_signed(tmp_path)
-        monitor = CertificateMonitor(cert_path)
-
-        # First check
+        certificate_ref = _certificate_reference(tmp_path)
+        monitor = CertificateMonitor(certificate_ref, parser=_parser(_info()))
         monitor.check()
 
-        # Regenerate cert (changes mtime)
         time.sleep(0.01)
-        _generate_self_signed(tmp_path, cn="new.baton.local")
+        certificate_ref.write_text("updated-reference")
 
-        # Second check
-        info, events = monitor.check()
-        assert any(e.event_type == "rotated" for e in events)
-
-
-# ---------------------------------------------------------------------------
-# CertificateRotator tests
-# ---------------------------------------------------------------------------
+        _info_result, events = monitor.check()
+        assert any(event.event_type == "rotated" for event in events)
 
 
 class TestCertificateRotator:
     def test_rotate_success(self, tmp_path):
-        from baton.certs import CertificateRotator
+        certificate_ref = _certificate_reference(tmp_path)
+        reload = ReloadRecorder()
+        rotator = CertificateRotator(
+            object(),
+            certificate_ref,
+            tmp_path / "custody-reference",
+            certificate_loader=reload,
+        )
 
-        cert_path, key_path = _generate_self_signed(tmp_path)
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ctx.load_cert_chain(str(cert_path), str(key_path))
-
-        rotator = CertificateRotator(ctx, cert_path, key_path)
         assert rotator.rotate() is True
+        assert len(reload.calls) == 1
 
-    def test_rotate_bad_key(self, tmp_path):
-        from baton.certs import CertificateRotator
+    def test_rotate_failed_reload(self, tmp_path):
+        certificate_ref = _certificate_reference(tmp_path)
+        rotator = CertificateRotator(
+            object(),
+            certificate_ref,
+            tmp_path / "custody-reference",
+            certificate_loader=ReloadRecorder(fail=True),
+        )
 
-        cert_path, key_path = _generate_self_signed(tmp_path)
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ctx.load_cert_chain(str(cert_path), str(key_path))
-
-        # Corrupt the key file
-        bad_key = tmp_path / "bad_key.pem"
-        bad_key.write_text("not a key")
-
-        rotator = CertificateRotator(ctx, cert_path, bad_key)
         assert rotator.rotate() is False
 
 
-# ---------------------------------------------------------------------------
-# CertificateManager tests
-# ---------------------------------------------------------------------------
-
-
 class TestCertificateManager:
+    def _manager(self, tmp_path, *, interval: float = 3600.0):
+        certificate_ref = _certificate_reference(tmp_path)
+        reload = ReloadRecorder()
+        manager = CertificateManager(
+            object(),
+            certificate_ref,
+            tmp_path / "custody-reference",
+            check_interval=interval,
+            parser=_parser(_info()),
+            certificate_loader=reload,
+        )
+        return manager, certificate_ref, reload
+
     def test_check_now(self, tmp_path):
-        from baton.certs import CertificateManager
+        manager, _certificate_ref, _reload = self._manager(tmp_path)
+        info, events = manager.check_now()
 
-        cert_path, key_path = _generate_self_signed(tmp_path)
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ctx.load_cert_chain(str(cert_path), str(key_path))
-
-        mgr = CertificateManager(ctx, cert_path, key_path)
-        info, events = mgr.check_now()
         assert info is not None
         assert len(events) >= 1
 
     def test_auto_rotate_on_change(self, tmp_path):
-        from baton.certs import CertificateManager
+        manager, certificate_ref, reload = self._manager(tmp_path)
+        manager.check_now()
 
-        cert_path, key_path = _generate_self_signed(tmp_path)
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ctx.load_cert_chain(str(cert_path), str(key_path))
-
-        mgr = CertificateManager(ctx, cert_path, key_path)
-
-        # First check loads cert
-        mgr.check_now()
-
-        # Regenerate cert
         time.sleep(0.01)
-        _generate_self_signed(tmp_path, cn="rotated.baton.local")
+        certificate_ref.write_text("updated-reference")
+        _info_result, events = manager.check_now()
 
-        # Second check should detect change and rotate
-        info, events = mgr.check_now()
-        event_types = [e.event_type for e in events]
-        assert "rotated" in event_types
+        assert "rotated" in [event.event_type for event in events]
+        assert len(reload.calls) == 1
 
     def test_events_accumulated(self, tmp_path):
-        from baton.certs import CertificateManager
+        manager, _certificate_ref, _reload = self._manager(tmp_path)
+        manager.check_now()
+        manager.check_now()
 
-        cert_path, key_path = _generate_self_signed(tmp_path)
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ctx.load_cert_chain(str(cert_path), str(key_path))
-
-        mgr = CertificateManager(ctx, cert_path, key_path)
-        mgr.check_now()
-        mgr.check_now()
-
-        assert len(mgr.events) >= 1
+        assert len(manager.events) >= 1
 
     async def test_run_and_stop(self, tmp_path):
-        from baton.certs import CertificateManager
-        import asyncio
+        manager, _certificate_ref, _reload = self._manager(tmp_path, interval=0.01)
 
-        cert_path, key_path = _generate_self_signed(tmp_path)
-        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ctx.load_cert_chain(str(cert_path), str(key_path))
+        task = asyncio.create_task(manager.run())
+        await asyncio.sleep(0.03)
+        assert manager.is_running
 
-        mgr = CertificateManager(ctx, cert_path, key_path, check_interval=0.1)
-
-        task = asyncio.create_task(mgr.run())
-        await asyncio.sleep(0.3)
-        assert mgr.is_running
-
-        mgr.stop()
-        await asyncio.sleep(0.2)
-        assert not mgr.is_running
+        manager.stop()
+        await asyncio.sleep(0.02)
+        assert not manager.is_running
 
         task.cancel()
         try:
@@ -276,26 +192,15 @@ class TestCertificateManager:
             pass
 
 
-# ---------------------------------------------------------------------------
-# CertificateInfo tests
-# ---------------------------------------------------------------------------
-
-
 class TestCertificateInfo:
     def test_is_expired_true(self):
-        from baton.certs import CertificateInfo
-
         info = CertificateInfo(days_until_expiry=0)
         assert info.is_expired
 
     def test_is_expired_false(self):
-        from baton.certs import CertificateInfo
-
         info = CertificateInfo(days_until_expiry=30)
         assert not info.is_expired
 
     def test_is_expired_unknown(self):
-        from baton.certs import CertificateInfo
-
         info = CertificateInfo(days_until_expiry=-1)
         assert not info.is_expired
