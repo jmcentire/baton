@@ -455,7 +455,7 @@ class LifecycleManager:
         port_a = node.port + 20000
         if port_a > 65535:
             port_a = node.port + 5000
-        port_b = port_a + 1
+        port_b = port_a + 1 if port_a < 65535 else port_a - 1
 
         env_a = {
             "BATON_SERVICE_PORT": str(port_a),
@@ -539,7 +539,7 @@ class LifecycleManager:
             if node_name in self._process_mgr._processes:
                 self._process_mgr._processes[key_a] = self._process_mgr._processes.pop(node_name)
 
-        port_b = port_a + 1
+        port_b = port_a + 1 if port_a < 65535 else port_a - 1
         env_b = {
             "BATON_SERVICE_PORT": str(port_b),
             "BATON_NODE_NAME": node_name,
@@ -670,7 +670,7 @@ class LifecycleManager:
                 self._process_mgr._processes[key_stable] = self._process_mgr._processes.pop(node_name)
 
         # Start canary instance
-        port_canary = port_stable + 1
+        port_canary = port_stable + 1 if port_stable < 65535 else port_stable - 1
         env = {
             "BATON_SERVICE_PORT": str(port_canary),
             "BATON_NODE_NAME": node_name,

@@ -956,7 +956,7 @@ class TestStatusRemoteIntegration:
 
         args = MagicMock()
         args.dir = str(project_dir)
-        args.remote = f"127.0.0.1:29580"
+        args.remote = "127.0.0.1"
 
         try:
             rc = await cli_mod._cmd_status_remote(args)
@@ -1004,8 +1004,8 @@ class TestStatusRemote:
         assert "api" in out
         assert "running" in out
 
-    async def test_ignores_explicit_port_and_uses_node_management_port(self, project_dir: Path, monkeypatch):
-        """Port in --remote HOST:PORT is ignored; each node uses its own management_port."""
+    async def test_uses_node_management_port(self, project_dir: Path, monkeypatch):
+        """Each node is queried on its own management_port, not a user-supplied port."""
         from unittest.mock import AsyncMock
         from baton import cli as cli_mod
 
@@ -1013,10 +1013,10 @@ class TestStatusRemote:
         mock_get = AsyncMock(return_value=(200, '{"running": true, "backend": null, "node": "api", "mode": "http"}'))
         monkeypatch.setattr(cli_mod, "_control_get", mock_get)
 
-        await cli_mod._cmd_status_remote(self._make_args(project_dir, "baton.cluster.local:29999"))
+        await cli_mod._cmd_status_remote(self._make_args(project_dir, "baton.cluster.local"))
 
         _, port, _ = mock_get.call_args.args
-        assert port == 8001 + 10000  # management_port, not the explicit 29999
+        assert port == 8001 + 10000
 
     async def test_returns_1_when_node_unreachable(self, project_dir: Path, monkeypatch):
         from unittest.mock import AsyncMock
@@ -1039,20 +1039,6 @@ class TestStatusRemote:
         rc = await cli_mod._cmd_status_remote(self._make_args(project_dir, "baton.cluster.local"))
 
         assert rc == 1
-
-    async def test_strips_port_and_uses_correct_host(self, project_dir: Path, monkeypatch):
-        """Host is extracted from HOST:anything — port suffix is always stripped."""
-        from unittest.mock import AsyncMock
-        from baton import cli as cli_mod
-
-        self._setup_node(project_dir, port=8001)
-        mock_get = AsyncMock(return_value=(200, '{"running": true, "backend": null, "node": "api", "mode": "http"}'))
-        monkeypatch.setattr(cli_mod, "_control_get", mock_get)
-
-        await cli_mod._cmd_status_remote(self._make_args(project_dir, "baton.cluster.local:29569"))
-
-        host, _, _ = mock_get.call_args.args
-        assert host == "baton.cluster.local"
 
     async def test_shows_unreachable_for_timeout(self, project_dir: Path, monkeypatch, capsys):
         import asyncio
@@ -1462,6 +1448,54 @@ class TestCmdSlotAttach:
         assert rc == 1
         assert saved == []
 
+    async def test_state_not_updated_when_restore_returns_non_200(self, project_dir: Path, monkeypatch):
+        """If the finally-block restore POST returns non-200, live_nodes must not be cleared."""
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock
+        from baton import cli as cli_mod
+        from baton import collapse as collapse_mod
+        from baton import process as process_mod
+        from baton.adapter import BackendTarget
+        from baton.schemas import CircuitState
+
+        self._setup_one_node(project_dir)
+
+        saved = []
+        monkeypatch.setattr(cli_mod, "save_state", lambda s, d: saved.append(s.model_copy(deep=True)))
+
+        # Initial slot POST succeeds; restore POST in finally returns 503.
+        call_count = 0
+        async def mock_control_post(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return (200, "ok") if call_count == 1 else (503, "unavailable")
+        monkeypatch.setattr(cli_mod, "_control_post", mock_control_post)
+        monkeypatch.setattr(asyncio, "sleep", AsyncMock())
+
+        fake_info = MagicMock()
+        fake_info.pid = 42
+        pm = MagicMock()
+        pm.start = AsyncMock(return_value=fake_info)
+        pm.stop = AsyncMock()
+        monkeypatch.setattr(process_mod, "ProcessManager", lambda: pm)
+
+        # Return a restore target so the finally block actually calls _control_post.
+        monkeypatch.setattr(
+            collapse_mod, "compute_mock_backends",
+            lambda c, live_nodes: {"api": BackendTarget(host="127.0.0.1", port=28001)},
+        )
+
+        pre_set = asyncio.Event()
+        pre_set.set()
+        monkeypatch.setattr(asyncio, "Event", lambda: pre_set)
+
+        state = CircuitState(circuit_name="t", owner_pid=12345)
+        await cli_mod._cmd_slot_attach(self._make_args(project_dir), state)
+
+        # Only the initial attach save should have happened; detach save must be suppressed.
+        assert len(saved) == 1
+        assert "api" in saved[0].live_nodes
+
 
 class TestCmdSlotRemote:
     """Tests for _cmd_slot_remote — the --remote flag path of baton slot."""
@@ -1513,7 +1547,7 @@ class TestCmdSlotRemote:
         _, mgmt_port, _, _ = mock_post.call_args.args
         assert mgmt_port == 8001 + 10000  # 18001
 
-    async def test_accepts_explicit_mgmt_port_in_remote(self, project_dir: Path, monkeypatch):
+    async def test_uses_node_management_port_for_remote(self, project_dir: Path, monkeypatch):
         from unittest.mock import AsyncMock
         from baton import cli as cli_mod
 
@@ -1522,12 +1556,12 @@ class TestCmdSlotRemote:
         monkeypatch.setattr(cli_mod, "_control_post", mock_post)
 
         await cli_mod._cmd_slot_remote(
-            self._make_args(project_dir, "svc.cluster.local:9090", "baton.cluster.local:19999")
+            self._make_args(project_dir, "svc.cluster.local:9090", "baton.cluster.local")
         )
 
         remote_host, mgmt_port, _, _ = mock_post.call_args.args
         assert remote_host == "baton.cluster.local"
-        assert mgmt_port == 19999
+        assert mgmt_port == 8001 + 10000
 
     async def test_rejects_service_cmd_without_colon(self, project_dir: Path, monkeypatch):
         from unittest.mock import AsyncMock
@@ -1585,18 +1619,12 @@ class TestCmdSlotRemote:
 
         assert rc == 1
 
-    async def test_rejects_invalid_port_in_remote(self, project_dir: Path, monkeypatch):
-        from unittest.mock import AsyncMock
+    def test_rejects_host_with_port(self):
+        import argparse
         from baton import cli as cli_mod
 
-        self._setup_node(project_dir)
-        monkeypatch.setattr(cli_mod, "_control_post", AsyncMock())
-
-        rc = await cli_mod._cmd_slot_remote(
-            self._make_args(project_dir, "svc.cluster.local:9090", "baton.cluster.local:notaport")
-        )
-
-        assert rc == 1
+        with pytest.raises(argparse.ArgumentTypeError, match="hostname only"):
+            cli_mod._validate_remote_host("baton.cluster.local:19999")
 
 
 class TestCmdUnslot:
@@ -1642,7 +1670,7 @@ class TestCmdUnslot:
         _, mgmt_port, _, _ = mock_post.call_args.args
         assert mgmt_port == 8001 + 10000
 
-    async def test_uses_explicit_mgmt_port_in_remote(self, project_dir: Path, monkeypatch):
+    async def test_uses_node_management_port_for_remote(self, project_dir: Path, monkeypatch):
         from unittest.mock import AsyncMock
         from baton import cli as cli_mod
 
@@ -1650,11 +1678,11 @@ class TestCmdUnslot:
         mock_post = AsyncMock(return_value=(200, '{"ok": true}'))
         monkeypatch.setattr(cli_mod, "_control_post", mock_post)
 
-        await cli_mod._cmd_unslot(self._make_args(project_dir, remote="baton.cluster.local:29999"))
+        await cli_mod._cmd_unslot(self._make_args(project_dir, remote="baton.cluster.local"))
 
         remote_host, mgmt_port, _, _ = mock_post.call_args.args
         assert remote_host == "baton.cluster.local"
-        assert mgmt_port == 29999
+        assert mgmt_port == 8001 + 10000
 
     async def test_rejects_unknown_node(self, project_dir: Path, monkeypatch):
         from unittest.mock import AsyncMock, MagicMock
@@ -1681,15 +1709,12 @@ class TestCmdUnslot:
         rc = await cli_mod._cmd_unslot(self._make_args(project_dir, remote="baton.cluster.local"))
         assert rc == 1
 
-    async def test_rejects_invalid_port_in_remote(self, project_dir: Path, monkeypatch):
-        from unittest.mock import AsyncMock
+    def test_rejects_host_with_port(self):
+        import argparse
         from baton import cli as cli_mod
 
-        self._setup_node(project_dir)
-        monkeypatch.setattr(cli_mod, "_control_post", AsyncMock())
-
-        rc = await cli_mod._cmd_unslot(self._make_args(project_dir, remote="baton.cluster.local:notaport"))
-        assert rc == 1
+        with pytest.raises(argparse.ArgumentTypeError, match="hostname only"):
+            cli_mod._validate_remote_host("baton.cluster.local:29999")
 
     async def test_local_path_posts_to_localhost_mgmt_port(self, project_dir: Path, monkeypatch):
         """Local path (no --remote) uses node.host:management_port via _control_post."""
@@ -1862,7 +1887,7 @@ class TestCmdRouteSetRemote:
         _, mgmt_port, _, _ = mock_post.call_args.args
         assert mgmt_port == 8001 + 10000
 
-    async def test_uses_explicit_mgmt_port_in_remote(self, project_dir: Path, monkeypatch):
+    async def test_uses_node_management_port_for_remote(self, project_dir: Path, monkeypatch):
         from unittest.mock import AsyncMock
         from baton import cli as cli_mod
 
@@ -1871,12 +1896,12 @@ class TestCmdRouteSetRemote:
         monkeypatch.setattr(cli_mod, "_control_post", mock_post)
 
         await cli_mod._cmd_route_set(
-            self._make_args(project_dir, targets="a:127.0.0.1:9090:100", remote="baton.cluster.local:19999")
+            self._make_args(project_dir, targets="a:127.0.0.1:9090:100", remote="baton.cluster.local")
         )
 
         remote_host, mgmt_port, _, _ = mock_post.call_args.args
         assert remote_host == "baton.cluster.local"
-        assert mgmt_port == 19999
+        assert mgmt_port == 8001 + 10000
 
     async def test_returns_1_on_non_200_response(self, project_dir: Path, monkeypatch):
         from unittest.mock import AsyncMock
