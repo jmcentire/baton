@@ -126,6 +126,7 @@ class DelegatedAuthorizationContext:
     audience: str
     workload_id: str
     purpose: str
+    available_connector_ids: frozenset[str]
     issuer_policy_ref: str
     rotation_policy_ref: str
 
@@ -139,6 +140,8 @@ class DelegatedAuthorizationContext:
         ):
             if not getattr(self, name):
                 raise ValueError(f"{name} is required")
+        if not self.available_connector_ids or not all(self.available_connector_ids):
+            raise ValueError("available_connector_ids are required")
 
 
 class DelegatedAuthorizationVerifier(Protocol):
@@ -156,7 +159,12 @@ class DelegatedAuthorizationVerifier(Protocol):
 @dataclass(frozen=True)
 class _ContextBoundDelegatedAuthorizationVerifier:
     verifier: DelegatedAuthorizationVerifier
-    context: DelegatedAuthorizationContext
+    audience: str
+    workload_id: str
+    purpose: str
+    available_connector_ids_by_channel: Mapping[Channel, frozenset[str]]
+    issuer_policy_ref: str
+    rotation_policy_ref: str
     clock: Callable[[], datetime]
 
     async def verify(
@@ -164,17 +172,34 @@ class _ContextBoundDelegatedAuthorizationVerifier:
         capability: CapabilityReference,
         request: DispatchRequest,
     ) -> VerifiedDelegatedAuthorization:
-        outcome = await self.verifier.verify(capability, request, self.context)
+        available_connector_ids = self.available_connector_ids_by_channel.get(request.channel)
+        if not available_connector_ids:
+            raise AuthorizationDenied("no available connector policy exists for dispatch channel")
+        context = DelegatedAuthorizationContext(
+            audience=self.audience,
+            workload_id=self.workload_id,
+            purpose=self.purpose,
+            available_connector_ids=available_connector_ids,
+            issuer_policy_ref=self.issuer_policy_ref,
+            rotation_policy_ref=self.rotation_policy_ref,
+        )
+        outcome = await self.verifier.verify(capability, request, context)
         if not isinstance(outcome, VerifiedDelegatedAuthorization):
             raise AuthorizationDenied(
                 "delegated verifier did not return the required shared authorization outcome"
             )
-        if outcome.audience != self.context.audience:
+        if outcome.audience != context.audience:
             raise AuthorizationDenied("authorization audience is outside runtime scope")
-        if outcome.principal != self.context.workload_id:
+        if outcome.issuer_policy_ref != context.issuer_policy_ref:
+            raise AuthorizationDenied("authorization issuer policy is outside runtime scope")
+        if outcome.rotation_policy_ref != context.rotation_policy_ref:
+            raise AuthorizationDenied("authorization rotation policy is outside runtime scope")
+        if outcome.principal != context.workload_id:
             raise AuthorizationDenied("authorization principal is outside runtime scope")
-        if self.context.purpose not in outcome.allowed_purposes:
+        if outcome.allowed_purposes != frozenset({context.purpose}):
             raise AuthorizationDenied("authorization purpose is outside runtime scope")
+        if not outcome.allowed_connectors.issubset(context.available_connector_ids):
+            raise AuthorizationDenied("authorization connector scope exceeds runtime policy")
         current_time = self.clock()
         if current_time < outcome.not_before or current_time >= outcome.not_after:
             raise AuthorizationDenied("authorization is outside its validity window")
@@ -200,19 +225,19 @@ class ConfiguredVerifierBundle:
         *,
         workload_id: str,
         purpose: str,
+        available_connector_ids_by_channel: Mapping[Channel, frozenset[str]],
         clock: Callable[[], datetime] | None = None,
     ) -> ScopedAuthorizationVerifier:
         """Bind trust policy and runtime scope before any dispatch admission."""
 
         return _ContextBoundDelegatedAuthorizationVerifier(
             self.verifier,
-            DelegatedAuthorizationContext(
-                audience=self.audience,
-                workload_id=workload_id,
-                purpose=purpose,
-                issuer_policy_ref=self.issuer_policy_ref,
-                rotation_policy_ref=self.rotation_policy_ref,
-            ),
+            self.audience,
+            workload_id,
+            purpose,
+            dict(available_connector_ids_by_channel),
+            self.issuer_policy_ref,
+            self.rotation_policy_ref,
             clock or _utc_now,
         )
 
@@ -1035,7 +1060,19 @@ class DelegatedConnectorRuntime:
         )
         executor = DelegatedConnectorExecutor(
             routes,
-            verifiers.bind(workload_id=workload_id, purpose=purpose, clock=clock),
+            verifiers.bind(
+                workload_id=workload_id,
+                purpose=purpose,
+                available_connector_ids_by_channel={
+                    channel: frozenset(
+                        route.connector_id
+                        for route in enabled_routes
+                        if route.channel is channel
+                    )
+                    for channel in {route.channel for route in enabled_routes}
+                },
+                clock=clock,
+            ),
             invoker_factory,
             components.journal,
             components.signal_sink,

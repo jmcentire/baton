@@ -215,6 +215,8 @@ def _delegated_grant(
         authorization_id="authorization-1",
         issuer="signet://issuer/mea",
         audience="baton://delegated-provider-executor",
+        issuer_policy_ref="signet://issuer-policy/mea-comms",
+        rotation_policy_ref="signet://rotation-policy/mea-comms",
         allowed_purposes=frozenset({"case_notification"}),
         not_before=NOW - timedelta(minutes=1),
         max_uses=1,

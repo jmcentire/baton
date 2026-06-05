@@ -195,6 +195,8 @@ class DispatchVerifier:
             authorization_id=f"authorization-{request.idempotency_key}",
             issuer="signet://issuer/mea",
             audience=context.audience,
+            issuer_policy_ref=context.issuer_policy_ref,
+            rotation_policy_ref=context.rotation_policy_ref,
             allowed_purposes=frozenset({"case_notification"}),
             not_before=NOW - timedelta(minutes=1),
             max_uses=1,
@@ -352,6 +354,7 @@ async def test_runtime_verifies_once_and_binds_exact_policy_context(tmp_path):
             audience="baton://delegated-provider-executor",
             workload_id="mea-comms",
             purpose="case_notification",
+            available_connector_ids=frozenset({"sms-primary"}),
             issuer_policy_ref="signet://issuer-policy/mea-comms",
             rotation_policy_ref="signet://rotation-policy/mea-comms",
         )
@@ -363,8 +366,12 @@ async def test_runtime_verifies_once_and_binds_exact_policy_context(tmp_path):
     "replacements",
     [
         {"audience": "baton://other-executor"},
+        {"issuer_policy_ref": "signet://issuer-policy/other"},
+        {"rotation_policy_ref": "signet://rotation-policy/other"},
         {"principal": "other-workload"},
+        {"allowed_connectors": frozenset({"sms-primary", "sms-unapproved"})},
         {"allowed_purposes": frozenset({"other_purpose"})},
+        {"allowed_purposes": frozenset({"case_notification", "other_purpose"})},
         {"not_before": NOW + timedelta(minutes=1)},
     ],
 )
