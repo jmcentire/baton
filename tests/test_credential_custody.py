@@ -15,6 +15,7 @@ from baton.credential_custody import (
     ProviderChannel,
     ProviderCredentialHandle,
     SanitizedCustodyOutcome,
+    VerifiedDelegatedAuthorization,
     VerifiedWorkloadAuthorization,
     WorkloadAuthorizationReference,
     authorize_provider_dispatch,
@@ -29,11 +30,19 @@ from baton.delegated_connector import (
     DispatchClaim,
     DispatchRequest,
     VerifiedDispatchGrant,
+    dispatch_request_fingerprint,
 )
 
 
-FINGERPRINT = "a" * 64
 NOW = datetime(2026, 6, 4, tzinfo=timezone.utc)
+FINGERPRINT = dispatch_request_fingerprint(
+    dispatch_id="dispatch-1",
+    workflow_id="operation-1",
+    channel=Channel.SMS,
+    recipient_ref="recipient-ref-1",
+    payload_ref="payload-ref-1",
+    idempotency_key="dispatch-once-1",
+)
 
 
 def _handle(
@@ -61,9 +70,19 @@ def _request(**overrides) -> CredentialUseRequest:
         "payload_ref": "payload-ref-1",
         "idempotency_key": "dispatch-once-1",
         "dispatch_claim_id": "claim-1",
-        "request_fingerprint": FINGERPRINT,
     }
     fields.update(overrides)
+    fields.setdefault(
+        "request_fingerprint",
+        dispatch_request_fingerprint(
+            dispatch_id=fields["dispatch_id"],
+            workflow_id=fields["operation_id"],
+            channel=Channel(fields["channel"].value),
+            recipient_ref=fields["recipient_ref"],
+            payload_ref=fields["payload_ref"],
+            idempotency_key=fields["idempotency_key"],
+        ),
+    )
     return CredentialUseRequest(**fields)
 
 
@@ -180,14 +199,25 @@ def _delegated_backup_route() -> ConnectorRoute:
     )
 
 
-def _delegated_grant(max_attempts: int = 1) -> VerifiedDispatchGrant:
-    return VerifiedDispatchGrant(
+def _delegated_grant(
+    max_attempts: int = 1,
+    *,
+    allowed_connectors: frozenset[str] | None = None,
+) -> VerifiedDelegatedAuthorization:
+    return VerifiedDelegatedAuthorization(
         principal="mea-comms",
         channel=Channel.SMS,
-        allowed_connectors=frozenset({"sms-primary", "sms-backup"}),
+        allowed_connectors=allowed_connectors
+        or frozenset({"sms-primary", "sms-backup"}),
         not_after=NOW + timedelta(minutes=5),
         max_attempts=max_attempts,
         request_fingerprint=FINGERPRINT,
+        authorization_id="authorization-1",
+        issuer="signet://issuer/mea",
+        audience="baton://delegated-provider-executor",
+        allowed_purposes=frozenset({"case_notification"}),
+        not_before=NOW - timedelta(minutes=1),
+        max_uses=1,
     )
 
 
@@ -219,14 +249,23 @@ async def test_single_dispatch_reservation_authorizes_only_opaque_handle_use():
 
 
 async def test_request_fingerprint_change_is_denied():
+    changed_request = _request(
+        dispatch_id="dispatch-2",
+        idempotency_key="dispatch-once-2",
+    )
     with pytest.raises(CustodyAuthorizationDenied):
         await authorize_provider_dispatch(
             _handle(),
-            _request(request_fingerprint="b" * 64),
+            changed_request,
             _authorization(max_uses=1),
-            ledger=OutcomeLedger(_reservation(request_fingerprint="b" * 64)),
+            ledger=OutcomeLedger(),
             now=NOW,
         )
+
+
+def test_credential_request_rejects_noncanonical_fingerprint():
+    with pytest.raises(ValueError, match="does not bind"):
+        _request(request_fingerprint="b" * 64)
 
 
 async def test_connector_or_purpose_outside_scope_is_denied():
@@ -377,7 +416,7 @@ async def test_delegated_factory_reserves_before_custodied_provider_invocation()
     assert result.counts_toward_circuit is True
 
 
-async def test_delegated_factory_denies_attempt_budget_above_custody_authority():
+async def test_delegated_factory_rejects_independent_dispatch_grant():
     ledger = OutcomeLedger()
     factory = CredentialCustodyInvokerFactory(
         CredentialCustodyAuthorizer(
@@ -403,7 +442,14 @@ async def test_delegated_factory_denies_attempt_budget_above_custody_authority()
         await factory.prepare(
             CapabilityReference("authorization-ref-1"),
             _delegated_request(),
-            _delegated_grant(max_attempts=2),
+            VerifiedDispatchGrant(
+                principal="mea-comms",
+                channel=Channel.SMS,
+                allowed_connectors=frozenset({"sms-primary"}),
+                not_after=NOW + timedelta(minutes=5),
+                max_attempts=1,
+                request_fingerprint=FINGERPRINT,
+            ),
             _dispatch_claim(),
             route,
             (route,),
@@ -446,7 +492,7 @@ async def test_delegated_factory_denies_failover_policy_outside_custody_scope_be
         await factory.prepare(
             CapabilityReference("authorization-ref-1"),
             _delegated_request(),
-            _delegated_grant(),
+            _delegated_grant(allowed_connectors=frozenset({"sms-primary"})),
             _dispatch_claim(),
             primary,
             (primary, backup),

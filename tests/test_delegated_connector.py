@@ -27,27 +27,58 @@ from baton.delegated_connector import (
     MonitoringUnavailable,
     ProviderAttemptOutcome,
     VerifiedDispatchGrant,
+    dispatch_request_fingerprint,
 )
 
 
-FINGERPRINT = "f" * 64
-
-
-def _request(
+def _fingerprint(
     idempotency_key: str = "dispatch-once-1",
     *,
     dispatch_id: str | None = None,
-    request_fingerprint: str = FINGERPRINT,
-) -> DispatchRequest:
-    return DispatchRequest(
+) -> str:
+    return dispatch_request_fingerprint(
         dispatch_id=dispatch_id or f"dispatch-{idempotency_key}",
         workflow_id="workflow-1",
         channel=Channel.SMS,
         recipient_ref="recipient-ref-1",
         payload_ref="payload-ref-1",
         idempotency_key=idempotency_key,
-        request_fingerprint=request_fingerprint,
     )
+
+
+FINGERPRINT = _fingerprint()
+
+
+def _request(
+    idempotency_key: str = "dispatch-once-1",
+    *,
+    dispatch_id: str | None = None,
+    request_fingerprint: str | None = None,
+) -> DispatchRequest:
+    resolved_dispatch_id = dispatch_id or f"dispatch-{idempotency_key}"
+    return DispatchRequest(
+        dispatch_id=resolved_dispatch_id,
+        workflow_id="workflow-1",
+        channel=Channel.SMS,
+        recipient_ref="recipient-ref-1",
+        payload_ref="payload-ref-1",
+        idempotency_key=idempotency_key,
+        request_fingerprint=request_fingerprint
+        or _fingerprint(idempotency_key, dispatch_id=resolved_dispatch_id),
+    )
+
+
+def test_dispatch_request_rejects_noncanonical_fingerprint():
+    with pytest.raises(ValueError, match="does not bind"):
+        DispatchRequest(
+            dispatch_id="dispatch-once-1",
+            workflow_id="workflow-1",
+            channel=Channel.SMS,
+            recipient_ref="recipient-ref-1",
+            payload_ref="payload-ref-1",
+            idempotency_key="dispatch-once-1",
+            request_fingerprint="f" * 64,
+        )
 
 
 def _route(
@@ -446,7 +477,7 @@ async def test_changed_request_fingerprint_cannot_reuse_completed_idempotency_ke
     with pytest.raises(DispatchBindingConflict):
         await executor.dispatch(
             CapabilityReference("authorization-ref-2"),
-            _request(request_fingerprint="e" * 64, dispatch_id="dispatch-changed"),
+            _request(dispatch_id="dispatch-changed"),
         )
 
     assert invoker.calls == ["primary"]

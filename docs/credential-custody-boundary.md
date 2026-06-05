@@ -11,9 +11,10 @@ telephony, or other external-provider credential value.
 
 - `ProviderCredentialHandle` is an administrator-configured opaque handle,
   not a secret-store URI or credential value.
-- `SignedWorkloadAuthorizationVerifier` converts a signed authorization
-  reference into a verified, credential-free outcome.
-- `CredentialCustodyAuthorizer` obtains a trusted verifier outcome and
+- `SignedWorkloadAuthorizationVerifier` supports standalone custody consumers.
+  The composed delegated runtime does not invoke it after dispatch admission.
+- `CredentialCustodyAuthorizer` either obtains a standalone trusted verifier
+  outcome or accepts the composed runtime's already verified shared outcome.
   `authorize_provider_dispatch` binds it to the exact workload, initial
   connector handle, channel, purpose, opaque recipient and payload references,
   request fingerprint, and provider-attempt budget before consuming the
@@ -51,13 +52,45 @@ telephony, or other external-provider credential value.
   the concrete resolver. Provider material may exist inside its prepared
   operation, but no Baton request, authorization, outcome, event, or runtime
   state type contains that material.
-- `ConfiguredVerifierBundle` requires explicit issuer and rotation policy
-  references. Those references make trust configuration visible; they are not
-  proof that the supplied verifier performs trusted signature verification.
+- `ConfiguredVerifierBundle` supplies one verifier with the exact audience,
+  workload, purpose, issuer-policy reference, and rotation-policy reference
+  before dispatch admission. The verifier must return one
+  `VerifiedDelegatedAuthorization`; Baton derives both dispatch and custody
+  views from that same immutable outcome.
 - `SqliteDelegatedRuntimeState` and
   `DelegatedConnectorRuntime.build_sqlite_reference` are single-node reference
   implementations for executable recovery evidence. They are not a
   multi-replica production state backend.
+
+## Exact Delegated Authorization Contract
+
+The trusted Signet-compatible verifier receives the opaque authorization
+reference, the exact `DispatchRequest`, and a `DelegatedAuthorizationContext`.
+Its verified outcome must bind:
+
+- authorization ID and issuer;
+- Baton delegated-executor audience;
+- workload ID/principal;
+- exactly one channel;
+- allowed connector IDs and purposes;
+- `not_before` and `not_after`;
+- `max_uses=1` and a provider-attempt budget; and
+- the exact canonical request fingerprint.
+
+The request fingerprint is a domain-separated SHA-256 digest over
+`dispatch_id`, workflow/operation ID, channel, opaque recipient reference,
+opaque payload reference, and idempotency key. `DispatchRequest` and
+`CredentialUseRequest` both reject a fingerprint that does not match those
+fields. Recipient and payload references therefore must identify immutable or
+versioned data; the digest does not make a mutable reference immutable.
+
+`dispatch_claim_id` is acquired only after verification and is intentionally
+outside the signed fingerprint. The durable journal and authorization ledger
+bind it to the active exact dispatch before reservation or provider use.
+
+The verified outcome contains no provider credential, credential handle,
+recipient value, payload value, or provider response. `authorization_id` is the
+sanitized correlation reference carried through custody audit events.
 
 ## Failure Semantics
 
@@ -119,7 +152,7 @@ exist for approved cloud-neutral backends.
 MEA integration remains blocked until all of the following exist:
 
 1. A trusted Signet-compatible verifier implementation with issuer and rotation
-   policy.
+   policy that implements the exact delegated authorization contract above.
 2. A shared, highly available multi-replica implementation of the durable
    component contracts, including atomic claim, reservation, attempt-budget,
    completion, replay, and recovery behavior.

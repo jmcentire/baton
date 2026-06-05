@@ -12,6 +12,8 @@ material internally.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import re
 import time
 from dataclasses import dataclass
@@ -27,6 +29,30 @@ _FINGERPRINT_RE = re.compile(r"^[a-f0-9]{64}$")
 class Channel(StrEnum):
     SMS = "sms"
     EMAIL = "email"
+
+
+def dispatch_request_fingerprint(
+    *,
+    dispatch_id: str,
+    workflow_id: str,
+    channel: Channel,
+    recipient_ref: str,
+    payload_ref: str,
+    idempotency_key: str,
+) -> str:
+    """Return the domain-separated digest for one immutable dispatch request."""
+
+    payload = {
+        "channel": channel.value,
+        "dispatch_id": dispatch_id,
+        "idempotency_key": idempotency_key,
+        "payload_ref": payload_ref,
+        "recipient_ref": recipient_ref,
+        "schema": "baton.delegated-dispatch.v1",
+        "workflow_id": workflow_id,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
 
 class DeliveryStatus(StrEnum):
@@ -109,6 +135,16 @@ class DispatchRequest:
                 raise ValueError(f"{name} is required")
         if not _FINGERPRINT_RE.fullmatch(self.request_fingerprint):
             raise ValueError("request_fingerprint must be a lowercase SHA-256 digest")
+        expected_fingerprint = dispatch_request_fingerprint(
+            dispatch_id=self.dispatch_id,
+            workflow_id=self.workflow_id,
+            channel=self.channel,
+            recipient_ref=self.recipient_ref,
+            payload_ref=self.payload_ref,
+            idempotency_key=self.idempotency_key,
+        )
+        if self.request_fingerprint != expected_fingerprint:
+            raise ValueError("request_fingerprint does not bind the immutable dispatch request")
 
 
 @dataclass(frozen=True)

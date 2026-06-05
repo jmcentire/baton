@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -20,9 +20,11 @@ from baton.credential_custody import (
     ProviderChannel,
     ProviderCredentialHandle,
     SanitizedCustodyOutcome,
+    VerifiedDelegatedAuthorization,
     VerifiedWorkloadAuthorization,
 )
 from baton.delegated_connector import (
+    AuthorizationDenied,
     CapabilityReference,
     Channel,
     ConnectorRoute,
@@ -34,9 +36,12 @@ from baton.delegated_connector import (
     DispatchSignalKind,
     DispatchStateUnavailable,
     VerifiedDispatchGrant,
+    dispatch_request_fingerprint,
 )
 from baton.delegated_runtime import (
+    DelegatedAuthorizationVerifier,
     ConfiguredVerifierBundle,
+    DelegatedAuthorizationContext,
     DelegatedConnectorRuntime,
     DelegatedRuntimeComponents,
     SinglePurposeCustodiedResolver,
@@ -45,7 +50,24 @@ from baton.delegated_runtime import (
 
 
 NOW = datetime(2026, 6, 4, tzinfo=timezone.utc)
-FINGERPRINT = "a" * 64
+
+
+def _fingerprint(
+    idempotency_key: str = "dispatch-once-1",
+    *,
+    dispatch_id: str | None = None,
+) -> str:
+    return dispatch_request_fingerprint(
+        dispatch_id=dispatch_id or f"dispatch-{idempotency_key}",
+        workflow_id="operation-1",
+        channel=Channel.SMS,
+        recipient_ref="recipient-ref-1",
+        payload_ref="payload-ref-1",
+        idempotency_key=idempotency_key,
+    )
+
+
+FINGERPRINT = _fingerprint()
 
 
 @dataclass
@@ -79,28 +101,29 @@ def _handle() -> ProviderCredentialHandle:
 def _request(
     *,
     idempotency_key: str = "dispatch-once-1",
-    fingerprint: str = FINGERPRINT,
 ) -> DispatchRequest:
+    dispatch_id = f"dispatch-{idempotency_key}"
     return DispatchRequest(
-        dispatch_id=f"dispatch-{idempotency_key}",
+        dispatch_id=dispatch_id,
         workflow_id="operation-1",
         channel=Channel.SMS,
         recipient_ref="recipient-ref-1",
         payload_ref="payload-ref-1",
         idempotency_key=idempotency_key,
-        request_fingerprint=fingerprint,
+        request_fingerprint=_fingerprint(idempotency_key, dispatch_id=dispatch_id),
     )
 
 
 def _custody_request(
     *,
     idempotency_key: str = "dispatch-once-1",
-    fingerprint: str = FINGERPRINT,
+    fingerprint: str | None = None,
     claim_id: str = "claim-1",
 ) -> CredentialUseRequest:
+    dispatch_id = f"dispatch-{idempotency_key}"
     return CredentialUseRequest(
         operation_id="operation-1",
-        dispatch_id=f"dispatch-{idempotency_key}",
+        dispatch_id=dispatch_id,
         workload_id="mea-comms",
         connector_id="sms-primary",
         channel=ProviderChannel.SMS,
@@ -109,7 +132,8 @@ def _custody_request(
         payload_ref="payload-ref-1",
         idempotency_key=idempotency_key,
         dispatch_claim_id=claim_id,
-        request_fingerprint=fingerprint,
+        request_fingerprint=fingerprint
+        or _fingerprint(idempotency_key, dispatch_id=dispatch_id),
     )
 
 
@@ -151,19 +175,38 @@ def _authorized_use(
 
 
 class DispatchVerifier:
-    async def verify(self, _reference, request: DispatchRequest) -> VerifiedDispatchGrant:
-        return VerifiedDispatchGrant(
+    def __init__(self):
+        self.contexts: list[DelegatedAuthorizationContext] = []
+
+    async def verify(
+        self,
+        _reference,
+        request: DispatchRequest,
+        context: DelegatedAuthorizationContext,
+    ) -> VerifiedDelegatedAuthorization:
+        self.contexts.append(context)
+        return VerifiedDelegatedAuthorization(
             principal="mea-comms",
             channel=request.channel,
             allowed_connectors=frozenset({"sms-primary"}),
             not_after=NOW + timedelta(minutes=10),
             max_attempts=1,
             request_fingerprint=request.request_fingerprint,
+            authorization_id=f"authorization-{request.idempotency_key}",
+            issuer="signet://issuer/mea",
+            audience=context.audience,
+            allowed_purposes=frozenset({"case_notification"}),
+            not_before=NOW - timedelta(minutes=1),
+            max_uses=1,
         )
 
 
 class CustodyVerifier:
-    async def verify(self, _reference, request: CredentialUseRequest) -> VerifiedWorkloadAuthorization:
+    async def verify(
+        self,
+        _reference,
+        request: CredentialUseRequest,
+    ) -> VerifiedWorkloadAuthorization:
         return VerifiedWorkloadAuthorization(
             authorization_id=f"authorization-{request.idempotency_key}",
             workload_id=request.workload_id,
@@ -175,6 +218,38 @@ class CustodyVerifier:
             not_after=NOW + timedelta(minutes=10),
             max_uses=1,
             max_provider_attempts=1,
+        )
+
+
+class RebindingDispatchVerifier(DispatchVerifier):
+    def __init__(self, **replacements):
+        super().__init__()
+        self.replacements = replacements
+
+    async def verify(
+        self,
+        reference,
+        request: DispatchRequest,
+        context: DelegatedAuthorizationContext,
+    ) -> VerifiedDelegatedAuthorization:
+        outcome = await super().verify(reference, request, context)
+        return replace(outcome, **self.replacements)
+
+
+class IndependentDispatchVerifier:
+    async def verify(
+        self,
+        _reference,
+        request: DispatchRequest,
+        _context: DelegatedAuthorizationContext,
+    ) -> VerifiedDispatchGrant:
+        return VerifiedDispatchGrant(
+            principal="mea-comms",
+            channel=request.channel,
+            allowed_connectors=frozenset({"sms-primary"}),
+            not_after=NOW + timedelta(minutes=10),
+            max_attempts=1,
+            request_fingerprint=request.request_fingerprint,
         )
 
 
@@ -238,13 +313,19 @@ def _accepted_outcome() -> SanitizedCustodyOutcome:
     )
 
 
-def _runtime(tmp_path, operation_factory, *, clock=None) -> DelegatedConnectorRuntime:
+def _runtime(
+    tmp_path,
+    operation_factory,
+    *,
+    clock=None,
+    verifier: DelegatedAuthorizationVerifier | None = None,
+) -> DelegatedConnectorRuntime:
     return DelegatedConnectorRuntime.build_sqlite_reference(
         routes=[_route()],
         handles={"sms-primary": _handle()},
         verifiers=ConfiguredVerifierBundle(
-            dispatch_verifier=DispatchVerifier(),
-            custody_verifier=CustodyVerifier(),
+            verifier=verifier or DispatchVerifier(),
+            audience="baton://delegated-provider-executor",
             issuer_policy_ref="signet://issuer-policy/mea-comms",
             rotation_policy_ref="signet://rotation-policy/mea-comms",
         ),
@@ -254,6 +335,76 @@ def _runtime(tmp_path, operation_factory, *, clock=None) -> DelegatedConnectorRu
         purpose="case_notification",
         clock=clock,
     )
+
+
+async def test_runtime_verifies_once_and_binds_exact_policy_context(tmp_path):
+    verifier = DispatchVerifier()
+    factory = OperationFactory(_accepted_outcome())
+    runtime = _runtime(tmp_path, factory, clock=lambda: NOW, verifier=verifier)
+
+    await runtime.executor.dispatch(
+        CapabilityReference("opaque-authorization-ref"),
+        _request(),
+    )
+
+    assert verifier.contexts == [
+        DelegatedAuthorizationContext(
+            audience="baton://delegated-provider-executor",
+            workload_id="mea-comms",
+            purpose="case_notification",
+            issuer_policy_ref="signet://issuer-policy/mea-comms",
+            rotation_policy_ref="signet://rotation-policy/mea-comms",
+        )
+    ]
+    assert len(factory.prepared) == 1
+
+
+@pytest.mark.parametrize(
+    "replacements",
+    [
+        {"audience": "baton://other-executor"},
+        {"principal": "other-workload"},
+        {"allowed_purposes": frozenset({"other_purpose"})},
+        {"not_before": NOW + timedelta(minutes=1)},
+    ],
+)
+async def test_runtime_rejects_rebound_verified_context_before_provider_use(
+    tmp_path,
+    replacements,
+):
+    factory = OperationFactory(_accepted_outcome())
+    runtime = _runtime(
+        tmp_path,
+        factory,
+        clock=lambda: NOW,
+        verifier=RebindingDispatchVerifier(**replacements),
+    )
+
+    with pytest.raises(AuthorizationDenied):
+        await runtime.executor.dispatch(
+            CapabilityReference("opaque-authorization-ref"),
+            _request(),
+        )
+
+    assert factory.prepared == []
+
+
+async def test_runtime_rejects_independent_dispatch_only_verifier_outcome(tmp_path):
+    factory = OperationFactory(_accepted_outcome())
+    runtime = _runtime(
+        tmp_path,
+        factory,
+        clock=lambda: NOW,
+        verifier=IndependentDispatchVerifier(),
+    )
+
+    with pytest.raises(AuthorizationDenied):
+        await runtime.executor.dispatch(
+            CapabilityReference("opaque-authorization-ref"),
+            _request(),
+        )
+
+    assert factory.prepared == []
 
 
 async def test_runtime_replays_completed_dispatch_without_second_provider_operation(tmp_path):
@@ -379,7 +530,7 @@ async def test_durable_ledger_reuses_exact_reservation_and_rejects_rebinding(tmp
     replay = await state.ledger.reserve_once(first_authorization, first_request)
     assert replay == first
 
-    other_fingerprint = "b" * 64
+    other_fingerprint = _fingerprint("dispatch-once-2")
     other_binding = DispatchBinding("dispatch-once-2", other_fingerprint)
     other_claim = await state.journal.begin(other_binding)
     assert other_claim is not None
@@ -573,8 +724,8 @@ async def test_post_provider_state_failure_is_non_retryable_and_does_not_resend(
         routes=[_route()],
         handles={"sms-primary": _handle()},
         verifiers=ConfiguredVerifierBundle(
-            dispatch_verifier=DispatchVerifier(),
-            custody_verifier=CustodyVerifier(),
+            verifier=DispatchVerifier(),
+            audience="baton://delegated-provider-executor",
             issuer_policy_ref="signet://issuer-policy/mea-comms",
             rotation_policy_ref="signet://rotation-policy/mea-comms",
         ),
@@ -632,8 +783,8 @@ def test_runtime_builder_rejects_non_durable_or_incomplete_construction(tmp_path
             routes=[_route()],
             handles={},
             verifiers=ConfiguredVerifierBundle(
-                dispatch_verifier=DispatchVerifier(),
-                custody_verifier=CustodyVerifier(),
+                verifier=DispatchVerifier(),
+                audience="baton://delegated-provider-executor",
                 issuer_policy_ref="signet://issuer-policy/mea-comms",
                 rotation_policy_ref="signet://rotation-policy/mea-comms",
             ),
@@ -648,8 +799,8 @@ def test_runtime_builder_rejects_non_durable_or_incomplete_construction(tmp_path
             routes=[_route()],
             handles={"sms-primary": _handle()},
             verifiers=ConfiguredVerifierBundle(
-                dispatch_verifier=DispatchVerifier(),
-                custody_verifier=CustodyVerifier(),
+                verifier=DispatchVerifier(),
+                audience="baton://delegated-provider-executor",
                 issuer_policy_ref="signet://issuer-policy/mea-comms",
                 rotation_policy_ref="signet://rotation-policy/mea-comms",
             ),
