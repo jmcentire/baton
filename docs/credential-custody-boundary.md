@@ -33,6 +33,31 @@ telephony, or other external-provider credential value.
   across primary and backup attempts, but can select only connector handles
   already included in its verified scope and is bounded by its verified
   provider-attempt budget.
+- Every custody request and provider-attempt reservation is bound to the exact
+  active dispatch claim. An expired or reclaimed claim cannot reserve authority,
+  invoke a provider, renew itself, or complete the dispatch.
+
+## Runtime Composition
+
+`src/baton/delegated_runtime.py` supplies the reusable composition boundary:
+
+- `DelegatedRuntimeComponents` requires an explicit durable dispatch journal,
+  authorization ledger, dispatch signal sink, custody audit sink, failure
+  notifier, and the journal's real claim-lease duration.
+- `DelegatedConnectorRuntime.compose` validates route-to-handle bindings and
+  requires the claim lease to exceed every bounded provider-attempt timeout
+  before constructing an executor.
+- `SinglePurposeProviderOperationFactory` is the only operation factory used by
+  the concrete resolver. Provider material may exist inside its prepared
+  operation, but no Baton request, authorization, outcome, event, or runtime
+  state type contains that material.
+- `ConfiguredVerifierBundle` requires explicit issuer and rotation policy
+  references. Those references make trust configuration visible; they are not
+  proof that the supplied verifier performs trusted signature verification.
+- `SqliteDelegatedRuntimeState` and
+  `DelegatedConnectorRuntime.build_sqlite_reference` are single-node reference
+  implementations for executable recovery evidence. They are not a
+  multi-replica production state backend.
 
 ## Failure Semantics
 
@@ -47,25 +72,67 @@ telephony, or other external-provider credential value.
 - Delegated terminal outcomes carry connector identity as well as provider
   identity, so audits and failure notifications can identify the configured
   connector without revealing custody material.
+- A provider attempt is atomically reserved in the durable authorization ledger
+  before invocation. Its verified attempt budget remains consumed across
+  process crashes, dispatch aborts, and stale-claim recovery.
+- A successful provider operation followed by custody outcome or audit
+  persistence failure returns non-retryable `custody_state_unavailable`; the
+  executor does not automatically send again.
+- A provider operation followed by dispatch-journal completion failure raises
+  `DispatchStateUnavailable` and leaves the claim for explicit recovery. It
+  does not erase or abort the post-provider claim.
+- After a dispatch claim is acquired, exceptional execution paths do not
+  automatically abort it. Because the executor may not know whether a provider
+  operation occurred, the lease remains in place until controlled recovery.
+
+## Recovery Windows
+
+The runtime deliberately fails closed around these crash windows:
+
+1. Before provider-attempt reservation, an expired claim may be reclaimed. The
+   old claim can no longer reserve or invoke.
+2. After provider-attempt reservation but before provider invocation, the
+   durable budget remains consumed. Recovery does not blindly repeat that
+   attempt.
+3. After provider invocation but before custody outcome or dispatch-journal
+   completion, delivery is uncertain. The custody-internal provider operation
+   must enforce the supplied idempotency key; without that provider-side
+   guarantee, at-least-once recovery can duplicate delivery.
+4. After dispatch-journal completion but before terminal signal persistence, a
+   replay returns the completed sanitized outcome and retries the idempotent
+   signal without invoking the provider again.
+
+The SQLite reference hash chain detects mutation when verified against its
+current anchor, but it is tamper-evident rather than tamper-proof. A privileged
+actor could rewrite the database and recompute the chain. Its failure queue is
+durable and acknowledgeable, but does not prove that an external operator was
+paged.
 
 ## Integration Gate
 
-These modules are a connected contract surface, not a configured production
-custody store. The delegated executor no longer accepts a direct provider
-invoker; production construction must supply `CredentialCustodyInvokerFactory`
-or an equivalently audited custody implementation. Its protocol seam exists
-for testing and alternate approved backends, so deployment wiring remains an
-enforcement gate.
+These modules are a connected runtime and executable reference, not a
+configured production custody deployment. The delegated executor no longer
+accepts a direct provider invoker. Production construction must use explicit
+durable components and an audited custody implementation; the protocol seams
+exist for approved cloud-neutral backends.
+
 MEA integration remains blocked until all of the following exist:
 
 1. A trusted Signet-compatible verifier implementation with issuer and rotation
    policy.
-2. A durable consumption ledger and dispatch journal with defined atomic
-   reserve/complete/replay and crash-recovery behavior.
+2. A shared, highly available multi-replica implementation of the durable
+   component contracts, including atomic claim, reservation, attempt-budget,
+   completion, replay, and recovery behavior.
 3. A custody-internal resolver implementation, potentially backed by OpenBao
    after license, deployment, assurance, and operational review.
-4. Tamper-evident audit and failure notification sink implementations.
-5. Key-free executable evidence for each boundary and the provider executor.
+4. An externally anchored audit pipeline and an operated failure-notification
+   consumer with tested acknowledgement and escalation.
+5. Provider-operation idempotency and operator reconciliation for uncertain
+   post-invocation outcomes.
+6. A shared circuit-breaker implementation or an explicit decision to accept
+   process-local circuit state. The current executor's circuit state is local
+   to one process.
+7. Key-free executable evidence for each boundary and the provider executor.
 
 No provider credential values or signing keys are used or packaged by this
 contract or its tests.

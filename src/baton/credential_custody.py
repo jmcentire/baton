@@ -21,6 +21,7 @@ from .delegated_connector import (
     ConnectorRoute,
     CustodiedProviderInvoker,
     DeliveryStatus,
+    DispatchClaim,
     DispatchRequest,
     ProviderAttemptOutcome,
     VerifiedDispatchGrant,
@@ -61,6 +62,10 @@ class CustodyAuthorizationDenied(CustodyError):
 
 class ConsumptionReservationRequired(CustodyAuthorizationDenied):
     """Bounded-use authority lacks an atomic consumption reservation."""
+
+
+class CustodyMonitoringUnavailable(CustodyError):
+    """Durable sanitized custody audit or failure notification is unavailable."""
 
 
 @dataclass(frozen=True)
@@ -107,6 +112,7 @@ class CredentialUseRequest:
     recipient_ref: str
     payload_ref: str
     idempotency_key: str
+    dispatch_claim_id: str
     request_fingerprint: str
 
     def __post_init__(self) -> None:
@@ -119,6 +125,7 @@ class CredentialUseRequest:
             "recipient_ref",
             "payload_ref",
             "idempotency_key",
+            "dispatch_claim_id",
         ):
             if not getattr(self, name):
                 raise ValueError(f"{name} is required")
@@ -186,6 +193,7 @@ class AuthorizedCredentialUse:
     payload_ref: str
     idempotency_key: str
     request_fingerprint: str
+    dispatch_claim_id: str
     reservation_id: str = ""
 
 
@@ -204,8 +212,17 @@ class AuthorizedProviderDispatch:
     payload_ref: str
     idempotency_key: str
     request_fingerprint: str
+    dispatch_claim_id: str
     reservation_id: str
     max_provider_attempts: int
+
+    def reservation(self) -> ConsumptionReservation:
+        return ConsumptionReservation(
+            reservation_id=self.reservation_id,
+            authorization_id=self.authorization_id,
+            request_fingerprint=self.request_fingerprint,
+            idempotency_key=self.idempotency_key,
+        )
 
     def authorize_handle(self, handle: ProviderCredentialHandle) -> AuthorizedCredentialUse:
         if handle.connector_id not in self.allowed_connector_ids:
@@ -223,6 +240,7 @@ class AuthorizedProviderDispatch:
             payload_ref=self.payload_ref,
             idempotency_key=self.idempotency_key,
             request_fingerprint=self.request_fingerprint,
+            dispatch_claim_id=self.dispatch_claim_id,
             reservation_id=self.reservation_id,
         )
 
@@ -316,6 +334,14 @@ class AuthorizationConsumptionLedger(Protocol):
         reservation: ConsumptionReservation,
         outcome: SanitizedCustodyOutcome,
     ) -> None:
+        ...
+
+    async def reserve_attempt(
+        self,
+        reservation: ConsumptionReservation,
+        authorized_use: AuthorizedCredentialUse,
+    ) -> int:
+        """Atomically reserve and return the next provider-attempt number."""
         ...
 
 
@@ -419,6 +445,7 @@ async def authorize_provider_dispatch(
         payload_ref=request.payload_ref,
         idempotency_key=request.idempotency_key,
         request_fingerprint=request.request_fingerprint,
+        dispatch_claim_id=request.dispatch_claim_id,
         reservation_id=reservation.reservation_id,
         max_provider_attempts=authorization.max_provider_attempts,
     )
@@ -432,10 +459,14 @@ class CredentialCustodyAuthorizer:
         verifier: SignedWorkloadAuthorizationVerifier,
         ledger: AuthorizationConsumptionLedger,
         *,
+        audit_sink: CustodyAuditSink | None = None,
+        failure_notifier: CustodyFailureNotifier | None = None,
         clock: Callable[[], datetime] | None = None,
     ):
         self._verifier = verifier
         self._ledger = ledger
+        self._audit_sink = audit_sink
+        self._failure_notifier = failure_notifier
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     async def authorize(
@@ -447,17 +478,165 @@ class CredentialCustodyAuthorizer:
         provider_attempt_budget: int | None = None,
         required_connector_ids: frozenset[str] | None = None,
     ) -> AuthorizedProviderDispatch:
-        authorization = await self._verifier.verify(reference, request)
-        reserved_dispatch = await authorize_provider_dispatch(
-            handle,
-            request,
-            authorization,
-            ledger=self._ledger,
-            provider_attempt_budget=provider_attempt_budget,
-            required_connector_ids=required_connector_ids,
-            now=self._clock(),
+        authorization_id = ""
+        try:
+            authorization = await self._verifier.verify(reference, request)
+            authorization_id = authorization.authorization_id
+            reserved_dispatch = await authorize_provider_dispatch(
+                handle,
+                request,
+                authorization,
+                ledger=self._ledger,
+                provider_attempt_budget=provider_attempt_budget,
+                required_connector_ids=required_connector_ids,
+                now=self._clock(),
+            )
+        except ConsumptionReservationRequired:
+            await self._record_failure(
+                request,
+                handle,
+                authorization_id=authorization_id,
+                kind=CustodyAuditKind.RESERVATION_REQUIRED,
+                failure_code="reservation_required",
+            )
+            raise
+        except CustodyAuthorizationDenied:
+            await self._record_failure(
+                request,
+                handle,
+                authorization_id=authorization_id,
+                kind=CustodyAuditKind.AUTHORIZATION_DENIED,
+                failure_code="authorization_denied",
+            )
+            raise
+        except Exception as exc:
+            await self._record_failure(
+                request,
+                handle,
+                authorization_id=authorization_id,
+                kind=CustodyAuditKind.AUTHORIZATION_DENIED,
+                failure_code="verification_unavailable",
+            )
+            raise CustodyAuthorizationDenied("workload authorization verification failed") from exc
+
+        await self._emit_audit(
+            CustodyAuditEvent(
+                kind=CustodyAuditKind.AUTHORIZATION_ACCEPTED,
+                operation_id=request.operation_id,
+                dispatch_id=request.dispatch_id,
+                workload_id=request.workload_id,
+                connector_id=handle.connector_id,
+                provider_key=handle.provider_key,
+                authorization_id=reserved_dispatch.authorization_id,
+            )
         )
         return reserved_dispatch
+
+    async def record_outcome(
+        self,
+        dispatch: AuthorizedProviderDispatch,
+        handle: ProviderCredentialHandle,
+        outcome: SanitizedCustodyOutcome,
+    ) -> None:
+        await self._ledger.complete(dispatch.reservation(), outcome)
+        kind = (
+            CustodyAuditKind.INVOCATION_FAILED
+            if outcome.status is CustodyResultStatus.FAILED
+            else CustodyAuditKind.INVOCATION_COMPLETED
+        )
+        event = CustodyAuditEvent(
+            kind=kind,
+            operation_id=dispatch.operation_id,
+            dispatch_id=dispatch.dispatch_id,
+            workload_id=dispatch.workload_id,
+            connector_id=handle.connector_id,
+            provider_key=handle.provider_key,
+            authorization_id=dispatch.authorization_id,
+            failure_code=outcome.failure_code,
+        )
+        if outcome.status is CustodyResultStatus.FAILED:
+            await self._emit_and_notify_failure(event)
+        else:
+            await self._emit_audit(event)
+
+    async def reserve_attempt(
+        self,
+        dispatch: AuthorizedProviderDispatch,
+        authorized_use: AuthorizedCredentialUse,
+    ) -> int:
+        return await self._ledger.reserve_attempt(dispatch.reservation(), authorized_use)
+
+    async def record_invocation_failure(
+        self,
+        dispatch: AuthorizedProviderDispatch,
+        handle: ProviderCredentialHandle,
+        failure_code: str,
+    ) -> None:
+        event = CustodyAuditEvent(
+            kind=CustodyAuditKind.INVOCATION_FAILED,
+            operation_id=dispatch.operation_id,
+            dispatch_id=dispatch.dispatch_id,
+            workload_id=dispatch.workload_id,
+            connector_id=handle.connector_id,
+            provider_key=handle.provider_key,
+            authorization_id=dispatch.authorization_id,
+            failure_code=failure_code,
+        )
+        await self._emit_and_notify_failure(event)
+
+    async def _record_failure(
+        self,
+        request: CredentialUseRequest,
+        handle: ProviderCredentialHandle,
+        *,
+        authorization_id: str,
+        kind: CustodyAuditKind,
+        failure_code: str,
+    ) -> None:
+        event = CustodyAuditEvent(
+            kind=kind,
+            operation_id=request.operation_id,
+            dispatch_id=request.dispatch_id,
+            workload_id=request.workload_id,
+            connector_id=handle.connector_id,
+            provider_key=handle.provider_key,
+            authorization_id=authorization_id,
+            failure_code=failure_code,
+        )
+        await self._emit_and_notify_failure(event)
+
+    async def _emit_and_notify_failure(self, event: CustodyAuditEvent) -> None:
+        audit_error: CustodyMonitoringUnavailable | None = None
+        try:
+            await self._emit_audit(event)
+        except CustodyMonitoringUnavailable as exc:
+            audit_error = exc
+        try:
+            await self._notify_failure(event)
+        except CustodyMonitoringUnavailable:
+            if audit_error is not None:
+                raise CustodyMonitoringUnavailable(
+                    "custody audit and failure notification persistence failed"
+                ) from audit_error
+            raise
+        if audit_error is not None:
+            raise audit_error
+
+    async def _emit_audit(self, event: CustodyAuditEvent) -> None:
+        if self._audit_sink is None:
+            return
+        try:
+            await self._audit_sink.emit(event)
+        except Exception as exc:
+            raise CustodyMonitoringUnavailable("custody audit persistence failed") from exc
+
+    async def _notify_failure(self, event: CustodyAuditEvent) -> None:
+        if self._failure_notifier is None:
+            return
+        try:
+            await self._failure_notifier.notify(event)
+        except Exception as exc:
+            raise CustodyMonitoringUnavailable("custody failure notification persistence failed") from exc
 
 
 class CredentialCustodyInvokerFactory:
@@ -497,6 +676,7 @@ class CredentialCustodyInvokerFactory:
         capability: CapabilityReference,
         request: DispatchRequest,
         grant: VerifiedDispatchGrant,
+        claim: DispatchClaim,
         initial_route: ConnectorRoute,
         authorized_routes: tuple[ConnectorRoute, ...],
     ) -> CustodiedProviderInvoker:
@@ -515,6 +695,7 @@ class CredentialCustodyInvokerFactory:
             recipient_ref=request.recipient_ref,
             payload_ref=request.payload_ref,
             idempotency_key=request.idempotency_key,
+            dispatch_claim_id=claim.claim_id,
             request_fingerprint=request.request_fingerprint,
         )
         try:
@@ -530,6 +711,7 @@ class CredentialCustodyInvokerFactory:
         except CustodyAuthorizationDenied as exc:
             raise DelegatedAuthorizationDenied("credential custody authorization denied") from exc
         return _ReservedCustodiedProviderInvoker(
+            authorizer=self._authorizer,
             resolver=self._resolver,
             handles=self._handles,
             dispatch=reserved_dispatch,
@@ -541,11 +723,13 @@ class _ReservedCustodiedProviderInvoker:
     def __init__(
         self,
         *,
+        authorizer: CredentialCustodyAuthorizer,
         resolver: CustodiedReferenceResolver,
         handles: Mapping[str, ProviderCredentialHandle],
         dispatch: AuthorizedProviderDispatch,
         request: DispatchRequest,
     ):
+        self._authorizer = authorizer
         self._resolver = resolver
         self._handles = dict(handles)
         self._dispatch = dispatch
@@ -570,15 +754,47 @@ class _ReservedCustodiedProviderInvoker:
             raise DelegatedAuthorizationDenied("connector custody binding is invalid")
         try:
             authorized_use = self._dispatch.authorize_handle(handle)
+            await self._authorizer.reserve_attempt(self._dispatch, authorized_use)
             outcome = await self._resolver.invoke(handle, authorized_use)
         except CustodyAuthorizationDenied as exc:
+            await self._authorizer.record_invocation_failure(
+                self._dispatch,
+                handle,
+                "provider_custody_denied",
+            )
             raise DelegatedAuthorizationDenied("provider custody invocation denied") from exc
+        except Exception:
+            await self._authorizer.record_invocation_failure(
+                self._dispatch,
+                handle,
+                "resolver_unavailable",
+            )
+            raise
         if (
             outcome.operation_id != self._dispatch.operation_id
             or outcome.dispatch_id != request.dispatch_id
             or outcome.provider_key != route.provider_key
         ):
             raise DelegatedAuthorizationDenied("custody outcome binding is invalid")
+        try:
+            await self._authorizer.record_outcome(self._dispatch, handle, outcome)
+        except Exception:
+            try:
+                await self._authorizer.record_invocation_failure(
+                    self._dispatch,
+                    handle,
+                    "custody_state_unavailable",
+                )
+            except CustodyMonitoringUnavailable:
+                pass
+            return ProviderAttemptOutcome(
+                status=DeliveryStatus.FAILED,
+                audit_ref=outcome.audit_ref,
+                failure_code="custody_state_unavailable",
+                retryable=False,
+                failover_allowed=False,
+                counts_toward_circuit=False,
+            )
         return ProviderAttemptOutcome(
             status=DeliveryStatus(outcome.status.value),
             audit_ref=outcome.audit_ref,
