@@ -18,6 +18,7 @@ from typing import Protocol
 from .delegated_connector import (
     AuthorizationDenied as DelegatedAuthorizationDenied,
     CapabilityReference,
+    Channel,
     ConnectorRoute,
     CustodiedProviderInvoker,
     DeliveryStatus,
@@ -25,6 +26,7 @@ from .delegated_connector import (
     DispatchRequest,
     ProviderAttemptOutcome,
     VerifiedDispatchGrant,
+    dispatch_request_fingerprint,
 )
 
 
@@ -131,6 +133,16 @@ class CredentialUseRequest:
                 raise ValueError(f"{name} is required")
         if not _FINGERPRINT_RE.fullmatch(self.request_fingerprint):
             raise ValueError("request_fingerprint must be a lowercase SHA-256 digest")
+        expected_fingerprint = dispatch_request_fingerprint(
+            dispatch_id=self.dispatch_id,
+            workflow_id=self.operation_id,
+            channel=Channel(self.channel.value),
+            recipient_ref=self.recipient_ref,
+            payload_ref=self.payload_ref,
+            idempotency_key=self.idempotency_key,
+        )
+        if self.request_fingerprint != expected_fingerprint:
+            raise ValueError("request_fingerprint does not bind the immutable dispatch request")
 
 
 @dataclass(frozen=True)
@@ -161,6 +173,53 @@ class VerifiedWorkloadAuthorization:
             raise ValueError("max_uses must be positive when bounded")
         if self.max_provider_attempts < 1:
             raise ValueError("max_provider_attempts must be positive")
+
+
+@dataclass(frozen=True)
+class VerifiedDelegatedAuthorization(VerifiedDispatchGrant):
+    """One verified outcome shared by dispatch admission and credential custody."""
+
+    authorization_id: str
+    issuer: str
+    audience: str
+    allowed_purposes: frozenset[str]
+    not_before: datetime
+    max_uses: int
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        for name in ("authorization_id", "issuer", "audience"):
+            if not getattr(self, name):
+                raise ValueError(f"{name} is required")
+        if (
+            not self.allowed_connectors
+            or not self.allowed_purposes
+            or not all(self.allowed_connectors)
+            or not all(self.allowed_purposes)
+        ):
+            raise ValueError("allowed connectors and purposes are required")
+        if self.not_before.tzinfo is None:
+            raise ValueError("not_before must be timezone-aware")
+        if self.not_after <= self.not_before:
+            raise ValueError("authorization expiry must be after not_before")
+        if self.max_uses != 1:
+            raise ValueError("delegated provider authorization must be single-use")
+
+    def as_workload_authorization(self) -> VerifiedWorkloadAuthorization:
+        """Derive the custody view without repeating signature verification."""
+
+        return VerifiedWorkloadAuthorization(
+            authorization_id=self.authorization_id,
+            workload_id=self.principal,
+            allowed_connector_ids=self.allowed_connectors,
+            allowed_channels=frozenset({ProviderChannel(self.channel.value)}),
+            allowed_purposes=self.allowed_purposes,
+            request_fingerprint=self.request_fingerprint,
+            not_before=self.not_before,
+            not_after=self.not_after,
+            max_uses=self.max_uses,
+            max_provider_attempts=self.max_attempts,
+        )
 
 
 @dataclass(frozen=True)
@@ -452,11 +511,11 @@ async def authorize_provider_dispatch(
 
 
 class CredentialCustodyAuthorizer:
-    """Obtain verified authority and reserve its exact provider operation."""
+    """Verify or accept one trusted outcome, then reserve its exact operation."""
 
     def __init__(
         self,
-        verifier: SignedWorkloadAuthorizationVerifier,
+        verifier: SignedWorkloadAuthorizationVerifier | None,
         ledger: AuthorizationConsumptionLedger,
         *,
         audit_sink: CustodyAuditSink | None = None,
@@ -469,6 +528,25 @@ class CredentialCustodyAuthorizer:
         self._failure_notifier = failure_notifier
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
+    @classmethod
+    def for_verified_outcomes(
+        cls,
+        ledger: AuthorizationConsumptionLedger,
+        *,
+        audit_sink: CustodyAuditSink | None = None,
+        failure_notifier: CustodyFailureNotifier | None = None,
+        clock: Callable[[], datetime] | None = None,
+    ) -> CredentialCustodyAuthorizer:
+        """Construct the reservation path used after one trusted verification."""
+
+        return cls(
+            None,
+            ledger,
+            audit_sink=audit_sink,
+            failure_notifier=failure_notifier,
+            clock=clock,
+        )
+
     async def authorize(
         self,
         reference: WorkloadAuthorizationReference,
@@ -480,26 +558,12 @@ class CredentialCustodyAuthorizer:
     ) -> AuthorizedProviderDispatch:
         authorization_id = ""
         try:
+            if self._verifier is None:
+                raise CustodyAuthorizationDenied(
+                    "signed workload authorization verifier is not configured"
+                )
             authorization = await self._verifier.verify(reference, request)
             authorization_id = authorization.authorization_id
-            reserved_dispatch = await authorize_provider_dispatch(
-                handle,
-                request,
-                authorization,
-                ledger=self._ledger,
-                provider_attempt_budget=provider_attempt_budget,
-                required_connector_ids=required_connector_ids,
-                now=self._clock(),
-            )
-        except ConsumptionReservationRequired:
-            await self._record_failure(
-                request,
-                handle,
-                authorization_id=authorization_id,
-                kind=CustodyAuditKind.RESERVATION_REQUIRED,
-                failure_code="reservation_required",
-            )
-            raise
         except CustodyAuthorizationDenied:
             await self._record_failure(
                 request,
@@ -518,6 +582,63 @@ class CredentialCustodyAuthorizer:
                 failure_code="verification_unavailable",
             )
             raise CustodyAuthorizationDenied("workload authorization verification failed") from exc
+
+        return await self.authorize_verified(
+            authorization,
+            handle,
+            request,
+            provider_attempt_budget=provider_attempt_budget,
+            required_connector_ids=required_connector_ids,
+        )
+
+    async def authorize_verified(
+        self,
+        authorization: VerifiedWorkloadAuthorization,
+        handle: ProviderCredentialHandle,
+        request: CredentialUseRequest,
+        *,
+        provider_attempt_budget: int | None = None,
+        required_connector_ids: frozenset[str] | None = None,
+    ) -> AuthorizedProviderDispatch:
+        """Reserve a previously verified outcome without invoking another verifier."""
+
+        try:
+            reserved_dispatch = await authorize_provider_dispatch(
+                handle,
+                request,
+                authorization,
+                ledger=self._ledger,
+                provider_attempt_budget=provider_attempt_budget,
+                required_connector_ids=required_connector_ids,
+                now=self._clock(),
+            )
+        except ConsumptionReservationRequired:
+            await self._record_failure(
+                request,
+                handle,
+                authorization_id=authorization.authorization_id,
+                kind=CustodyAuditKind.RESERVATION_REQUIRED,
+                failure_code="reservation_required",
+            )
+            raise
+        except CustodyAuthorizationDenied:
+            await self._record_failure(
+                request,
+                handle,
+                authorization_id=authorization.authorization_id,
+                kind=CustodyAuditKind.AUTHORIZATION_DENIED,
+                failure_code="authorization_denied",
+            )
+            raise
+        except Exception as exc:
+            await self._record_failure(
+                request,
+                handle,
+                authorization_id=authorization.authorization_id,
+                kind=CustodyAuditKind.AUTHORIZATION_DENIED,
+                failure_code="authorization_unavailable",
+            )
+            raise CustodyAuthorizationDenied("workload authorization reservation failed") from exc
 
         await self._emit_audit(
             CustodyAuditEvent(
@@ -673,13 +794,17 @@ class CredentialCustodyInvokerFactory:
 
     async def prepare(
         self,
-        capability: CapabilityReference,
+        _capability: CapabilityReference,
         request: DispatchRequest,
         grant: VerifiedDispatchGrant,
         claim: DispatchClaim,
         initial_route: ConnectorRoute,
         authorized_routes: tuple[ConnectorRoute, ...],
     ) -> CustodiedProviderInvoker:
+        if not isinstance(grant, VerifiedDelegatedAuthorization):
+            raise DelegatedAuthorizationDenied(
+                "credential custody requires one shared verified authorization outcome"
+            )
         if initial_route not in authorized_routes:
             raise DelegatedAuthorizationDenied("initial route is outside dispatch policy")
         initial_handle = self._handle_for_route(initial_route)
@@ -699,8 +824,8 @@ class CredentialCustodyInvokerFactory:
             request_fingerprint=request.request_fingerprint,
         )
         try:
-            reserved_dispatch = await self._authorizer.authorize(
-                WorkloadAuthorizationReference(capability.reference),
+            reserved_dispatch = await self._authorizer.authorize_verified(
+                grant.as_workload_authorization(),
                 initial_handle,
                 custody_request,
                 provider_attempt_budget=grant.max_attempts,

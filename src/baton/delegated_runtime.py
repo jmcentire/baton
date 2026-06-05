@@ -36,10 +36,12 @@ from baton.credential_custody import (
     CustodyFailureNotifier,
     ProviderCredentialHandle,
     SanitizedCustodyOutcome,
-    SignedWorkloadAuthorizationVerifier,
+    VerifiedDelegatedAuthorization,
     VerifiedWorkloadAuthorization,
 )
 from baton.delegated_connector import (
+    AuthorizationDenied,
+    CapabilityReference,
     ConnectorRoute,
     Channel,
     DelegatedConnectorExecutor,
@@ -49,6 +51,7 @@ from baton.delegated_connector import (
     DispatchBindingConflict,
     DispatchClaim,
     DispatchJournal,
+    DispatchRequest,
     DispatchSignal,
     DispatchSignalSink,
     DispatchStateUnavailable,
@@ -117,17 +120,101 @@ def _delivery_outcome_from_payload(payload: str) -> DeliveryOutcome:
 
 
 @dataclass(frozen=True)
-class ConfiguredVerifierBundle:
-    """Explicit verifier wiring and its externally managed trust-policy refs."""
+class DelegatedAuthorizationContext:
+    """Exact runtime and trust-policy context supplied to a trusted verifier."""
 
-    dispatch_verifier: ScopedAuthorizationVerifier
-    custody_verifier: SignedWorkloadAuthorizationVerifier
+    audience: str
+    workload_id: str
+    purpose: str
     issuer_policy_ref: str
     rotation_policy_ref: str
 
     def __post_init__(self) -> None:
-        if not self.issuer_policy_ref or not self.rotation_policy_ref:
-            raise ValueError("issuer_policy_ref and rotation_policy_ref are required")
+        for name in (
+            "audience",
+            "workload_id",
+            "purpose",
+            "issuer_policy_ref",
+            "rotation_policy_ref",
+        ):
+            if not getattr(self, name):
+                raise ValueError(f"{name} is required")
+
+
+class DelegatedAuthorizationVerifier(Protocol):
+    """Verify one delegated-provider authorization against exact runtime policy."""
+
+    async def verify(
+        self,
+        capability: CapabilityReference,
+        request: DispatchRequest,
+        context: DelegatedAuthorizationContext,
+    ) -> VerifiedDelegatedAuthorization:
+        ...
+
+
+@dataclass(frozen=True)
+class _ContextBoundDelegatedAuthorizationVerifier:
+    verifier: DelegatedAuthorizationVerifier
+    context: DelegatedAuthorizationContext
+    clock: Callable[[], datetime]
+
+    async def verify(
+        self,
+        capability: CapabilityReference,
+        request: DispatchRequest,
+    ) -> VerifiedDelegatedAuthorization:
+        outcome = await self.verifier.verify(capability, request, self.context)
+        if not isinstance(outcome, VerifiedDelegatedAuthorization):
+            raise AuthorizationDenied(
+                "delegated verifier did not return the required shared authorization outcome"
+            )
+        if outcome.audience != self.context.audience:
+            raise AuthorizationDenied("authorization audience is outside runtime scope")
+        if outcome.principal != self.context.workload_id:
+            raise AuthorizationDenied("authorization principal is outside runtime scope")
+        if self.context.purpose not in outcome.allowed_purposes:
+            raise AuthorizationDenied("authorization purpose is outside runtime scope")
+        current_time = self.clock()
+        if current_time < outcome.not_before or current_time >= outcome.not_after:
+            raise AuthorizationDenied("authorization is outside its validity window")
+        return outcome
+
+
+@dataclass(frozen=True)
+class ConfiguredVerifierBundle:
+    """One verifier plus the exact externally managed trust-policy context."""
+
+    verifier: DelegatedAuthorizationVerifier
+    audience: str
+    issuer_policy_ref: str
+    rotation_policy_ref: str
+
+    def __post_init__(self) -> None:
+        for name in ("audience", "issuer_policy_ref", "rotation_policy_ref"):
+            if not getattr(self, name):
+                raise ValueError(f"{name} is required")
+
+    def bind(
+        self,
+        *,
+        workload_id: str,
+        purpose: str,
+        clock: Callable[[], datetime] | None = None,
+    ) -> ScopedAuthorizationVerifier:
+        """Bind trust policy and runtime scope before any dispatch admission."""
+
+        return _ContextBoundDelegatedAuthorizationVerifier(
+            self.verifier,
+            DelegatedAuthorizationContext(
+                audience=self.audience,
+                workload_id=workload_id,
+                purpose=purpose,
+                issuer_policy_ref=self.issuer_policy_ref,
+                rotation_policy_ref=self.rotation_policy_ref,
+            ),
+            clock or _utc_now,
+        )
 
 
 class SinglePurposeProviderOperation(Protocol):
@@ -933,8 +1020,7 @@ class DelegatedConnectorRuntime:
             ):
                 raise ValueError(f"missing exact custody handle for route {route.connector_id}")
 
-        authorizer = CredentialCustodyAuthorizer(
-            verifiers.custody_verifier,
+        authorizer = CredentialCustodyAuthorizer.for_verified_outcomes(
             components.ledger,
             audit_sink=components.audit_sink,
             failure_notifier=components.failure_notifier,
@@ -949,7 +1035,7 @@ class DelegatedConnectorRuntime:
         )
         executor = DelegatedConnectorExecutor(
             routes,
-            verifiers.dispatch_verifier,
+            verifiers.bind(workload_id=workload_id, purpose=purpose, clock=clock),
             invoker_factory,
             components.journal,
             components.signal_sink,
