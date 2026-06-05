@@ -23,6 +23,12 @@ telephony, or other external-provider credential value.
   fingerprint, and idempotency key.
 - `CustodiedReferenceResolver` is the only permitted provider-operation
   boundary. It resolves material internally and returns a sanitized outcome.
+- `CredentialCustodyInvokerFactory` is the adapter required by
+  `DelegatedConnectorExecutor`: after dispatch idempotency begins and only
+  immediately before an actual provider attempt, it validates route-to-handle
+  bindings and the complete configured failover scope, consumes one
+  authorization reservation, and returns an invoker that can call only
+  `CustodiedReferenceResolver`.
 - The resulting `AuthorizedProviderDispatch` carries one ledger reservation
   across primary and backup attempts, but can select only connector handles
   already included in its verified scope and is bounded by its verified
@@ -38,15 +44,24 @@ telephony, or other external-provider credential value.
 - Sanitized outcomes carry provider identity, status, correlation identifiers,
   audit reference, and bounded failure code only. They do not carry material,
   provider response bodies, recipient data, or message data.
+- Delegated terminal outcomes carry connector identity as well as provider
+  identity, so audits and failure notifications can identify the configured
+  connector without revealing custody material.
 
 ## Integration Gate
 
-This module is a contract surface, not a configured production custody store.
+These modules are a connected contract surface, not a configured production
+custody store. The delegated executor no longer accepts a direct provider
+invoker; production construction must supply `CredentialCustodyInvokerFactory`
+or an equivalently audited custody implementation. Its protocol seam exists
+for testing and alternate approved backends, so deployment wiring remains an
+enforcement gate.
 MEA integration remains blocked until all of the following exist:
 
 1. A trusted Signet-compatible verifier implementation with issuer and rotation
    policy.
-2. A durable consumption ledger with atomic reserve/complete/replay behavior.
+2. A durable consumption ledger and dispatch journal with defined atomic
+   reserve/complete/replay and crash-recovery behavior.
 3. A custody-internal resolver implementation, potentially backed by OpenBao
    after license, deployment, assurance, and operational review.
 4. Tamper-evident audit and failure notification sink implementations.

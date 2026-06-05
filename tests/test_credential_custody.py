@@ -9,6 +9,7 @@ from baton.credential_custody import (
     ConsumptionReservationRequired,
     CredentialUseRequest,
     CredentialCustodyAuthorizer,
+    CredentialCustodyInvokerFactory,
     CustodyAuthorizationDenied,
     CustodyResultStatus,
     ProviderChannel,
@@ -17,6 +18,15 @@ from baton.credential_custody import (
     VerifiedWorkloadAuthorization,
     WorkloadAuthorizationReference,
     authorize_provider_dispatch,
+)
+from baton.delegated_connector import (
+    AuthorizationDenied,
+    CapabilityReference,
+    Channel,
+    ConnectorRoute,
+    DeliveryStatus,
+    DispatchRequest,
+    VerifiedDispatchGrant,
 )
 
 
@@ -106,6 +116,59 @@ class OutcomeVerifier:
         _request: CredentialUseRequest,
     ) -> VerifiedWorkloadAuthorization:
         return self.authorization
+
+
+class OutcomeResolver:
+    def __init__(self, outcome: SanitizedCustodyOutcome):
+        self.outcome = outcome
+        self.calls = []
+
+    async def invoke(self, handle, authorized_use) -> SanitizedCustodyOutcome:
+        self.calls.append((handle, authorized_use))
+        return self.outcome
+
+
+def _delegated_request() -> DispatchRequest:
+    return DispatchRequest(
+        dispatch_id="dispatch-1",
+        workflow_id="operation-1",
+        channel=Channel.SMS,
+        recipient_ref="recipient-ref-1",
+        payload_ref="payload-ref-1",
+        idempotency_key="dispatch-once-1",
+        request_fingerprint=FINGERPRINT,
+    )
+
+
+def _delegated_route() -> ConnectorRoute:
+    return ConnectorRoute(
+        connector_id="sms-primary",
+        provider_key="provider-primary",
+        channel=Channel.SMS,
+        credential_handle="handle-sms-primary-v3",
+        priority=1,
+    )
+
+
+def _delegated_backup_route() -> ConnectorRoute:
+    return ConnectorRoute(
+        connector_id="sms-backup",
+        provider_key="provider-backup",
+        channel=Channel.SMS,
+        credential_handle="handle-sms-backup-v3",
+        priority=2,
+    )
+
+
+def _delegated_grant(max_attempts: int = 1) -> VerifiedDispatchGrant:
+    return VerifiedDispatchGrant(
+        principal="mea-comms",
+        channel=Channel.SMS,
+        allowed_connectors=frozenset({"sms-primary", "sms-backup"}),
+        not_after=NOW + timedelta(minutes=5),
+        max_attempts=max_attempts,
+        request_fingerprint=FINGERPRINT,
+    )
 
 
 async def test_single_dispatch_reservation_authorizes_only_opaque_handle_use():
@@ -239,6 +302,127 @@ async def test_one_reserved_dispatch_allows_scoped_primary_to_backup_selection()
         dispatch.authorize_handle(_handle("sms-unapproved", "provider-unapproved"))
 
 
+async def test_delegated_factory_reserves_before_custodied_provider_invocation():
+    ledger = OutcomeLedger()
+    authorizer = CredentialCustodyAuthorizer(
+        OutcomeVerifier(_authorization(max_uses=1)),
+        ledger,
+        clock=lambda: NOW,
+    )
+    resolver = OutcomeResolver(
+        SanitizedCustodyOutcome(
+            operation_id="operation-1",
+            dispatch_id="dispatch-1",
+            provider_key="provider-primary",
+            status=CustodyResultStatus.FAILED,
+            audit_ref="audit-1",
+            failure_code="provider_timeout",
+            retryable=True,
+            failover_allowed=True,
+            counts_toward_circuit=True,
+        )
+    )
+    factory = CredentialCustodyInvokerFactory(
+        authorizer,
+        resolver,
+        {"sms-primary": _handle()},
+        workload_id="mea-comms",
+        purpose="case_notification",
+    )
+    route = _delegated_route()
+    invoker = await factory.prepare(
+        CapabilityReference("authorization-ref-1"),
+        _delegated_request(),
+        _delegated_grant(),
+        route,
+        (route,),
+    )
+    result = await invoker.invoke(route, _delegated_request())
+
+    assert ledger.requests[0].dispatch_id == "dispatch-1"
+    assert ledger.requests[0].connector_id == "sms-primary"
+    assert resolver.calls[0][1].reservation_id == "reservation-1"
+    assert result.status is DeliveryStatus.FAILED
+    assert result.retryable is True
+    assert result.failover_allowed is True
+    assert result.counts_toward_circuit is True
+
+
+async def test_delegated_factory_denies_attempt_budget_above_custody_authority():
+    ledger = OutcomeLedger()
+    factory = CredentialCustodyInvokerFactory(
+        CredentialCustodyAuthorizer(
+            OutcomeVerifier(_authorization(max_uses=1, max_provider_attempts=1)),
+            ledger,
+            clock=lambda: NOW,
+        ),
+        OutcomeResolver(
+            SanitizedCustodyOutcome(
+                operation_id="operation-1",
+                dispatch_id="dispatch-1",
+                provider_key="provider-primary",
+                status=CustodyResultStatus.ACCEPTED,
+                audit_ref="audit-1",
+            )
+        ),
+        {"sms-primary": _handle()},
+        workload_id="mea-comms",
+        purpose="case_notification",
+    )
+    route = _delegated_route()
+    with pytest.raises(AuthorizationDenied):
+        await factory.prepare(
+            CapabilityReference("authorization-ref-1"),
+            _delegated_request(),
+            _delegated_grant(max_attempts=2),
+            route,
+            (route,),
+        )
+    assert ledger.requests == []
+
+
+async def test_delegated_factory_denies_failover_policy_outside_custody_scope_before_reserving():
+    ledger = OutcomeLedger()
+    factory = CredentialCustodyInvokerFactory(
+        CredentialCustodyAuthorizer(
+            OutcomeVerifier(
+                _authorization(
+                    max_uses=1,
+                    allowed_connector_ids=frozenset({"sms-primary"}),
+                )
+            ),
+            ledger,
+            clock=lambda: NOW,
+        ),
+        OutcomeResolver(
+            SanitizedCustodyOutcome(
+                operation_id="operation-1",
+                dispatch_id="dispatch-1",
+                provider_key="provider-primary",
+                status=CustodyResultStatus.ACCEPTED,
+                audit_ref="audit-1",
+            )
+        ),
+        {
+            "sms-primary": _handle(),
+            "sms-backup": _handle("sms-backup", "provider-backup"),
+        },
+        workload_id="mea-comms",
+        purpose="case_notification",
+    )
+    primary = _delegated_route()
+    backup = _delegated_backup_route()
+    with pytest.raises(AuthorizationDenied):
+        await factory.prepare(
+            CapabilityReference("authorization-ref-1"),
+            _delegated_request(),
+            _delegated_grant(),
+            primary,
+            (primary, backup),
+        )
+    assert ledger.requests == []
+
+
 def test_authorization_rejects_zero_provider_attempt_budget():
     with pytest.raises(ValueError):
         _authorization(max_provider_attempts=0)
@@ -254,6 +438,7 @@ def test_outcome_allows_only_sanitized_failure_identifier():
         failure_code="provider_timeout",
     )
     assert result.failure_code == "provider_timeout"
+    assert result.retryable is False
 
     with pytest.raises(ValueError):
         SanitizedCustodyOutcome(
@@ -263,4 +448,14 @@ def test_outcome_allows_only_sanitized_failure_identifier():
             status=CustodyResultStatus.FAILED,
             audit_ref="audit-1",
             failure_code="raw upstream detail: refused",
+        )
+
+    with pytest.raises(ValueError):
+        SanitizedCustodyOutcome(
+            operation_id="operation-1",
+            dispatch_id="dispatch-1",
+            provider_key="provider-primary",
+            status=CustodyResultStatus.ACCEPTED,
+            audit_ref="audit-1",
+            retryable=True,
         )
