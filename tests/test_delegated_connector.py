@@ -16,6 +16,8 @@ from baton.delegated_connector import (
     DelegatedConnectorExecutor,
     DeliveryOutcome,
     DeliveryStatus,
+    DispatchBinding,
+    DispatchBindingConflict,
     DispatchInProgress,
     DispatchRequest,
     DispatchSignal,
@@ -26,13 +28,23 @@ from baton.delegated_connector import (
 )
 
 
-def _request(idempotency_key: str = "dispatch-once-1") -> DispatchRequest:
+FINGERPRINT = "f" * 64
+
+
+def _request(
+    idempotency_key: str = "dispatch-once-1",
+    *,
+    dispatch_id: str | None = None,
+    request_fingerprint: str = FINGERPRINT,
+) -> DispatchRequest:
     return DispatchRequest(
+        dispatch_id=dispatch_id or f"dispatch-{idempotency_key}",
         workflow_id="workflow-1",
         channel=Channel.SMS,
         recipient_ref="recipient-ref-1",
         payload_ref="payload-ref-1",
         idempotency_key=idempotency_key,
+        request_fingerprint=request_fingerprint,
     )
 
 
@@ -66,6 +78,7 @@ class AcceptedVerifier:
             allowed_connectors=frozenset({"primary", "backup"}),
             not_after=datetime.now(timezone.utc) + timedelta(minutes=5),
             max_attempts=4,
+            request_fingerprint=request.request_fingerprint,
         )
 
 
@@ -74,6 +87,14 @@ class DeniedVerifier:
         self, _capability: CapabilityReference, _request: DispatchRequest
     ) -> VerifiedDispatchGrant:
         raise AuthorizationDenied("denied")
+
+
+class MismatchedFingerprintVerifier(AcceptedVerifier):
+    async def verify(
+        self, capability: CapabilityReference, request: DispatchRequest
+    ) -> VerifiedDispatchGrant:
+        grant = await super().verify(capability, request)
+        return dataclasses.replace(grant, request_fingerprint="e" * 64)
 
 
 class OutcomeInvoker:
@@ -100,22 +121,33 @@ class MemoryJournal:
     def __init__(self):
         self.running: set[str] = set()
         self.results: dict[str, DeliveryOutcome] = {}
+        self.fingerprints: dict[str, str] = {}
 
-    async def completed(self, idempotency_key: str) -> DeliveryOutcome | None:
-        return self.results.get(idempotency_key)
+    def _assert_binding(self, binding: DispatchBinding) -> None:
+        fingerprint = self.fingerprints.get(binding.idempotency_key)
+        if fingerprint is not None and fingerprint != binding.request_fingerprint:
+            raise DispatchBindingConflict("idempotency key is bound to another request")
 
-    async def begin(self, idempotency_key: str) -> bool:
-        if idempotency_key in self.running:
+    async def completed(self, binding: DispatchBinding) -> DeliveryOutcome | None:
+        self._assert_binding(binding)
+        return self.results.get(binding.idempotency_key)
+
+    async def begin(self, binding: DispatchBinding) -> bool:
+        self._assert_binding(binding)
+        if binding.idempotency_key in self.running:
             return False
-        self.running.add(idempotency_key)
+        self.fingerprints[binding.idempotency_key] = binding.request_fingerprint
+        self.running.add(binding.idempotency_key)
         return True
 
-    async def complete(self, idempotency_key: str, outcome: DeliveryOutcome) -> None:
-        self.running.discard(idempotency_key)
-        self.results[idempotency_key] = outcome
+    async def complete(self, binding: DispatchBinding, outcome: DeliveryOutcome) -> None:
+        self._assert_binding(binding)
+        self.running.discard(binding.idempotency_key)
+        self.results[binding.idempotency_key] = outcome
 
-    async def abort(self, idempotency_key: str) -> None:
-        self.running.discard(idempotency_key)
+    async def abort(self, binding: DispatchBinding) -> None:
+        self._assert_binding(binding)
+        self.running.discard(binding.idempotency_key)
 
 
 class SignalSink:
@@ -188,6 +220,7 @@ async def test_success_returns_sanitized_outcome_only():
         "failure_code",
     }
     assert [signal.kind for signal in sink.signals] == [DispatchSignalKind.ATTEMPT_SUCCEEDED]
+    assert sink.signals[0].dispatch_id == "dispatch-dispatch-once-1"
 
 
 async def test_authorization_denial_prevents_invocation_and_emits_signal():
@@ -196,6 +229,25 @@ async def test_authorization_denial_prevents_invocation_and_emits_signal():
     executor = DelegatedConnectorExecutor(
         [_route("primary", 1)],
         DeniedVerifier(),
+        invoker,
+        MemoryJournal(),
+        sink,
+    )
+
+    with pytest.raises(AuthorizationDenied):
+        await executor.dispatch(CapabilityReference("authorization-ref-1"), _request())
+
+    assert invoker.calls == []
+    assert sink.signals[0].kind is DispatchSignalKind.AUTHORIZATION_DENIED
+    assert sink.signals[0].dispatch_id == "dispatch-dispatch-once-1"
+
+
+async def test_authorization_fingerprint_mismatch_prevents_invocation():
+    invoker = OutcomeInvoker([_success()])
+    sink = SignalSink()
+    executor = DelegatedConnectorExecutor(
+        [_route("primary", 1)],
+        MismatchedFingerprintVerifier(),
         invoker,
         MemoryJournal(),
         sink,
@@ -224,6 +276,7 @@ async def test_failed_primary_fails_over_to_backup_with_sanitized_signals():
         DispatchSignalKind.FAILOVER_USED,
         DispatchSignalKind.ATTEMPT_SUCCEEDED,
     ]
+    assert {signal.dispatch_id for signal in sink.signals} == {"dispatch-dispatch-once-1"}
 
 
 async def test_provider_failure_without_failover_approval_does_not_send_to_backup():
@@ -288,9 +341,28 @@ async def test_completed_idempotency_key_returns_without_second_invocation():
     assert invoker.calls == ["primary"]
 
 
+async def test_changed_request_fingerprint_cannot_reuse_completed_idempotency_key():
+    invoker = OutcomeInvoker([_success()])
+    journal = MemoryJournal()
+    sink = SignalSink()
+    executor = _executor(invoker, journal=journal, sink=sink)
+    await executor.dispatch(CapabilityReference("authorization-ref-1"), _request())
+
+    with pytest.raises(DispatchBindingConflict):
+        await executor.dispatch(
+            CapabilityReference("authorization-ref-2"),
+            _request(request_fingerprint="e" * 64, dispatch_id="dispatch-changed"),
+        )
+
+    assert invoker.calls == ["primary"]
+    assert sink.signals[-1].kind is DispatchSignalKind.IDEMPOTENCY_CONFLICT
+    assert sink.signals[-1].dispatch_id == "dispatch-changed"
+
+
 async def test_in_progress_idempotency_key_fails_closed():
     journal = MemoryJournal()
     journal.running.add("dispatch-once-1")
+    journal.fingerprints["dispatch-once-1"] = FINGERPRINT
     executor = _executor(OutcomeInvoker([_success()]), journal=journal)
 
     with pytest.raises(DispatchInProgress):
