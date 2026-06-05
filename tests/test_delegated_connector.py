@@ -117,6 +117,42 @@ class HangingInvoker:
         raise AssertionError("unreachable")
 
 
+class OutcomeInvokerFactory:
+    def __init__(self, invoker):
+        self.invoker = invoker
+        self.prepare_calls: list[str] = []
+
+    async def prepare(
+        self,
+        _capability: CapabilityReference,
+        _request: DispatchRequest,
+        _grant: VerifiedDispatchGrant,
+        initial_route: ConnectorRoute,
+        _authorized_routes: tuple[ConnectorRoute, ...],
+    ):
+        self.prepare_calls.append(initial_route.connector_id)
+        return self.invoker
+
+
+class JournalCheckingFactory(OutcomeInvokerFactory):
+    def __init__(self, invoker, journal):
+        super().__init__(invoker)
+        self.journal = journal
+
+    async def prepare(
+        self,
+        capability: CapabilityReference,
+        request: DispatchRequest,
+        grant: VerifiedDispatchGrant,
+        initial_route: ConnectorRoute,
+        authorized_routes: tuple[ConnectorRoute, ...],
+    ):
+        assert request.idempotency_key in self.journal.running
+        return await super().prepare(
+            capability, request, grant, initial_route, authorized_routes
+        )
+
+
 class MemoryJournal:
     def __init__(self):
         self.running: set[str] = set()
@@ -186,11 +222,11 @@ def _failure(
     )
 
 
-def _executor(invoker, journal=None, sink=None, routes=None) -> DelegatedConnectorExecutor:
+def _executor(invoker, journal=None, sink=None, routes=None, factory=None) -> DelegatedConnectorExecutor:
     return DelegatedConnectorExecutor(
         routes or [_route("primary", 1), _route("backup", 2)],
         AcceptedVerifier(),
-        invoker,
+        factory or OutcomeInvokerFactory(invoker),
         journal or MemoryJournal(),
         sink or SignalSink(),
         sleep=lambda _delay: asyncio.sleep(0),
@@ -212,6 +248,7 @@ async def test_success_returns_sanitized_outcome_only():
         "dispatch_id",
         "workflow_id",
         "channel",
+        "connector_id",
         "provider_key",
         "status",
         "attempt_count",
@@ -221,15 +258,17 @@ async def test_success_returns_sanitized_outcome_only():
     }
     assert [signal.kind for signal in sink.signals] == [DispatchSignalKind.ATTEMPT_SUCCEEDED]
     assert sink.signals[0].dispatch_id == "dispatch-dispatch-once-1"
+    assert sink.signals[0].connector_id == "primary"
 
 
 async def test_authorization_denial_prevents_invocation_and_emits_signal():
     invoker = OutcomeInvoker([_success()])
+    factory = OutcomeInvokerFactory(invoker)
     sink = SignalSink()
     executor = DelegatedConnectorExecutor(
         [_route("primary", 1)],
         DeniedVerifier(),
-        invoker,
+        factory,
         MemoryJournal(),
         sink,
     )
@@ -238,17 +277,19 @@ async def test_authorization_denial_prevents_invocation_and_emits_signal():
         await executor.dispatch(CapabilityReference("authorization-ref-1"), _request())
 
     assert invoker.calls == []
+    assert factory.prepare_calls == []
     assert sink.signals[0].kind is DispatchSignalKind.AUTHORIZATION_DENIED
     assert sink.signals[0].dispatch_id == "dispatch-dispatch-once-1"
 
 
 async def test_authorization_fingerprint_mismatch_prevents_invocation():
     invoker = OutcomeInvoker([_success()])
+    factory = OutcomeInvokerFactory(invoker)
     sink = SignalSink()
     executor = DelegatedConnectorExecutor(
         [_route("primary", 1)],
         MismatchedFingerprintVerifier(),
-        invoker,
+        factory,
         MemoryJournal(),
         sink,
     )
@@ -257,6 +298,7 @@ async def test_authorization_fingerprint_mismatch_prevents_invocation():
         await executor.dispatch(CapabilityReference("authorization-ref-1"), _request())
 
     assert invoker.calls == []
+    assert factory.prepare_calls == []
     assert sink.signals[0].kind is DispatchSignalKind.AUTHORIZATION_DENIED
 
 
@@ -332,13 +374,44 @@ async def test_timeout_is_sanitized_and_fails_over():
 
 async def test_completed_idempotency_key_returns_without_second_invocation():
     invoker = OutcomeInvoker([_success()])
+    factory = OutcomeInvokerFactory(invoker)
     journal = MemoryJournal()
-    executor = _executor(invoker, journal=journal)
+    executor = _executor(invoker, journal=journal, factory=factory)
     first = await executor.dispatch(CapabilityReference("authorization-ref-1"), _request())
     second = await executor.dispatch(CapabilityReference("authorization-ref-2"), _request())
 
     assert first == second
     assert invoker.calls == ["primary"]
+    assert factory.prepare_calls == ["primary"]
+
+
+async def test_custody_preparation_occurs_only_after_idempotency_begin():
+    invoker = OutcomeInvoker([_success()])
+    journal = MemoryJournal()
+    factory = JournalCheckingFactory(invoker, journal)
+    outcome = await _executor(invoker, journal=journal, factory=factory).dispatch(
+        CapabilityReference("authorization-ref-1"), _request()
+    )
+
+    assert outcome.status is DeliveryStatus.ACCEPTED
+    assert factory.prepare_calls == ["primary"]
+
+
+async def test_open_circuit_without_attempt_does_not_prepare_custody_invoker():
+    invoker = OutcomeInvoker([_failure(counts_toward_circuit=True)])
+    factory = OutcomeInvokerFactory(invoker)
+    executor = _executor(
+        invoker,
+        routes=[_route("primary", 1, threshold=1)],
+        factory=factory,
+    )
+    await executor.dispatch(CapabilityReference("authorization-ref-1"), _request("one"))
+    outcome = await executor.dispatch(CapabilityReference("authorization-ref-2"), _request("two"))
+
+    assert outcome.status is DeliveryStatus.EXHAUSTED
+    assert outcome.failure_code == "circuit_open"
+    assert outcome.connector_id == "primary"
+    assert factory.prepare_calls == ["primary"]
 
 
 async def test_changed_request_fingerprint_cannot_reuse_completed_idempotency_key():
@@ -373,7 +446,7 @@ async def test_signal_failure_prevents_unaudited_authorization_denial():
     executor = DelegatedConnectorExecutor(
         [_route("primary", 1)],
         DeniedVerifier(),
-        OutcomeInvoker([_success()]),
+        OutcomeInvokerFactory(OutcomeInvoker([_success()])),
         MemoryJournal(),
         SignalSink(failures_remaining=1),
     )

@@ -12,8 +12,19 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import StrEnum
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Protocol
+
+from .delegated_connector import (
+    AuthorizationDenied as DelegatedAuthorizationDenied,
+    CapabilityReference,
+    ConnectorRoute,
+    CustodiedProviderInvoker,
+    DeliveryStatus,
+    DispatchRequest,
+    ProviderAttemptOutcome,
+    VerifiedDispatchGrant,
+)
 
 
 _FINGERPRINT_RE = re.compile(r"^[a-f0-9]{64}$")
@@ -226,6 +237,9 @@ class SanitizedCustodyOutcome:
     status: CustodyResultStatus
     audit_ref: str
     failure_code: str = ""
+    retryable: bool = False
+    failover_allowed: bool = False
+    counts_toward_circuit: bool = False
 
     def __post_init__(self) -> None:
         if not self.operation_id or not self.dispatch_id or not self.provider_key:
@@ -238,6 +252,10 @@ class SanitizedCustodyOutcome:
             raise ValueError("failed outcomes require a failure_code")
         if self.status is not CustodyResultStatus.FAILED and self.failure_code:
             raise ValueError("successful outcomes cannot contain a failure_code")
+        if self.status is not CustodyResultStatus.FAILED and (
+            self.retryable or self.failover_allowed or self.counts_toward_circuit
+        ):
+            raise ValueError("successful outcomes cannot contain failure policy flags")
 
 
 @dataclass(frozen=True)
@@ -332,6 +350,8 @@ async def authorize_provider_dispatch(
     authorization: VerifiedWorkloadAuthorization,
     *,
     ledger: AuthorizationConsumptionLedger,
+    provider_attempt_budget: int | None = None,
+    required_connector_ids: frozenset[str] | None = None,
     now: datetime | None = None,
 ) -> AuthorizedProviderDispatch:
     """Validate and reserve a credential-free verifier outcome for one dispatch.
@@ -354,6 +374,10 @@ async def authorize_provider_dispatch(
         )
     if request.connector_id not in authorization.allowed_connector_ids:
         raise CustodyAuthorizationDenied("initial connector is outside authorization scope")
+    if required_connector_ids and not required_connector_ids.issubset(
+        authorization.allowed_connector_ids
+    ):
+        raise CustodyAuthorizationDenied("route policy is outside authorization scope")
     if (
         initial_handle.channel is not request.channel
         or request.channel not in authorization.allowed_channels
@@ -361,6 +385,13 @@ async def authorize_provider_dispatch(
         raise CustodyAuthorizationDenied("channel is outside authorization scope")
     if request.purpose not in authorization.allowed_purposes:
         raise CustodyAuthorizationDenied("purpose is outside authorization scope")
+    if (
+        provider_attempt_budget is not None
+        and provider_attempt_budget > authorization.max_provider_attempts
+    ):
+        raise CustodyAuthorizationDenied(
+            "dispatch attempt budget exceeds credential custody scope"
+        )
 
     if authorization.max_uses != 1:
         raise CustodyAuthorizationDenied(
@@ -412,6 +443,9 @@ class CredentialCustodyAuthorizer:
         reference: WorkloadAuthorizationReference,
         handle: ProviderCredentialHandle,
         request: CredentialUseRequest,
+        *,
+        provider_attempt_budget: int | None = None,
+        required_connector_ids: frozenset[str] | None = None,
     ) -> AuthorizedProviderDispatch:
         authorization = await self._verifier.verify(reference, request)
         reserved_dispatch = await authorize_provider_dispatch(
@@ -419,6 +453,137 @@ class CredentialCustodyAuthorizer:
             request,
             authorization,
             ledger=self._ledger,
+            provider_attempt_budget=provider_attempt_budget,
+            required_connector_ids=required_connector_ids,
             now=self._clock(),
         )
         return reserved_dispatch
+
+
+class CredentialCustodyInvokerFactory:
+    """Connect delegated dispatch to a single reserved custody execution path."""
+
+    def __init__(
+        self,
+        authorizer: CredentialCustodyAuthorizer,
+        resolver: CustodiedReferenceResolver,
+        handles: Mapping[str, ProviderCredentialHandle],
+        *,
+        workload_id: str,
+        purpose: str,
+    ):
+        if not workload_id or not purpose:
+            raise ValueError("workload_id and purpose are required")
+        self._authorizer = authorizer
+        self._resolver = resolver
+        self._handles = dict(handles)
+        self._workload_id = workload_id
+        self._purpose = purpose
+
+    def _handle_for_route(self, route: ConnectorRoute) -> ProviderCredentialHandle:
+        handle = self._handles.get(route.connector_id)
+        expected_channel = ProviderChannel(route.channel.value)
+        if (
+            handle is None
+            or handle.handle_id != route.credential_handle
+            or handle.provider_key != route.provider_key
+            or handle.channel is not expected_channel
+        ):
+            raise DelegatedAuthorizationDenied("connector custody binding is invalid")
+        return handle
+
+    async def prepare(
+        self,
+        capability: CapabilityReference,
+        request: DispatchRequest,
+        grant: VerifiedDispatchGrant,
+        initial_route: ConnectorRoute,
+        authorized_routes: tuple[ConnectorRoute, ...],
+    ) -> CustodiedProviderInvoker:
+        if initial_route not in authorized_routes:
+            raise DelegatedAuthorizationDenied("initial route is outside dispatch policy")
+        initial_handle = self._handle_for_route(initial_route)
+        for route in authorized_routes:
+            self._handle_for_route(route)
+        custody_request = CredentialUseRequest(
+            operation_id=request.workflow_id,
+            dispatch_id=request.dispatch_id,
+            workload_id=self._workload_id,
+            connector_id=initial_route.connector_id,
+            channel=ProviderChannel(request.channel.value),
+            purpose=self._purpose,
+            recipient_ref=request.recipient_ref,
+            payload_ref=request.payload_ref,
+            idempotency_key=request.idempotency_key,
+            request_fingerprint=request.request_fingerprint,
+        )
+        try:
+            reserved_dispatch = await self._authorizer.authorize(
+                WorkloadAuthorizationReference(capability.reference),
+                initial_handle,
+                custody_request,
+                provider_attempt_budget=grant.max_attempts,
+                required_connector_ids=frozenset(
+                    route.connector_id for route in authorized_routes
+                ),
+            )
+        except CustodyAuthorizationDenied as exc:
+            raise DelegatedAuthorizationDenied("credential custody authorization denied") from exc
+        return _ReservedCustodiedProviderInvoker(
+            resolver=self._resolver,
+            handles=self._handles,
+            dispatch=reserved_dispatch,
+            request=request,
+        )
+
+
+class _ReservedCustodiedProviderInvoker:
+    def __init__(
+        self,
+        *,
+        resolver: CustodiedReferenceResolver,
+        handles: Mapping[str, ProviderCredentialHandle],
+        dispatch: AuthorizedProviderDispatch,
+        request: DispatchRequest,
+    ):
+        self._resolver = resolver
+        self._handles = dict(handles)
+        self._dispatch = dispatch
+        self._request = request
+
+    async def invoke(
+        self, route: ConnectorRoute, request: DispatchRequest
+    ) -> ProviderAttemptOutcome:
+        if (
+            request.dispatch_id != self._request.dispatch_id
+            or request.request_fingerprint != self._request.request_fingerprint
+            or request.idempotency_key != self._request.idempotency_key
+        ):
+            raise DelegatedAuthorizationDenied("prepared custody dispatch was rebound")
+        handle = self._handles.get(route.connector_id)
+        if (
+            handle is None
+            or handle.handle_id != route.credential_handle
+            or handle.provider_key != route.provider_key
+            or handle.channel.value != route.channel.value
+        ):
+            raise DelegatedAuthorizationDenied("connector custody binding is invalid")
+        try:
+            authorized_use = self._dispatch.authorize_handle(handle)
+            outcome = await self._resolver.invoke(handle, authorized_use)
+        except CustodyAuthorizationDenied as exc:
+            raise DelegatedAuthorizationDenied("provider custody invocation denied") from exc
+        if (
+            outcome.operation_id != self._dispatch.operation_id
+            or outcome.dispatch_id != request.dispatch_id
+            or outcome.provider_key != route.provider_key
+        ):
+            raise DelegatedAuthorizationDenied("custody outcome binding is invalid")
+        return ProviderAttemptOutcome(
+            status=DeliveryStatus(outcome.status.value),
+            audit_ref=outcome.audit_ref,
+            failure_code=outcome.failure_code,
+            retryable=outcome.retryable,
+            failover_allowed=outcome.failover_allowed,
+            counts_toward_circuit=outcome.counts_toward_circuit,
+        )

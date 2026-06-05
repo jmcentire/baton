@@ -3,8 +3,10 @@
 This module is the Baton-side runtime boundary for provider-backed delivery.
 It accepts opaque authorization and connector references, orchestrates retries,
 failover, and circuit breakers, and returns sanitized outcomes only. The
-``CustodiedProviderInvoker`` implementation is the single-purpose boundary
-allowed to resolve and use provider credential material internally.
+``CustodiedProviderInvokerFactory`` prepares a custody-authorized invoker
+immediately before a provider attempt. Its prepared invoker is the
+single-purpose boundary allowed to resolve and use provider credential
+material internally.
 """
 
 from __future__ import annotations
@@ -192,6 +194,7 @@ class DeliveryOutcome:
     dispatch_id: str
     workflow_id: str
     channel: Channel
+    connector_id: str
     provider_key: str
     status: DeliveryStatus
     attempt_count: int
@@ -251,6 +254,21 @@ class CustodiedProviderInvoker(Protocol):
         ...
 
 
+class CustodiedProviderInvokerFactory(Protocol):
+    """Prepare a custody-bound invoker after idempotency begins, before sending."""
+
+    async def prepare(
+        self,
+        capability: CapabilityReference,
+        request: DispatchRequest,
+        grant: VerifiedDispatchGrant,
+        initial_route: ConnectorRoute,
+        authorized_routes: tuple[ConnectorRoute, ...],
+    ) -> CustodiedProviderInvoker:
+        """Reserve authority for the attempted route policy without using material."""
+        ...
+
+
 class DispatchJournal(Protocol):
     """Atomic idempotency journal required before any provider invocation.
 
@@ -295,7 +313,7 @@ class DelegatedConnectorExecutor:
         self,
         routes: Sequence[ConnectorRoute],
         verifier: ScopedAuthorizationVerifier,
-        invoker: CustodiedProviderInvoker,
+        invoker_factory: CustodiedProviderInvokerFactory,
         journal: DispatchJournal,
         signal_sink: DispatchSignalSink,
         *,
@@ -305,7 +323,7 @@ class DelegatedConnectorExecutor:
     ):
         self._routes = self._validate_routes(routes)
         self._verifier = verifier
-        self._invoker = invoker
+        self._invoker_factory = invoker_factory
         self._journal = journal
         self._signal_sink = signal_sink
         self._clock = clock or (lambda: datetime.now(timezone.utc))
@@ -384,8 +402,20 @@ class DelegatedConnectorExecutor:
             raise
 
         try:
-            outcome = await self._dispatch_authorized(grant, request)
+            outcome = await self._dispatch_authorized(capability, grant, request)
             await self._journal.complete(binding, outcome)
+        except AuthorizationDenied:
+            await self._journal.abort(binding)
+            await self._emit(
+                DispatchSignal(
+                    kind=DispatchSignalKind.AUTHORIZATION_DENIED,
+                    workflow_id=request.workflow_id,
+                    channel=request.channel,
+                    dispatch_id=request.dispatch_id,
+                    failure_code="authorization_denied",
+                )
+            )
+            raise
         except Exception:
             await self._journal.abort(binding)
             raise
@@ -409,27 +439,36 @@ class DelegatedConnectorExecutor:
             raise AuthorizationDenied("no authorized active connector for dispatch")
 
     async def _dispatch_authorized(
-        self, grant: VerifiedDispatchGrant, request: DispatchRequest
+        self,
+        capability: CapabilityReference,
+        grant: VerifiedDispatchGrant,
+        request: DispatchRequest,
     ) -> DeliveryOutcome:
-        routes = [
+        routes = tuple(
             route
             for route in self._routes
             if route.channel is request.channel
             and route.enabled
             and route.connector_id in grant.allowed_connectors
-        ]
+        )
         attempt_count = 0
+        last_connector = ""
         last_provider = ""
         last_audit_ref = ""
         last_failure = "provider_unavailable"
         failover_used = False
         attempted_or_skipped_route = False
         allow_next_route = True
+        invoker: CustodiedProviderInvoker | None = None
 
         for route in routes:
             if not allow_next_route:
                 break
             if self._circuit_is_open(route):
+                last_connector = route.connector_id
+                last_provider = route.provider_key
+                last_audit_ref = f"circuit:{request.dispatch_id}:{route.connector_id}"
+                last_failure = "circuit_open"
                 await self._emit(
                     DispatchSignal(
                         kind=DispatchSignalKind.CIRCUIT_OPEN,
@@ -459,13 +498,22 @@ class DelegatedConnectorExecutor:
                 )
             attempted_or_skipped_route = True
             allow_next_route = False
+            if invoker is None:
+                invoker = await self._invoker_factory.prepare(
+                    capability,
+                    request,
+                    grant,
+                    route,
+                    routes,
+                )
 
             for local_attempt in range(route.max_attempts):
                 if attempt_count >= grant.max_attempts:
                     break
                 attempt_count += 1
+                last_connector = route.connector_id
                 last_provider = route.provider_key
-                attempt = await self._invoke(route, request)
+                attempt = await self._invoke(invoker, route, request)
                 last_audit_ref = attempt.audit_ref
                 if attempt.status in (DeliveryStatus.ACCEPTED, DeliveryStatus.DELIVERED):
                     self._record_success(route)
@@ -473,6 +521,7 @@ class DelegatedConnectorExecutor:
                         dispatch_id=request.dispatch_id,
                         workflow_id=request.workflow_id,
                         channel=request.channel,
+                        connector_id=route.connector_id,
                         provider_key=route.provider_key,
                         status=attempt.status,
                         attempt_count=attempt_count,
@@ -508,6 +557,7 @@ class DelegatedConnectorExecutor:
             dispatch_id=request.dispatch_id,
             workflow_id=request.workflow_id,
             channel=request.channel,
+            connector_id=last_connector,
             provider_key=last_provider,
             status=DeliveryStatus.EXHAUSTED,
             attempt_count=attempt_count,
@@ -517,17 +567,22 @@ class DelegatedConnectorExecutor:
         )
 
     async def _invoke(
-        self, route: ConnectorRoute, request: DispatchRequest
+        self,
+        invoker: CustodiedProviderInvoker,
+        route: ConnectorRoute,
+        request: DispatchRequest,
     ) -> ProviderAttemptOutcome:
         try:
             return await asyncio.wait_for(
-                self._invoker.invoke(route, request),
+                invoker.invoke(route, request),
                 timeout=route.timeout_ms / 1000,
             )
+        except AuthorizationDenied:
+            raise
         except TimeoutError:
             return ProviderAttemptOutcome(
                 status=DeliveryStatus.FAILED,
-                audit_ref=f"timeout:{request.workflow_id}:{route.connector_id}",
+                audit_ref=f"timeout:{request.dispatch_id}:{route.connector_id}",
                 failure_code="provider_timeout",
                 retryable=True,
                 failover_allowed=True,
@@ -536,7 +591,7 @@ class DelegatedConnectorExecutor:
         except Exception:
             return ProviderAttemptOutcome(
                 status=DeliveryStatus.FAILED,
-                audit_ref=f"error:{request.workflow_id}:{route.connector_id}",
+                audit_ref=f"error:{request.dispatch_id}:{route.connector_id}",
                 failure_code="provider_error",
                 retryable=True,
                 failover_allowed=True,
@@ -584,6 +639,7 @@ class DelegatedConnectorExecutor:
                 dispatch_id=outcome.dispatch_id,
                 workflow_id=outcome.workflow_id,
                 channel=outcome.channel,
+                connector_id=outcome.connector_id,
                 provider_key=outcome.provider_key,
                 attempt_count=outcome.attempt_count,
                 failure_code=outcome.failure_code,
