@@ -16,10 +16,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Awaitable, Callable, Protocol, Sequence
-from uuid import uuid4
 
 
 _SAFE_CODE_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+_FINGERPRINT_RE = re.compile(r"^[a-f0-9]{64}$")
 
 
 class Channel(StrEnum):
@@ -36,6 +36,7 @@ class DeliveryStatus(StrEnum):
 
 class DispatchSignalKind(StrEnum):
     AUTHORIZATION_DENIED = "authorization_denied"
+    IDEMPOTENCY_CONFLICT = "idempotency_conflict"
     ATTEMPT_FAILED = "attempt_failed"
     ATTEMPT_SUCCEEDED = "attempt_succeeded"
     CIRCUIT_OPEN = "circuit_open"
@@ -53,6 +54,10 @@ class AuthorizationDenied(DelegatedConnectorError):
 
 class DispatchInProgress(DelegatedConnectorError):
     """The idempotency key is already executing elsewhere."""
+
+
+class DispatchBindingConflict(DelegatedConnectorError):
+    """An idempotency key was reused for different immutable request content."""
 
 
 class MonitoringUnavailable(DelegatedConnectorError):
@@ -78,16 +83,26 @@ class CapabilityReference:
 class DispatchRequest:
     """A provider dispatch instruction containing references, never material."""
 
+    dispatch_id: str
     workflow_id: str
     channel: Channel
     recipient_ref: str
     payload_ref: str
     idempotency_key: str
+    request_fingerprint: str
 
     def __post_init__(self) -> None:
-        for name in ("workflow_id", "recipient_ref", "payload_ref", "idempotency_key"):
+        for name in (
+            "dispatch_id",
+            "workflow_id",
+            "recipient_ref",
+            "payload_ref",
+            "idempotency_key",
+        ):
             if not getattr(self, name):
                 raise ValueError(f"{name} is required")
+        if not _FINGERPRINT_RE.fullmatch(self.request_fingerprint):
+            raise ValueError("request_fingerprint must be a lowercase SHA-256 digest")
 
 
 @dataclass(frozen=True)
@@ -99,6 +114,7 @@ class VerifiedDispatchGrant:
     allowed_connectors: frozenset[str]
     not_after: datetime
     max_attempts: int
+    request_fingerprint: str
 
     def __post_init__(self) -> None:
         if not self.principal:
@@ -107,6 +123,8 @@ class VerifiedDispatchGrant:
             raise ValueError("not_after must be timezone-aware")
         if self.max_attempts < 1:
             raise ValueError("max_attempts must be positive")
+        if not _FINGERPRINT_RE.fullmatch(self.request_fingerprint):
+            raise ValueError("request_fingerprint must be a lowercase SHA-256 digest")
 
 
 @dataclass(frozen=True)
@@ -183,17 +201,31 @@ class DeliveryOutcome:
 
 
 @dataclass(frozen=True)
+class DispatchBinding:
+    """Immutable journal binding for one idempotent dispatch instruction."""
+
+    idempotency_key: str
+    request_fingerprint: str
+
+    def __post_init__(self) -> None:
+        if not self.idempotency_key:
+            raise ValueError("idempotency_key is required")
+        if not _FINGERPRINT_RE.fullmatch(self.request_fingerprint):
+            raise ValueError("request_fingerprint must be a lowercase SHA-256 digest")
+
+
+@dataclass(frozen=True)
 class DispatchSignal:
     """Non-sensitive operational event for audit and alert pipelines.
 
-    Terminal signals carry ``dispatch_id`` so a sink can persist them
-    idempotently when a caller retries after monitoring is unavailable.
+    Every signal carries ``dispatch_id`` so failures, failover, and terminal
+    delivery can be correlated without exposing provider material.
     """
 
     kind: DispatchSignalKind
     workflow_id: str
     channel: Channel
-    dispatch_id: str = ""
+    dispatch_id: str
     connector_id: str = ""
     provider_key: str = ""
     attempt_count: int = 0
@@ -220,18 +252,22 @@ class CustodiedProviderInvoker(Protocol):
 
 
 class DispatchJournal(Protocol):
-    """Atomic idempotency journal required before any provider invocation."""
+    """Atomic idempotency journal required before any provider invocation.
 
-    async def completed(self, idempotency_key: str) -> DeliveryOutcome | None:
+    Implementations must raise ``DispatchBindingConflict`` when an
+    idempotency key was previously bound to a different request fingerprint.
+    """
+
+    async def completed(self, binding: DispatchBinding) -> DeliveryOutcome | None:
         ...
 
-    async def begin(self, idempotency_key: str) -> bool:
+    async def begin(self, binding: DispatchBinding) -> bool:
         ...
 
-    async def complete(self, idempotency_key: str, outcome: DeliveryOutcome) -> None:
+    async def complete(self, binding: DispatchBinding, outcome: DeliveryOutcome) -> None:
         ...
 
-    async def abort(self, idempotency_key: str) -> None:
+    async def abort(self, binding: DispatchBinding) -> None:
         ...
 
 
@@ -297,7 +333,7 @@ class DelegatedConnectorExecutor:
     async def dispatch(
         self, capability: CapabilityReference, request: DispatchRequest
     ) -> DeliveryOutcome:
-        """Dispatch exactly once per idempotency key after scoped verification."""
+        """Dispatch once per key and immutable request fingerprint after verification."""
         try:
             grant = await self._verifier.verify(capability, request)
             self._validate_grant(grant, request)
@@ -307,6 +343,7 @@ class DelegatedConnectorExecutor:
                     kind=DispatchSignalKind.AUTHORIZATION_DENIED,
                     workflow_id=request.workflow_id,
                     channel=request.channel,
+                    dispatch_id=request.dispatch_id,
                     failure_code="authorization_denied",
                 )
             )
@@ -314,24 +351,51 @@ class DelegatedConnectorExecutor:
                 raise
             raise AuthorizationDenied("dispatch authorization denied") from exc
 
-        completed = await self._journal.completed(request.idempotency_key)
+        binding = DispatchBinding(request.idempotency_key, request.request_fingerprint)
+        try:
+            completed = await self._journal.completed(binding)
+        except DispatchBindingConflict:
+            await self._emit(
+                DispatchSignal(
+                    kind=DispatchSignalKind.IDEMPOTENCY_CONFLICT,
+                    workflow_id=request.workflow_id,
+                    channel=request.channel,
+                    dispatch_id=request.dispatch_id,
+                    failure_code="idempotency_binding_conflict",
+                )
+            )
+            raise
         if completed is not None:
             await self._emit_terminal(completed)
             return completed
-        if not await self._journal.begin(request.idempotency_key):
-            raise DispatchInProgress("dispatch with this idempotency key is already in progress")
+        try:
+            if not await self._journal.begin(binding):
+                raise DispatchInProgress("dispatch with this idempotency key is already in progress")
+        except DispatchBindingConflict:
+            await self._emit(
+                DispatchSignal(
+                    kind=DispatchSignalKind.IDEMPOTENCY_CONFLICT,
+                    workflow_id=request.workflow_id,
+                    channel=request.channel,
+                    dispatch_id=request.dispatch_id,
+                    failure_code="idempotency_binding_conflict",
+                )
+            )
+            raise
 
         try:
             outcome = await self._dispatch_authorized(grant, request)
-            await self._journal.complete(request.idempotency_key, outcome)
+            await self._journal.complete(binding, outcome)
         except Exception:
-            await self._journal.abort(request.idempotency_key)
+            await self._journal.abort(binding)
             raise
 
         await self._emit_terminal(outcome)
         return outcome
 
     def _validate_grant(self, grant: VerifiedDispatchGrant, request: DispatchRequest) -> None:
+        if grant.request_fingerprint != request.request_fingerprint:
+            raise AuthorizationDenied("dispatch fingerprint is outside authorization scope")
         if grant.channel is not request.channel:
             raise AuthorizationDenied("dispatch channel is outside authorization scope")
         if self._clock() >= grant.not_after:
@@ -371,6 +435,7 @@ class DelegatedConnectorExecutor:
                         kind=DispatchSignalKind.CIRCUIT_OPEN,
                         workflow_id=request.workflow_id,
                         channel=request.channel,
+                        dispatch_id=request.dispatch_id,
                         connector_id=route.connector_id,
                         provider_key=route.provider_key,
                         attempt_count=attempt_count,
@@ -386,6 +451,7 @@ class DelegatedConnectorExecutor:
                         kind=DispatchSignalKind.FAILOVER_USED,
                         workflow_id=request.workflow_id,
                         channel=request.channel,
+                        dispatch_id=request.dispatch_id,
                         connector_id=route.connector_id,
                         provider_key=route.provider_key,
                         attempt_count=attempt_count,
@@ -404,7 +470,7 @@ class DelegatedConnectorExecutor:
                 if attempt.status in (DeliveryStatus.ACCEPTED, DeliveryStatus.DELIVERED):
                     self._record_success(route)
                     return DeliveryOutcome(
-                        dispatch_id=f"dispatch-{uuid4().hex}",
+                        dispatch_id=request.dispatch_id,
                         workflow_id=request.workflow_id,
                         channel=request.channel,
                         provider_key=route.provider_key,
@@ -423,6 +489,7 @@ class DelegatedConnectorExecutor:
                         kind=DispatchSignalKind.ATTEMPT_FAILED,
                         workflow_id=request.workflow_id,
                         channel=request.channel,
+                        dispatch_id=request.dispatch_id,
                         connector_id=route.connector_id,
                         provider_key=route.provider_key,
                         attempt_count=attempt_count,
@@ -438,7 +505,7 @@ class DelegatedConnectorExecutor:
                 break
 
         return DeliveryOutcome(
-            dispatch_id=f"dispatch-{uuid4().hex}",
+            dispatch_id=request.dispatch_id,
             workflow_id=request.workflow_id,
             channel=request.channel,
             provider_key=last_provider,
