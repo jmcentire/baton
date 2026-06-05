@@ -62,6 +62,10 @@ class DispatchBindingConflict(DelegatedConnectorError):
     """An idempotency key was reused for different immutable request content."""
 
 
+class DispatchStateUnavailable(DelegatedConnectorError):
+    """Durable dispatch state could not record a post-invocation transition."""
+
+
 class MonitoringUnavailable(DelegatedConnectorError):
     """A required sanitized signal could not be persisted."""
 
@@ -218,6 +222,21 @@ class DispatchBinding:
 
 
 @dataclass(frozen=True)
+class DispatchClaim:
+    """Lease-bearing ownership token for one durable dispatch attempt."""
+
+    claim_id: str
+    binding: DispatchBinding
+    lease_expires_at: datetime
+
+    def __post_init__(self) -> None:
+        if not self.claim_id:
+            raise ValueError("claim_id is required")
+        if self.lease_expires_at.tzinfo is None:
+            raise ValueError("lease_expires_at must be timezone-aware")
+
+
+@dataclass(frozen=True)
 class DispatchSignal:
     """Non-sensitive operational event for audit and alert pipelines.
 
@@ -262,6 +281,7 @@ class CustodiedProviderInvokerFactory(Protocol):
         capability: CapabilityReference,
         request: DispatchRequest,
         grant: VerifiedDispatchGrant,
+        claim: DispatchClaim,
         initial_route: ConnectorRoute,
         authorized_routes: tuple[ConnectorRoute, ...],
     ) -> CustodiedProviderInvoker:
@@ -279,13 +299,16 @@ class DispatchJournal(Protocol):
     async def completed(self, binding: DispatchBinding) -> DeliveryOutcome | None:
         ...
 
-    async def begin(self, binding: DispatchBinding) -> bool:
+    async def begin(self, binding: DispatchBinding) -> DispatchClaim | None:
         ...
 
-    async def complete(self, binding: DispatchBinding, outcome: DeliveryOutcome) -> None:
+    async def renew(self, claim: DispatchClaim) -> None:
         ...
 
-    async def abort(self, binding: DispatchBinding) -> None:
+    async def complete(self, claim: DispatchClaim, outcome: DeliveryOutcome) -> None:
+        ...
+
+    async def abort(self, claim: DispatchClaim) -> None:
         ...
 
 
@@ -387,8 +410,7 @@ class DelegatedConnectorExecutor:
             await self._emit_terminal(completed)
             return completed
         try:
-            if not await self._journal.begin(binding):
-                raise DispatchInProgress("dispatch with this idempotency key is already in progress")
+            claim = await self._journal.begin(binding)
         except DispatchBindingConflict:
             await self._emit(
                 DispatchSignal(
@@ -400,12 +422,16 @@ class DelegatedConnectorExecutor:
                 )
             )
             raise
+        if claim is None:
+            completed = await self._journal.completed(binding)
+            if completed is not None:
+                await self._emit_terminal(completed)
+                return completed
+            raise DispatchInProgress("dispatch with this idempotency key is already in progress")
 
         try:
-            outcome = await self._dispatch_authorized(capability, grant, request)
-            await self._journal.complete(binding, outcome)
+            outcome = await self._dispatch_authorized(capability, grant, claim, request)
         except AuthorizationDenied:
-            await self._journal.abort(binding)
             await self._emit(
                 DispatchSignal(
                     kind=DispatchSignalKind.AUTHORIZATION_DENIED,
@@ -416,9 +442,13 @@ class DelegatedConnectorExecutor:
                 )
             )
             raise
-        except Exception:
-            await self._journal.abort(binding)
-            raise
+
+        try:
+            await self._journal.complete(claim, outcome)
+        except Exception as exc:
+            raise DispatchStateUnavailable(
+                "durable dispatch outcome persistence failed after provider execution"
+            ) from exc
 
         await self._emit_terminal(outcome)
         return outcome
@@ -442,6 +472,7 @@ class DelegatedConnectorExecutor:
         self,
         capability: CapabilityReference,
         grant: VerifiedDispatchGrant,
+        claim: DispatchClaim,
         request: DispatchRequest,
     ) -> DeliveryOutcome:
         routes = tuple(
@@ -499,10 +530,12 @@ class DelegatedConnectorExecutor:
             attempted_or_skipped_route = True
             allow_next_route = False
             if invoker is None:
+                await self._journal.renew(claim)
                 invoker = await self._invoker_factory.prepare(
                     capability,
                     request,
                     grant,
+                    claim,
                     route,
                     routes,
                 )
@@ -513,6 +546,7 @@ class DelegatedConnectorExecutor:
                 attempt_count += 1
                 last_connector = route.connector_id
                 last_provider = route.provider_key
+                await self._journal.renew(claim)
                 attempt = await self._invoke(invoker, route, request)
                 last_audit_ref = attempt.audit_ref
                 if attempt.status in (DeliveryStatus.ACCEPTED, DeliveryStatus.DELIVERED):

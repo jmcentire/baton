@@ -18,10 +18,12 @@ from baton.delegated_connector import (
     DeliveryStatus,
     DispatchBinding,
     DispatchBindingConflict,
+    DispatchClaim,
     DispatchInProgress,
     DispatchRequest,
     DispatchSignal,
     DispatchSignalKind,
+    DispatchStateUnavailable,
     MonitoringUnavailable,
     ProviderAttemptOutcome,
     VerifiedDispatchGrant,
@@ -127,6 +129,7 @@ class OutcomeInvokerFactory:
         _capability: CapabilityReference,
         _request: DispatchRequest,
         _grant: VerifiedDispatchGrant,
+        _claim: DispatchClaim,
         initial_route: ConnectorRoute,
         _authorized_routes: tuple[ConnectorRoute, ...],
     ):
@@ -144,12 +147,13 @@ class JournalCheckingFactory(OutcomeInvokerFactory):
         capability: CapabilityReference,
         request: DispatchRequest,
         grant: VerifiedDispatchGrant,
+        claim: DispatchClaim,
         initial_route: ConnectorRoute,
         authorized_routes: tuple[ConnectorRoute, ...],
     ):
         assert request.idempotency_key in self.journal.running
         return await super().prepare(
-            capability, request, grant, initial_route, authorized_routes
+            capability, request, grant, claim, initial_route, authorized_routes
         )
 
 
@@ -158,6 +162,7 @@ class MemoryJournal:
         self.running: set[str] = set()
         self.results: dict[str, DeliveryOutcome] = {}
         self.fingerprints: dict[str, str] = {}
+        self.claims: dict[str, str] = {}
 
     def _assert_binding(self, binding: DispatchBinding) -> None:
         fingerprint = self.fingerprints.get(binding.idempotency_key)
@@ -168,22 +173,39 @@ class MemoryJournal:
         self._assert_binding(binding)
         return self.results.get(binding.idempotency_key)
 
-    async def begin(self, binding: DispatchBinding) -> bool:
+    async def begin(self, binding: DispatchBinding) -> DispatchClaim | None:
         self._assert_binding(binding)
         if binding.idempotency_key in self.running:
-            return False
+            return None
         self.fingerprints[binding.idempotency_key] = binding.request_fingerprint
         self.running.add(binding.idempotency_key)
-        return True
+        claim_id = f"claim-{binding.idempotency_key}"
+        self.claims[binding.idempotency_key] = claim_id
+        return DispatchClaim(
+            claim_id=claim_id,
+            binding=binding,
+            lease_expires_at=datetime.now(timezone.utc) + timedelta(minutes=1),
+        )
 
-    async def complete(self, binding: DispatchBinding, outcome: DeliveryOutcome) -> None:
-        self._assert_binding(binding)
-        self.running.discard(binding.idempotency_key)
-        self.results[binding.idempotency_key] = outcome
+    async def complete(self, claim: DispatchClaim, outcome: DeliveryOutcome) -> None:
+        self._assert_binding(claim.binding)
+        assert self.claims[claim.binding.idempotency_key] == claim.claim_id
+        self.running.discard(claim.binding.idempotency_key)
+        self.results[claim.binding.idempotency_key] = outcome
 
-    async def abort(self, binding: DispatchBinding) -> None:
-        self._assert_binding(binding)
-        self.running.discard(binding.idempotency_key)
+    async def renew(self, claim: DispatchClaim) -> None:
+        self._assert_binding(claim.binding)
+        assert self.claims[claim.binding.idempotency_key] == claim.claim_id
+
+    async def abort(self, claim: DispatchClaim) -> None:
+        self._assert_binding(claim.binding)
+        if self.claims.get(claim.binding.idempotency_key) == claim.claim_id:
+            self.running.discard(claim.binding.idempotency_key)
+
+
+class CompleteFailingJournal(MemoryJournal):
+    async def complete(self, _claim: DispatchClaim, _outcome: DeliveryOutcome) -> None:
+        raise RuntimeError("injected durable completion failure")
 
 
 class SignalSink:
@@ -468,3 +490,32 @@ async def test_success_is_not_resent_when_terminal_signal_must_be_retried():
     assert outcome.status is DeliveryStatus.ACCEPTED
     assert invoker.calls == ["primary"]
     assert [signal.kind for signal in sink.signals] == [DispatchSignalKind.ATTEMPT_SUCCEEDED]
+
+
+async def test_post_attempt_failure_does_not_abort_claim_or_immediately_resend():
+    invoker = OutcomeInvoker([_failure("provider_unavailable")])
+    journal = MemoryJournal()
+    sink = SignalSink(failures_remaining=1)
+    executor = _executor(invoker, journal=journal, sink=sink)
+
+    with pytest.raises(MonitoringUnavailable):
+        await executor.dispatch(CapabilityReference("authorization-ref-1"), _request())
+
+    assert "dispatch-once-1" in journal.running
+    with pytest.raises(DispatchInProgress):
+        await executor.dispatch(CapabilityReference("authorization-ref-2"), _request())
+    assert invoker.calls == ["primary"]
+
+
+async def test_post_provider_journal_failure_keeps_claim_and_does_not_resend():
+    invoker = OutcomeInvoker([_success()])
+    journal = CompleteFailingJournal()
+    executor = _executor(invoker, journal=journal)
+
+    with pytest.raises(DispatchStateUnavailable):
+        await executor.dispatch(CapabilityReference("authorization-ref-1"), _request())
+
+    assert "dispatch-once-1" in journal.running
+    with pytest.raises(DispatchInProgress):
+        await executor.dispatch(CapabilityReference("authorization-ref-2"), _request())
+    assert invoker.calls == ["primary"]

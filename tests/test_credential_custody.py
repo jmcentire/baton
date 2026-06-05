@@ -25,6 +25,8 @@ from baton.delegated_connector import (
     Channel,
     ConnectorRoute,
     DeliveryStatus,
+    DispatchBinding,
+    DispatchClaim,
     DispatchRequest,
     VerifiedDispatchGrant,
 )
@@ -58,6 +60,7 @@ def _request(**overrides) -> CredentialUseRequest:
         "recipient_ref": "recipient-ref-1",
         "payload_ref": "payload-ref-1",
         "idempotency_key": "dispatch-once-1",
+        "dispatch_claim_id": "claim-1",
         "request_fingerprint": FINGERPRINT,
     }
     fields.update(overrides)
@@ -96,6 +99,9 @@ class OutcomeLedger:
     def __init__(self, reservation: ConsumptionReservation | None = None):
         self.reservation = reservation or _reservation()
         self.requests: list[CredentialUseRequest] = []
+        self.outcomes: list[SanitizedCustodyOutcome] = []
+        self.attempt_count = 0
+        self.max_provider_attempts = 0
 
     async def reserve_once(
         self,
@@ -103,7 +109,21 @@ class OutcomeLedger:
         request: CredentialUseRequest,
     ) -> ConsumptionReservation:
         self.requests.append(request)
+        self.max_provider_attempts = _authorization.max_provider_attempts
         return self.reservation
+
+    async def reserve_attempt(self, _reservation, _authorized_use) -> int:
+        if self.attempt_count >= self.max_provider_attempts:
+            raise CustodyAuthorizationDenied("provider attempt budget is exhausted")
+        self.attempt_count += 1
+        return self.attempt_count
+
+    async def complete(
+        self,
+        _reservation: ConsumptionReservation,
+        outcome: SanitizedCustodyOutcome,
+    ) -> None:
+        self.outcomes.append(outcome)
 
 
 class OutcomeVerifier:
@@ -168,6 +188,14 @@ def _delegated_grant(max_attempts: int = 1) -> VerifiedDispatchGrant:
         not_after=NOW + timedelta(minutes=5),
         max_attempts=max_attempts,
         request_fingerprint=FINGERPRINT,
+    )
+
+
+def _dispatch_claim() -> DispatchClaim:
+    return DispatchClaim(
+        claim_id="claim-1",
+        binding=DispatchBinding("dispatch-once-1", FINGERPRINT),
+        lease_expires_at=NOW + timedelta(minutes=1),
     )
 
 
@@ -334,6 +362,7 @@ async def test_delegated_factory_reserves_before_custodied_provider_invocation()
         CapabilityReference("authorization-ref-1"),
         _delegated_request(),
         _delegated_grant(),
+        _dispatch_claim(),
         route,
         (route,),
     )
@@ -375,6 +404,7 @@ async def test_delegated_factory_denies_attempt_budget_above_custody_authority()
             CapabilityReference("authorization-ref-1"),
             _delegated_request(),
             _delegated_grant(max_attempts=2),
+            _dispatch_claim(),
             route,
             (route,),
         )
@@ -417,6 +447,7 @@ async def test_delegated_factory_denies_failover_policy_outside_custody_scope_be
             CapabilityReference("authorization-ref-1"),
             _delegated_request(),
             _delegated_grant(),
+            _dispatch_claim(),
             primary,
             (primary, backup),
         )
