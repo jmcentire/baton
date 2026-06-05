@@ -53,10 +53,21 @@ telephony, or other external-provider credential value.
   operation, but no Baton request, authorization, outcome, event, or runtime
   state type contains that material.
 - `ConfiguredVerifierBundle` supplies one verifier with the exact audience,
-  workload, purpose, issuer-policy reference, and rotation-policy reference
-  before dispatch admission. The verifier must return one
+  workload, purpose, per-channel available-connector ceiling, issuer-policy
+  reference, and rotation-policy reference before dispatch admission. The
+  verifier must return one
   `VerifiedDelegatedAuthorization`; Baton derives both dispatch and custody
   views from that same immutable outcome.
+- `SignetDelegatedAuthorizationAdapter` sends the exact runtime context to a
+  trusted Signet delegated-provider verifier client, requires its verified
+  policy metadata to match, and maps the wire-shaped outcome into Baton's
+  shared authorization. It is key-free mapping evidence, not a cryptographic
+  verifier or trusted transport implementation.
+  The runtime derives the per-channel available-connector ceiling from its
+  enabled routes; a Signet outcome may narrow that set but cannot authorize a
+  connector outside it. Issuer and trust-policy configuration must come from
+  an audited high-administration control plane; the adapter constructor is not
+  that control plane.
 - `SqliteDelegatedRuntimeState` and
   `DelegatedConnectorRuntime.build_sqlite_reference` are single-node reference
   implementations for executable recovery evidence. They are not a
@@ -66,13 +77,18 @@ telephony, or other external-provider credential value.
 
 The trusted Signet-compatible verifier receives the opaque authorization
 reference, the exact `DispatchRequest`, and a `DelegatedAuthorizationContext`.
+The context's per-channel available connector IDs are the runtime ceiling: the
+verified authorization may narrow to a non-empty subset but cannot authorize
+an unavailable connector.
 Its verified outcome must bind:
 
 - authorization ID and issuer;
 - Baton delegated-executor audience;
+- the exact issuer-policy and rotation-policy references applied by the
+  verifier;
 - workload ID/principal;
 - exactly one channel;
-- allowed connector IDs and purposes;
+- allowed connector IDs and exactly one purpose matching the runtime;
 - `not_before` and `not_after`;
 - `max_uses=1` and a provider-attempt budget; and
 - the exact canonical request fingerprint.
@@ -91,6 +107,9 @@ bind it to the active exact dispatch before reservation or provider use.
 The verified outcome contains no provider credential, credential handle,
 recipient value, payload value, or provider response. `authorization_id` is the
 sanitized correlation reference carried through custody audit events.
+Issuer-policy and rotation-policy references are verified trust metadata, not
+signed provider-operation claims; they must exactly match the configured
+verifier bundle.
 
 ## Failure Semantics
 
@@ -151,8 +170,9 @@ exist for approved cloud-neutral backends.
 
 MEA integration remains blocked until all of the following exist:
 
-1. A trusted Signet-compatible verifier implementation with issuer and rotation
-   policy that implements the exact delegated authorization contract above.
+1. A concrete trusted Signet delegated-provider verifier client and transport
+   with issuer and rotation enforcement. The key-free Baton adapter does not
+   establish that trust.
 2. A shared, highly available multi-replica implementation of the durable
    component contracts, including atomic claim, reservation, attempt-budget,
    completion, replay, and recovery behavior.

@@ -182,13 +182,21 @@ class VerifiedDelegatedAuthorization(VerifiedDispatchGrant):
     authorization_id: str
     issuer: str
     audience: str
+    issuer_policy_ref: str
+    rotation_policy_ref: str
     allowed_purposes: frozenset[str]
     not_before: datetime
     max_uses: int
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        for name in ("authorization_id", "issuer", "audience"):
+        for name in (
+            "authorization_id",
+            "issuer",
+            "audience",
+            "issuer_policy_ref",
+            "rotation_policy_ref",
+        ):
             if not getattr(self, name):
                 raise ValueError(f"{name} is required")
         if (
