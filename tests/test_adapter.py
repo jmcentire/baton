@@ -55,6 +55,32 @@ async def _start_echo_http_server(port: int) -> asyncio.Server:
     return server
 
 
+async def _start_chunked_http_server(port: int) -> asyncio.Server:
+    """Start an HTTP server that responds with chunked transfer encoding."""
+
+    async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        try:
+            await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=5.0)
+            response = (
+                b"HTTP/1.1 200 OK\r\n"
+                b"Transfer-Encoding: chunked\r\n"
+                b"Connection: close\r\n"
+                b"\r\n"
+                b"5\r\nHello\r\n"
+                b"6\r\n world\r\n"
+                b"0\r\n\r\n"
+            )
+            writer.write(response)
+            await writer.drain()
+        except Exception:
+            pass
+        finally:
+            writer.close()
+
+    server = await asyncio.start_server(handle, "127.0.0.1", port)
+    return server
+
+
 async def _start_echo_tcp_server(port: int) -> asyncio.Server:
     """Start a simple TCP echo server."""
 
@@ -146,6 +172,28 @@ class TestAdapterHTTP:
 
             assert adapter.metrics.requests_total == 1
             assert adapter.metrics.requests_failed == 0
+        finally:
+            await adapter.stop()
+            backend.close()
+            await backend.wait_closed()
+
+    async def test_proxy_dechunks_chunked_backend_response(self):
+        backend = await _start_chunked_http_server(18954)
+        node = NodeSpec(name="test-chunked-proxy", port=18955)
+        adapter = Adapter(node)
+        await adapter.start()
+        adapter.set_backend(BackendTarget(host="127.0.0.1", port=18954))
+
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", 18955)
+            writer.write(b"GET /chunked HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            response = await asyncio.wait_for(reader.read(4096), timeout=5.0)
+            assert b"200 OK" in response
+            assert b"Content-Length: 11" in response
+            assert b"Transfer-Encoding: chunked" not in response
+            assert response.endswith(b"\r\n\r\nHello world")
+            writer.close()
         finally:
             await adapter.stop()
             backend.close()
