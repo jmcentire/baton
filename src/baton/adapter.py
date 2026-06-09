@@ -719,7 +719,13 @@ class Adapter:
 
     @staticmethod
     async def _read_http_message(reader: asyncio.StreamReader) -> bytes | None:
-        """Read a full HTTP/1.1 message (headers + body via Content-Length)."""
+        """Read a full HTTP/1.1 message.
+
+        Supports fixed Content-Length bodies and chunked transfer encoding.
+        Chunked bodies are normalized to a Content-Length response before
+        forwarding so clients do not see dechunked bytes with stale
+        Transfer-Encoding headers.
+        """
         try:
             headers = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=30.0)
             if len(headers) > Adapter.MAX_HEADER_SIZE:
@@ -728,15 +734,24 @@ class Adapter:
             return None
 
         content_length = 0
+        is_chunked = False
         for line in headers.split(b"\r\n"):
-            if line.lower().startswith(b"content-length:"):
+            lower = line.lower()
+            if lower.startswith(b"transfer-encoding:") and b"chunked" in lower:
+                is_chunked = True
+            if lower.startswith(b"content-length:"):
                 try:
                     content_length = int(line.split(b":", 1)[1].strip())
                 except ValueError:
                     pass
-                break
 
         body = b""
+        if is_chunked:
+            body = await Adapter._read_chunked_body(reader)
+            if body is None:
+                return None
+            return Adapter._replace_body_headers(headers, body)
+
         if content_length > 0:
             try:
                 body = await asyncio.wait_for(
@@ -746,6 +761,45 @@ class Adapter:
                 return None
 
         return headers + body
+
+    @staticmethod
+    async def _read_chunked_body(reader: asyncio.StreamReader) -> bytes | None:
+        chunks: list[bytes] = []
+        try:
+            while True:
+                size_line = await asyncio.wait_for(reader.readline(), timeout=30.0)
+                if not size_line:
+                    return None
+                size_text = size_line.split(b";", 1)[0].strip()
+                try:
+                    size = int(size_text, 16)
+                except ValueError:
+                    return None
+                if size == 0:
+                    while True:
+                        trailer = await asyncio.wait_for(reader.readline(), timeout=30.0)
+                        if trailer in (b"\r\n", b"\n", b""):
+                            break
+                    break
+                chunks.append(await asyncio.wait_for(reader.readexactly(size), timeout=30.0))
+                crlf = await asyncio.wait_for(reader.readexactly(2), timeout=30.0)
+                if crlf != b"\r\n":
+                    return None
+        except (asyncio.TimeoutError, asyncio.IncompleteReadError, ConnectionResetError):
+            return None
+        return b"".join(chunks)
+
+    @staticmethod
+    def _replace_body_headers(headers: bytes, body: bytes) -> bytes:
+        header_lines = headers.rstrip(b"\r\n").split(b"\r\n")
+        updated_headers = []
+        for line in header_lines:
+            lower = line.lower()
+            if lower.startswith(b"transfer-encoding:") or lower.startswith(b"content-length:"):
+                continue
+            updated_headers.append(line)
+        updated_headers.append(f"Content-Length: {len(body)}".encode("ascii"))
+        return b"\r\n".join(updated_headers) + b"\r\n\r\n" + body
 
     @staticmethod
     def _parse_request_line(data: bytes) -> tuple[str, str]:
