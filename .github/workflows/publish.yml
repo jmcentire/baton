@@ -26,7 +26,8 @@ jobs:
           version="${GITHUB_REF_NAME}"
           version="${version#v}"
 
-          tomlq --toml-output --arg version "${version}" '.project.version |= $version' < pyproject.toml > pyproject.toml.updated
+          # tomlq is not available on GHA, so we do what we must
+          sed 's~^version = "0.0.0"\s*$~version = "'"${version}"'"~' < pyproject.toml > pyproject.toml.updated
           mv -vf pyproject.toml.updated pyproject.toml
 
       - run: pip install build
