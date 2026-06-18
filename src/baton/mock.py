@@ -49,8 +49,8 @@ def generate_instance(schema: dict) -> Any:
         return "".join(random.choices(string.ascii_lowercase, k=length))
 
     if schema_type == "integer":
-        lo = schema.get("minimum", 1)
-        hi = schema.get("maximum", 100)
+        lo = int(schema.get("minimum", 1))
+        hi = int(schema.get("maximum", 100))
         return random.randint(lo, hi)
 
     if schema_type == "number":
