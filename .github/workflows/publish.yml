@@ -19,9 +19,15 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Verify release tag matches package version
+      - name: Set published version
         run: |
-          python -c "import os, pathlib, sys, tomllib; version = tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version']; tag = os.environ['GITHUB_REF_NAME']; expected = f'v{version}'; print(f'Checking release build for {expected}') if tag == expected else sys.exit(f'release tag {tag} does not match package version {expected}')"
+          [[ "${GITHUB_REF_NAME}" = v*\.*\.* ]] || (echo 'Expected v1.2.3 style GITHUB_REF_NAME' >&2; exit 1)
+
+          version="${GITHUB_REF_NAME}"
+          version="${version#v}"
+
+          tomlq --toml-output --arg version "${version}" '.project.version |= $version' < pyproject.toml > pyproject.toml.updated
+          mv -vf pyproject.toml.updated pyproject.toml
 
       - run: pip install build
       - run: python -m build
