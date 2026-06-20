@@ -1365,6 +1365,29 @@ class TestCmdSlotAttach:
         assert saved[0].adapters["api"].status == NodeStatus.ACTIVE
         assert saved[0].adapters["api"].service.is_mock is False
 
+    async def test_attached_service_logs_are_persisted(self, project_dir: Path, monkeypatch):
+        from baton import cli as cli_mod
+        from baton.schemas import CircuitState
+        from baton.service_log import ServiceLogCollector
+
+        self._setup_one_node(project_dir)
+        saved = []
+        pm = self._apply_mocks(monkeypatch, cli_mod, saved)
+
+        await cli_mod._cmd_slot_attach(
+            self._make_args(project_dir), CircuitState(circuit_name="t", owner_pid=12345)
+        )
+
+        log_handler = pm.start.call_args.kwargs["log_handler"]
+        log_handler("api", "stdout", "service ready")
+        log_handler("api", "stderr", "service failed")
+
+        records = ServiceLogCollector.load_history(project_dir)
+        assert [(record["stream"], record["severity"], record["message"]) for record in records] == [
+            ("stdout", "info", "service ready"),
+            ("stderr", "error", "service failed"),
+        ]
+
     async def test_collapse_level_full_live_with_only_node(self, project_dir: Path, monkeypatch):
         from baton import cli as cli_mod
         from baton.schemas import CircuitState, CollapseLevel

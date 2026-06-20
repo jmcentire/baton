@@ -764,6 +764,7 @@ async def _cmd_slot_attach(args: argparse.Namespace, state) -> int:
     from baton.collapse import compute_mock_backends
     from baton.process import ProcessManager
     from baton.schemas import NodeRole
+    from baton.service_log import ServiceLogCollector
 
     circuit = load_circuit(args.dir)
     node = next((n for n in circuit.nodes if n.name == args.node), None)
@@ -789,11 +790,17 @@ async def _cmd_slot_attach(args: argparse.Namespace, state) -> int:
     }
 
     pm = ProcessManager()
+    log_collector = ServiceLogCollector(Path(args.dir))
     print(
         f"Attaching to running circuit (owner pid={state.owner_pid}); "
         f"starting service on port {service_port}"
     )
-    info = await pm.start(node.name, args.service_cmd, env=env)
+    info = await pm.start(
+        node.name,
+        args.service_cmd,
+        env=env,
+        log_handler=log_collector.handler,
+    )
     # Give the service a moment to bind.
     await asyncio.sleep(0.5)
 
