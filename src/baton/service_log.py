@@ -7,11 +7,14 @@ fingerprints in log output.
 
 from __future__ import annotations
 
+import json
 import re
+import time
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 
-from baton.state import append_jsonl, read_jsonl
+from baton.state import BATON_DIR, append_jsonl, read_jsonl
 
 LOGS_FILE = "service_logs.jsonl"
 
@@ -38,6 +41,20 @@ def parse_severity(line: str) -> str:
         if pattern.search(line):
             return level
     return ""  # caller decides default based on stream
+
+
+def _matches_filters(
+    record: dict,
+    node: str | None = None,
+    severity: str | None = None,
+) -> bool:
+    """Return whether a structured log record matches CLI filters."""
+    if node and record.get("node_name") != node:
+        return False
+    if severity and severity in SEVERITIES:
+        minimum = SEVERITIES.index(severity)
+        return SEVERITIES.index(record.get("severity", "info")) >= minimum
+    return True
 
 
 class ServiceLogCollector:
@@ -113,12 +130,51 @@ class ServiceLogCollector:
     ) -> list[dict]:
         """Read from .baton/service_logs.jsonl."""
         records = read_jsonl(project_dir, LOGS_FILE, last_n=last_n)
-        if node:
-            records = [r for r in records if r.get("node_name") == node]
-        if severity and severity in SEVERITIES:
-            sev_idx = SEVERITIES.index(severity)
-            records = [
-                r for r in records
-                if SEVERITIES.index(r.get("severity", "info")) >= sev_idx
-            ]
-        return records
+        return [
+            record for record in records
+            if _matches_filters(record, node=node, severity=severity)
+        ]
+
+    @staticmethod
+    def follow_history(
+        project_dir: str | Path,
+        node: str | None = None,
+        severity: str | None = None,
+        last_n: int | None = 50,
+        poll_interval: float = 0.2,
+    ) -> Iterator[dict]:
+        """Yield recent records, then wait for and yield newly appended records."""
+        path = Path(project_dir) / BATON_DIR / LOGS_FILE
+        while not path.exists():
+            time.sleep(poll_interval)
+
+        with open(path) as log_file:
+            history: list[str] = []
+            while True:
+                offset = log_file.tell()
+                line = log_file.readline()
+                if not line:
+                    break
+                if not line.endswith("\n"):
+                    log_file.seek(offset)
+                    break
+                history.append(line)
+
+            if last_n is not None:
+                history = history[-last_n:]
+            for line in history:
+                record = json.loads(line)
+                if _matches_filters(record, node=node, severity=severity):
+                    yield record
+
+            while True:
+                offset = log_file.tell()
+                line = log_file.readline()
+                if not line or not line.endswith("\n"):
+                    log_file.seek(offset)
+                    time.sleep(poll_interval)
+                    continue
+
+                record = json.loads(line)
+                if _matches_filters(record, node=node, severity=severity):
+                    yield record

@@ -363,6 +363,7 @@ def main(argv: list[str] | None = None) -> int:
     p_logs.add_argument("--node", default="", help="Filter by node")
     p_logs.add_argument("--level", default="", help="Minimum severity level (debug/info/warning/error/critical)")
     p_logs.add_argument("--last", type=int, default=50, help="Number of entries (default: 50)")
+    p_logs.add_argument("-f", "--follow", action="store_true", help="Follow new log entries")
     p_logs.add_argument("--dir", default=".", help="Project directory")
     p_logs.set_defaults(func=_cmd_logs)
 
@@ -1499,6 +1500,17 @@ def _cmd_dora(args: argparse.Namespace) -> int:
 def _cmd_logs(args: argparse.Namespace) -> int:
     from baton.service_log import ServiceLogCollector
 
+    if getattr(args, "follow", False):
+        records = ServiceLogCollector.follow_history(
+            args.dir,
+            node=args.node or None,
+            severity=args.level or None,
+            last_n=args.last,
+        )
+        for record in records:
+            _print_service_log(record)
+        return 0
+
     records = ServiceLogCollector.load_history(
         args.dir,
         node=args.node or None,
@@ -1509,15 +1521,20 @@ def _cmd_logs(args: argparse.Namespace) -> int:
         print("No service logs found")
         return 0
 
-    for r in records:
-        sev = r.get("severity", "info").upper()
-        node = r.get("node_name", "?")
-        ts = r.get("timestamp", "")[:19]  # Trim to seconds
-        stream = r.get("stream", "")
-        msg = r.get("message", "")
-        print(f"[{ts}] [{sev:<8}] [{node}:{stream}] {msg}")
+    for record in records:
+        _print_service_log(record)
 
     return 0
+
+
+def _print_service_log(record: dict) -> None:
+    """Print one structured service log record."""
+    sev = record.get("severity", "info").upper()
+    node = record.get("node_name", "?")
+    ts = record.get("timestamp", "")[:19]  # Trim to seconds
+    stream = record.get("stream", "")
+    msg = record.get("message", "")
+    print(f"[{ts}] [{sev:<8}] [{node}:{stream}] {msg}", flush=True)
 
 
 async def _cmd_dashboard(args: argparse.Namespace) -> int:

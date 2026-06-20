@@ -252,7 +252,7 @@ baton taint clear                        # remove all canary data
 ### Service Logs
 
 ```bash
-baton logs [--node N] [--level L]        # show captured service logs
+baton logs [-f | --follow] [--node N] [--level L]  # show or follow captured service logs
 ```
 
 ### Arbiter & Constrain
