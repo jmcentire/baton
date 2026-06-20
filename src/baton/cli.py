@@ -1259,10 +1259,14 @@ async def _cmd_route_set(args: argparse.Namespace) -> int:
             print(f"Error: node '{args.node}' not found in circuit", file=sys.stderr)
             return 1
         remote_host, mgmt_port = _parse_remote(remote, node)
-        status, body = await _control_post(
-            remote_host, mgmt_port, "/routing",
-            config.model_dump(),
-        )
+        try:
+            status, body = await _control_post(
+                remote_host, mgmt_port, "/routing",
+                config.model_dump(),
+            )
+        except OSError as exc:
+            print(f"Error: remote /routing is unreachable: {exc}", file=sys.stderr)
+            return 1
         if status != 200:
             print(f"Error: remote /routing returned {status}: {body}", file=sys.stderr)
             return 1
