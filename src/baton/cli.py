@@ -18,7 +18,17 @@ from baton.schemas import AdapterState, CircuitSpec, CollapseLevel, NodeStatus, 
 from baton.state import ensure_baton_dir, load_circuit_spec, load_state, save_state
 
 
+def _configure_output_streams() -> None:
+    """Make redirected CLI output visible to consumers line by line."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(line_buffering=True)
+
+
 def main(argv: list[str] | None = None) -> int:
+    _configure_output_streams()
+
     parser = argparse.ArgumentParser(
         prog="baton",
         description="Cloud-agnostic circuit orchestration.",

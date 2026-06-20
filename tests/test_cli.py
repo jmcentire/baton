@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -11,6 +13,22 @@ import yaml
 from baton.cli import main
 from baton.config import load_circuit
 from baton.manifest import MANIFEST_FILENAME
+
+
+class TestOutputBuffering:
+    def test_redirected_stdout_is_flushed_per_line(self, tmp_path: Path, monkeypatch):
+        output_path = tmp_path / "baton.log"
+        project_dir = tmp_path / "project"
+
+        with output_path.open("w") as redirected:
+            with monkeypatch.context() as patch:
+                patch.setattr(sys, "stdout", redirected)
+                patch.setattr(logging, "basicConfig", lambda **kwargs: None)
+
+                assert main(["init", str(project_dir)]) == 0
+                output_before_close = output_path.read_text()
+
+        assert "Initialized circuit 'default'" in output_before_close
 
 
 class TestInit:
