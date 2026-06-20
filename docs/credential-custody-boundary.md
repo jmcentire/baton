@@ -93,6 +93,12 @@ Its verified outcome must bind:
 - `max_uses=1` and a provider-attempt budget; and
 - the exact canonical request fingerprint.
 
+The configured Baton verifier bundle must also supply a positive provider-attempt
+ceiling no greater than `3` and an authorization-lifetime ceiling no greater
+than `15` minutes. Baton sends those ceilings to the Signet verifier, rejects a
+Signet result that exceeds either one, and rechecks the bounded verified result
+before dispatch admission.
+
 The request fingerprint is a domain-separated SHA-256 digest over
 `dispatch_id`, workflow/operation ID, channel, opaque recipient reference,
 opaque payload reference, and idempotency key. `DispatchRequest` and
