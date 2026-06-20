@@ -60,6 +60,8 @@ from baton.delegated_connector import (
 
 
 _ZERO_HASH = "0" * 64
+MAX_DELEGATED_PROVIDER_ATTEMPTS = 3
+MAX_DELEGATED_PROVIDER_LIFETIME_SECONDS = 15 * 60
 
 
 def _utc_now() -> datetime:
@@ -129,6 +131,8 @@ class DelegatedAuthorizationContext:
     available_connector_ids: frozenset[str]
     issuer_policy_ref: str
     rotation_policy_ref: str
+    provider_attempt_ceiling: int
+    authorization_lifetime_ceiling_seconds: int
 
     def __post_init__(self) -> None:
         for name in (
@@ -142,6 +146,16 @@ class DelegatedAuthorizationContext:
                 raise ValueError(f"{name} is required")
         if not self.available_connector_ids or not all(self.available_connector_ids):
             raise ValueError("available_connector_ids are required")
+        if not 1 <= self.provider_attempt_ceiling <= MAX_DELEGATED_PROVIDER_ATTEMPTS:
+            raise ValueError("provider_attempt_ceiling is outside the hard delegated-provider limit")
+        if not (
+            1
+            <= self.authorization_lifetime_ceiling_seconds
+            <= MAX_DELEGATED_PROVIDER_LIFETIME_SECONDS
+        ):
+            raise ValueError(
+                "authorization_lifetime_ceiling_seconds is outside the hard delegated-provider limit"
+            )
 
 
 class DelegatedAuthorizationVerifier(Protocol):
@@ -165,6 +179,8 @@ class _ContextBoundDelegatedAuthorizationVerifier:
     available_connector_ids_by_channel: Mapping[Channel, frozenset[str]]
     issuer_policy_ref: str
     rotation_policy_ref: str
+    provider_attempt_ceiling: int
+    authorization_lifetime_ceiling_seconds: int
     clock: Callable[[], datetime]
 
     async def verify(
@@ -182,6 +198,8 @@ class _ContextBoundDelegatedAuthorizationVerifier:
             available_connector_ids=available_connector_ids,
             issuer_policy_ref=self.issuer_policy_ref,
             rotation_policy_ref=self.rotation_policy_ref,
+            provider_attempt_ceiling=self.provider_attempt_ceiling,
+            authorization_lifetime_ceiling_seconds=self.authorization_lifetime_ceiling_seconds,
         )
         outcome = await self.verifier.verify(capability, request, context)
         if not isinstance(outcome, VerifiedDelegatedAuthorization):
@@ -200,6 +218,12 @@ class _ContextBoundDelegatedAuthorizationVerifier:
             raise AuthorizationDenied("authorization purpose is outside runtime scope")
         if not outcome.allowed_connectors.issubset(context.available_connector_ids):
             raise AuthorizationDenied("authorization connector scope exceeds runtime policy")
+        if outcome.max_attempts > context.provider_attempt_ceiling:
+            raise AuthorizationDenied("authorization attempt budget exceeds runtime policy")
+        if outcome.not_after - outcome.not_before > timedelta(
+            seconds=context.authorization_lifetime_ceiling_seconds
+        ):
+            raise AuthorizationDenied("authorization validity window exceeds runtime policy")
         current_time = self.clock()
         if current_time < outcome.not_before or current_time >= outcome.not_after:
             raise AuthorizationDenied("authorization is outside its validity window")
@@ -214,11 +238,23 @@ class ConfiguredVerifierBundle:
     audience: str
     issuer_policy_ref: str
     rotation_policy_ref: str
+    provider_attempt_ceiling: int
+    authorization_lifetime_ceiling_seconds: int
 
     def __post_init__(self) -> None:
         for name in ("audience", "issuer_policy_ref", "rotation_policy_ref"):
             if not getattr(self, name):
                 raise ValueError(f"{name} is required")
+        if not 1 <= self.provider_attempt_ceiling <= MAX_DELEGATED_PROVIDER_ATTEMPTS:
+            raise ValueError("provider_attempt_ceiling is outside the hard delegated-provider limit")
+        if not (
+            1
+            <= self.authorization_lifetime_ceiling_seconds
+            <= MAX_DELEGATED_PROVIDER_LIFETIME_SECONDS
+        ):
+            raise ValueError(
+                "authorization_lifetime_ceiling_seconds is outside the hard delegated-provider limit"
+            )
 
     def bind(
         self,
@@ -238,6 +274,8 @@ class ConfiguredVerifierBundle:
             dict(available_connector_ids_by_channel),
             self.issuer_policy_ref,
             self.rotation_policy_ref,
+            self.provider_attempt_ceiling,
+            self.authorization_lifetime_ceiling_seconds,
             clock or _utc_now,
         )
 

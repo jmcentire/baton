@@ -330,6 +330,8 @@ def _runtime(
             audience="baton://delegated-provider-executor",
             issuer_policy_ref="signet://issuer-policy/mea-comms",
             rotation_policy_ref="signet://rotation-policy/mea-comms",
+            provider_attempt_ceiling=3,
+            authorization_lifetime_ceiling_seconds=15 * 60,
         ),
         operation_factory=operation_factory,
         state_path=tmp_path / "delegated-runtime.sqlite3",
@@ -357,6 +359,8 @@ async def test_runtime_verifies_once_and_binds_exact_policy_context(tmp_path):
             available_connector_ids=frozenset({"sms-primary"}),
             issuer_policy_ref="signet://issuer-policy/mea-comms",
             rotation_policy_ref="signet://rotation-policy/mea-comms",
+            provider_attempt_ceiling=3,
+            authorization_lifetime_ceiling_seconds=15 * 60,
         )
     ]
     assert len(factory.prepared) == 1
@@ -373,6 +377,8 @@ async def test_runtime_verifies_once_and_binds_exact_policy_context(tmp_path):
         {"allowed_purposes": frozenset({"other_purpose"})},
         {"allowed_purposes": frozenset({"case_notification", "other_purpose"})},
         {"not_before": NOW + timedelta(minutes=1)},
+        {"max_attempts": 4},
+        {"not_after": NOW + timedelta(minutes=16)},
     ],
 )
 async def test_runtime_rejects_rebound_verified_context_before_provider_use(
@@ -735,6 +741,8 @@ async def test_post_provider_state_failure_is_non_retryable_and_does_not_resend(
             audience="baton://delegated-provider-executor",
             issuer_policy_ref="signet://issuer-policy/mea-comms",
             rotation_policy_ref="signet://rotation-policy/mea-comms",
+            provider_attempt_ceiling=3,
+            authorization_lifetime_ceiling_seconds=15 * 60,
         ),
         operation_factory=factory,
         components=DelegatedRuntimeComponents(
@@ -794,6 +802,8 @@ def test_runtime_builder_rejects_non_durable_or_incomplete_construction(tmp_path
                 audience="baton://delegated-provider-executor",
                 issuer_policy_ref="signet://issuer-policy/mea-comms",
                 rotation_policy_ref="signet://rotation-policy/mea-comms",
+                provider_attempt_ceiling=3,
+                authorization_lifetime_ceiling_seconds=15 * 60,
             ),
             operation_factory=OperationFactory(_accepted_outcome()),
             state_path=tmp_path / "runtime.sqlite3",
@@ -810,6 +820,8 @@ def test_runtime_builder_rejects_non_durable_or_incomplete_construction(tmp_path
                 audience="baton://delegated-provider-executor",
                 issuer_policy_ref="signet://issuer-policy/mea-comms",
                 rotation_policy_ref="signet://rotation-policy/mea-comms",
+                provider_attempt_ceiling=3,
+                authorization_lifetime_ceiling_seconds=15 * 60,
             ),
             operation_factory=OperationFactory(_accepted_outcome()),
             state_path=tmp_path / "short-lease.sqlite3",

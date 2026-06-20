@@ -53,6 +53,8 @@ def _runtime_context() -> DelegatedAuthorizationContext:
         available_connector_ids=frozenset({"sms-primary", "sms-backup"}),
         issuer_policy_ref="signet://issuer-policy/mea-comms",
         rotation_policy_ref="signet://rotation-policy/mea-comms",
+        provider_attempt_ceiling=2,
+        authorization_lifetime_ceiling_seconds=10 * 60,
     )
 
 
@@ -130,6 +132,8 @@ async def test_maps_one_trusted_signet_outcome_into_shared_baton_authorization()
                 request_fingerprint=FINGERPRINT,
                 issuer_policy_ref="signet://issuer-policy/mea-comms",
                 rotation_policy_ref="signet://rotation-policy/mea-comms",
+                provider_attempt_ceiling=2,
+                authorization_lifetime_ceiling_seconds=10 * 60,
             ),
         )
     ]
@@ -147,6 +151,7 @@ async def test_maps_one_trusted_signet_outcome_into_shared_baton_authorization()
         {"rotation_policy_ref": "signet://rotation-policy/other"},
         {"max_uses": 2},
         {"max_provider_attempts": 0},
+        {"max_provider_attempts": 3},
         {"allowed_connector_ids": ("sms-primary", "sms-unapproved")},
         {"allowed_connector_ids": ("sms-primary", "sms-primary")},
         {"allowed_purposes": ("other_purpose",)},
@@ -155,6 +160,7 @@ async def test_maps_one_trusted_signet_outcome_into_shared_baton_authorization()
         {"issued_at": (NOW + timedelta(minutes=1)).isoformat()},
         {"not_before": (NOW + timedelta(minutes=1)).isoformat()},
         {"not_after": NOW.isoformat()},
+        {"not_after": (NOW + timedelta(minutes=6)).isoformat()},
         {"not_after": "not-a-time"},
     ],
 )

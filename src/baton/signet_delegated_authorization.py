@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Protocol
 
 from baton.credential_custody import VerifiedDelegatedAuthorization
@@ -30,6 +30,8 @@ class SignetDelegatedProviderVerificationContext:
     request_fingerprint: str
     issuer_policy_ref: str
     rotation_policy_ref: str
+    provider_attempt_ceiling: int
+    authorization_lifetime_ceiling_seconds: int
 
 
 @dataclass(frozen=True)
@@ -96,6 +98,8 @@ class SignetDelegatedAuthorizationAdapter:
             request_fingerprint=request.request_fingerprint,
             issuer_policy_ref=context.issuer_policy_ref,
             rotation_policy_ref=context.rotation_policy_ref,
+            provider_attempt_ceiling=context.provider_attempt_ceiling,
+            authorization_lifetime_ceiling_seconds=context.authorization_lifetime_ceiling_seconds,
         )
         outcome = await self._client.verify(capability.reference, signet_context)
         return self._map_verified_outcome(outcome, signet_context)
@@ -116,6 +120,10 @@ class SignetDelegatedAuthorizationAdapter:
             raise AuthorizationDenied("Signet authorization was issued in the future")
         if not_before < issued_at or not_after <= not_before:
             raise AuthorizationDenied("Signet authorization has an inconsistent time window")
+        if not_after - issued_at > timedelta(
+            seconds=context.authorization_lifetime_ceiling_seconds
+        ):
+            raise AuthorizationDenied("Signet authorization lifetime exceeds runtime policy")
         if current_time < not_before or current_time >= not_after:
             raise AuthorizationDenied("Signet authorization is outside its validity window")
 
@@ -178,6 +186,8 @@ class SignetDelegatedAuthorizationAdapter:
             raise AuthorizationDenied("Signet authorization must be single-use")
         if outcome.max_provider_attempts < 1:
             raise AuthorizationDenied("Signet provider-attempt budget must be positive")
+        if outcome.max_provider_attempts > context.provider_attempt_ceiling:
+            raise AuthorizationDenied("Signet provider-attempt budget exceeds runtime policy")
         if not outcome.allowed_connector_ids or len(set(outcome.allowed_connector_ids)) != len(
             outcome.allowed_connector_ids
         ):
