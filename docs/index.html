@@ -444,7 +444,7 @@
 <span class="cmd">baton test</span> <span class="flag">--canary</span> <span class="flag">--tiers</span> <span class="arg">PII</span> <span class="flag">--duration</span> <span class="arg">5m</span>
 
 <span class="comment"># Service logs and Arbiter trust</span>
-<span class="cmd">baton logs</span> <span class="flag">--node</span> <span class="arg">api</span> <span class="flag">--level</span> <span class="arg">error</span>
+<span class="cmd">baton logs</span> <span class="flag">--follow</span> <span class="flag">--node</span> <span class="arg">api</span> <span class="flag">--level</span> <span class="arg">error</span>
 <span class="cmd">baton trust</span> <span class="arg">api</span>
 
 <span class="comment"># Build images and deploy to GCP Cloud Run</span>
@@ -764,7 +764,7 @@
 <span class="cmd">baton metrics</span> <span class="flag">--prometheus</span>                <span class="comment"># Prometheus text exposition format</span>
 <span class="cmd">baton signals</span> <span class="flag">[--node N] [--path P]</span>      <span class="comment"># recent request signals</span>
 <span class="cmd">baton signals</span> <span class="flag">--stats</span>                     <span class="comment"># per-path statistics</span>
-<span class="cmd">baton logs</span> <span class="flag">[--node N] [--level L]</span>        <span class="comment"># captured service logs</span>
+<span class="cmd">baton logs</span> <span class="flag">[-f | --follow] [--node N] [--level L]</span> <span class="comment"># show or follow captured service logs</span>
     </div>
 
     <h3 style="font-size: 16px; font-weight: 600; margin: 24px 0 12px; color: var(--accent);">Taint Analysis</h3>

@@ -615,6 +615,57 @@ class TestSignalsCLI:
         assert "/users" not in out
 
 
+class TestLogsCLI:
+    @pytest.mark.parametrize("follow_flag", ["-f", "--follow"])
+    def test_follow_streams_records_with_filters(
+        self,
+        project_dir: Path,
+        monkeypatch,
+        capsys,
+        follow_flag: str,
+    ):
+        from baton.service_log import ServiceLogCollector
+
+        captured = {}
+
+        def follow_history(project_dir, *, node, severity, last_n):
+            captured.update(
+                project_dir=project_dir,
+                node=node,
+                severity=severity,
+                last_n=last_n,
+            )
+            return iter([
+                {
+                    "node_name": "api",
+                    "stream": "stderr",
+                    "severity": "error",
+                    "message": "request failed",
+                    "timestamp": "2026-01-01T00:00:00+00:00",
+                }
+            ])
+
+        monkeypatch.setattr(ServiceLogCollector, "follow_history", follow_history)
+
+        rc = main([
+            "logs",
+            follow_flag,
+            "--node", "api",
+            "--level", "warning",
+            "--last", "7",
+            "--dir", str(project_dir),
+        ])
+
+        assert rc == 0
+        assert captured == {
+            "project_dir": str(project_dir),
+            "node": "api",
+            "severity": "warning",
+            "last_n": 7,
+        }
+        assert "[ERROR   ] [api:stderr] request failed" in capsys.readouterr().out
+
+
 class TestMetricsCLI:
     def _init_with_metrics(self, d: Path) -> Path:
         """Initialize a project and write telemetry data."""
