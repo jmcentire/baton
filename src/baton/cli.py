@@ -293,6 +293,11 @@ def main(argv: list[str] | None = None) -> int:
     p_dashboard.add_argument("--host", default="127.0.0.1", help="Dashboard server host (default: 127.0.0.1)")
     p_dashboard.add_argument("--port", type=int, default=9900, help="Dashboard server port (default: 9900)")
     p_dashboard.add_argument("--dir", default=".", help="Project directory")
+    p_dashboard.add_argument(
+        "--adapter-host",
+        default="127.0.0.1",
+        help="Host to bind adapter servers on (default: 127.0.0.1, use 0.0.0.0 to expose outside container)",
+    )
     p_dashboard.set_defaults(func=_cmd_dashboard)
 
     # baton signals
@@ -1099,7 +1104,7 @@ async def _cmd_watch(args: argparse.Namespace) -> int:
     from baton.lifecycle import LifecycleManager
 
     mgr = LifecycleManager(args.dir)
-    state = await mgr.up(mock=True)
+    state = await mgr.up(mock=True, adapter_host=getattr(args, "adapter_host", "127.0.0.1"))
 
     custodian = Custodian(
         mgr.adapters, state, lifecycle=mgr, poll_interval=args.interval

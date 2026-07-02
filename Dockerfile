@@ -38,4 +38,4 @@ USER baton
 EXPOSE 9900
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["sh", "-c", "baton dashboard --serve --host ${BATON_HOST} --port ${BATON_PORT} --dir /app"]
+CMD ["sh", "-c", "baton dashboard --serve --host ${BATON_HOST} --port ${BATON_PORT} --adapter-host 0.0.0.0 --dir /app"]
