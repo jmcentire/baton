@@ -10,6 +10,14 @@ taint:
   scan_requests: true
   scan_responses: true
 
+# Control-plane auth: adapter control servers (e.g. reeve-prod's /taint on 28080)
+# require Bearer <BATON_CONTROL_TOKEN>. Only reeve consumes the control plane today
+# (exemplar/scram dispatch is stubbed), so enabling this globally is safe.
+security:
+  control:
+    auth: true
+    token_env: BATON_CONTROL_TOKEN
+
 nodes:
   - name: reeve-prod
     port: 18080

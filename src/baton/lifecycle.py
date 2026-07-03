@@ -113,6 +113,9 @@ class LifecycleManager:
             adapter_host: Host address for adapter servers to bind on.
         """
         self._circuit = load_circuit(self.project_dir)
+        # Load the full config so control-plane auth (security.control) is applied
+        # in this boot path too (dashboard --serve), not just the apply/provider paths.
+        _up_config = load_circuit_config(self.project_dir)
         ensure_baton_dir(self.project_dir)
 
         from baton.service_log import ServiceLogCollector
@@ -134,7 +137,7 @@ class LifecycleManager:
             await adapter.start()
             self._adapters[node.name] = adapter
 
-            control = AdapterControlServer(adapter)
+            control = AdapterControlServer(adapter, security=_up_config.security)
             await control.start()
             self._controls[node.name] = control
 
