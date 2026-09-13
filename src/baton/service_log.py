@@ -163,6 +163,8 @@ class ServiceLogCollector:
             if last_n is not None:
                 history = history[-last_n:]
             for line in history:
+                if not line.strip():
+                    continue
                 record = json.loads(line)
                 if _matches_filters(record, node=node, severity=severity):
                     yield record
@@ -175,6 +177,8 @@ class ServiceLogCollector:
                     time.sleep(poll_interval)
                     continue
 
+                if not line.strip():
+                    continue
                 record = json.loads(line)
                 if _matches_filters(record, node=node, severity=severity):
                     yield record
