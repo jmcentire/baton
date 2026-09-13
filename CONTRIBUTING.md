@@ -3,7 +3,7 @@
 ## Development Setup
 
 ```bash
-git clone https://github.com/jmcentire/baton.git
+git clone https://github.com/wandercom/baton.git
 cd baton
 pip install -e ".[dev]"
 pytest
