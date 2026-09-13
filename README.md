@@ -347,6 +347,17 @@ baton-mcp                  # start MCP server
 
 Exposes resources (`baton://status`, `baton://topology`, `baton://node/{name}`), tools (`circuit_status`, `list_nodes`, `show_routes`, `show_metrics`, `show_signals`), and prompts (`circuit_overview`).
 
+## Delegated Provider Library
+
+Python integrations can opt into the delegated connector and credential custody
+APIs, including a single-node SQLite reference for durable dispatch, bounded
+provider attempts, recovery, audit events, and failure notifications. Callers
+must supply their own trusted verifier and custody-internal provider operation
+factory. No default CLI path enables provider delivery.
+
+See [the custody boundary](docs/credential-custody-boundary.md) for the exact
+contract, reference limitations, and production integration prerequisites.
+
 ## Service Manifests
 
 Each service can self-describe with a `baton-service.yaml`:
