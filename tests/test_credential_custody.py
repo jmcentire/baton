@@ -1,15 +1,15 @@
 """Credential-free contract checks for the provider custody boundary."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from baton.credential_custody import (
     ConsumptionReservation,
     ConsumptionReservationRequired,
-    CredentialUseRequest,
     CredentialCustodyAuthorizer,
     CredentialCustodyInvokerFactory,
+    CredentialUseRequest,
     CustodyAuthorizationDenied,
     CustodyResultStatus,
     ProviderChannel,
@@ -33,8 +33,7 @@ from baton.delegated_connector import (
     dispatch_request_fingerprint,
 )
 
-
-NOW = datetime(2026, 6, 4, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 4, tzinfo=UTC)
 FINGERPRINT = dispatch_request_fingerprint(
     dispatch_id="dispatch-1",
     workflow_id="operation-1",
@@ -538,3 +537,37 @@ def test_outcome_allows_only_sanitized_failure_identifier():
             audit_ref="audit-1",
             retryable=True,
         )
+
+
+@pytest.mark.parametrize("expire_during_reservation", [False, True])
+async def test_reserved_invoker_rechecks_expiry_before_provider_use(expire_during_reservation):
+    now = [NOW]
+
+    class DelayedLedger(OutcomeLedger):
+        async def reserve_attempt(self, reservation, use):
+            result = await super().reserve_attempt(reservation, use)
+            if expire_during_reservation:
+                now[0] += timedelta(minutes=5)
+            return result
+
+    ledger = DelayedLedger()
+    authorizer = CredentialCustodyAuthorizer.for_verified_outcomes(ledger, clock=lambda: now[0])
+    resolver = OutcomeResolver(SanitizedCustodyOutcome(
+        operation_id="operation-1", dispatch_id="dispatch-1", provider_key="provider-primary",
+        status=CustodyResultStatus.ACCEPTED, audit_ref="audit-1",
+    ))
+    factory = CredentialCustodyInvokerFactory(
+        authorizer, resolver, {"sms-primary": _handle()},
+        workload_id="mea-comms", purpose="case_notification",
+    )
+    route = _delegated_route()
+    invoker = await factory.prepare(
+        CapabilityReference("authorization-ref-1"), _delegated_request(),
+        _delegated_grant(), _dispatch_claim(), route, (route,),
+    )
+    if not expire_during_reservation:
+        now[0] += timedelta(minutes=5)
+    with pytest.raises(AuthorizationDenied):
+        await invoker.invoke(route, _delegated_request())
+    assert resolver.calls == []
+    assert ledger.attempt_count == int(expire_during_reservation)

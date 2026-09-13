@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -21,8 +21,7 @@ from baton.signet_delegated_authorization import (
     VerifiedSignetDelegatedProviderAuthorization,
 )
 
-
-NOW = datetime(2026, 6, 4, 22, 5, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 4, 22, 5, tzinfo=UTC)
 FINGERPRINT = dispatch_request_fingerprint(
     dispatch_id="dispatch-1",
     workflow_id="operation-1",
@@ -186,3 +185,10 @@ async def test_accepts_signet_scope_narrower_than_runtime_connector_ceiling():
     )
 
     assert verified.allowed_connectors == frozenset({"sms-primary"})
+
+
+@pytest.mark.parametrize("budget", [True, 1.5, float("nan"), float("inf")])
+async def test_rejects_non_integer_provider_attempt_budget(budget):
+    client = StaticSignetClient(replace(_outcome(), max_provider_attempts=budget))
+    with pytest.raises(AuthorizationDenied):
+        await _adapter(client).verify(CapabilityReference("opaque-ref"), _request(), _runtime_context())

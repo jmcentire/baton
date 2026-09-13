@@ -166,7 +166,22 @@ actor could rewrite the database and recompute the chain. Its failure queue is
 durable and acknowledgeable, but does not prove that an external operator was
 paged.
 
-## Integration Gate
+## Standalone Library Boundary
+
+The delegated modules are opt-in Python library APIs. No CLI command, default
+configuration, or adapter invokes them automatically. Consumers supply a
+trusted verifier and a custody-internal operation factory explicitly; the
+SQLite constructor supplies a durable single-node reference implementation.
+The included tests exercise the contracts with credential-free doubles and
+SQLite recovery, without claiming live signature verification or provider use.
+
+Each provider attempt rechecks the verified validity window before and after
+waiting for its durable budget reservation. An expired reservation cannot be
+used to invoke a provider, and a budget consumed while waiting stays consumed.
+Journal renewal and completion evaluate lease time only after acquiring the
+SQLite write lock, so contention cannot revive an expired claim.
+
+## Production Integration Prerequisites
 
 These modules are a connected runtime and executable reference, not a
 configured production custody deployment. The delegated executor no longer
@@ -174,7 +189,9 @@ accepts a direct provider invoker. Production construction must use explicit
 durable components and an audited custody implementation; the protocol seams
 exist for approved cloud-neutral backends.
 
-MEA integration remains blocked until all of the following exist:
+A production integrator must supply and qualify the following before enabling
+provider delivery. These deployment requirements do not imply that the library
+includes those external services:
 
 1. A concrete trusted Signet delegated-provider verifier client and transport
    with issuer and rotation enforcement. The key-free Baton adapter does not

@@ -16,11 +16,11 @@ import hashlib
 import json
 import re
 import time
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Awaitable, Callable, Protocol, Sequence
-
+from typing import Protocol
 
 _SAFE_CODE_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _FINGERPRINT_RE = re.compile(r"^[a-f0-9]{64}$")
@@ -163,7 +163,7 @@ class VerifiedDispatchGrant:
             raise ValueError("principal is required")
         if self.not_after.tzinfo is None:
             raise ValueError("not_after must be timezone-aware")
-        if self.max_attempts < 1:
+        if type(self.max_attempts) is not int or self.max_attempts < 1:
             raise ValueError("max_attempts must be positive")
         if not _FINGERPRINT_RE.fullmatch(self.request_fingerprint):
             raise ValueError("request_fingerprint must be a lowercase SHA-256 digest")
@@ -193,7 +193,7 @@ class ConnectorRoute:
             raise ValueError("priority cannot be negative")
         if self.timeout_ms < 1:
             raise ValueError("timeout_ms must be positive")
-        if self.max_attempts < 1:
+        if type(self.max_attempts) is not int or self.max_attempts < 1:
             raise ValueError("max_attempts must be positive")
         if self.retry_backoff_ms < 0:
             raise ValueError("retry_backoff_ms cannot be negative")
@@ -385,7 +385,7 @@ class DelegatedConnectorExecutor:
         self._invoker_factory = invoker_factory
         self._journal = journal
         self._signal_sink = signal_sink
-        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._clock = clock or (lambda: datetime.now(UTC))
         self._monotonic = monotonic or time.monotonic
         self._sleep = sleep or asyncio.sleep
         self._circuits: dict[str, _CircuitState] = {}
@@ -658,7 +658,7 @@ class DelegatedConnectorExecutor:
                 failover_allowed=True,
                 counts_toward_circuit=True,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 - contain provider/backend failures without leaking material.
             return ProviderAttemptOutcome(
                 status=DeliveryStatus.FAILED,
                 audit_ref=f"error:{request.dispatch_id}:{route.connector_id}",

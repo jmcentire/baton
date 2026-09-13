@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -109,7 +109,7 @@ class AcceptedVerifier:
             principal="comms-runtime",
             channel=request.channel,
             allowed_connectors=frozenset({"primary", "backup"}),
-            not_after=datetime.now(timezone.utc) + timedelta(minutes=5),
+            not_after=datetime.now(UTC) + timedelta(minutes=5),
             max_attempts=4,
             request_fingerprint=request.request_fingerprint,
         )
@@ -215,7 +215,7 @@ class MemoryJournal:
         return DispatchClaim(
             claim_id=claim_id,
             binding=binding,
-            lease_expires_at=datetime.now(timezone.utc) + timedelta(minutes=1),
+            lease_expires_at=datetime.now(UTC) + timedelta(minutes=1),
         )
 
     async def complete(self, claim: DispatchClaim, outcome: DeliveryOutcome) -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 from baton.credential_custody import VerifiedDelegatedAuthorization
@@ -80,7 +80,7 @@ class SignetDelegatedAuthorizationAdapter:
             raise ValueError("issuer is required")
         self._client = client
         self._issuer = issuer
-        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._clock = clock or (lambda: datetime.now(UTC))
 
     async def verify(
         self,
@@ -182,9 +182,9 @@ class SignetDelegatedAuthorizationAdapter:
             raise AuthorizationDenied("Signet issuer policy is outside configured scope")
         if outcome.rotation_policy_ref != context.rotation_policy_ref:
             raise AuthorizationDenied("Signet rotation policy is outside configured scope")
-        if outcome.max_uses != 1:
+        if type(outcome.max_uses) is not int or outcome.max_uses != 1:
             raise AuthorizationDenied("Signet authorization must be single-use")
-        if outcome.max_provider_attempts < 1:
+        if type(outcome.max_provider_attempts) is not int or outcome.max_provider_attempts < 1:
             raise AuthorizationDenied("Signet provider-attempt budget must be positive")
         if outcome.max_provider_attempts > context.provider_attempt_ceiling:
             raise AuthorizationDenied("Signet provider-attempt budget exceeds runtime policy")
@@ -209,4 +209,4 @@ def _parse_time(value: str, name: str) -> datetime:
         raise AuthorizationDenied(f"Signet authorization has invalid {name}") from exc
     if parsed.tzinfo is None:
         raise AuthorizationDenied(f"Signet authorization {name} must be timezone-aware")
-    return parsed.astimezone(timezone.utc)
+    return parsed.astimezone(UTC)

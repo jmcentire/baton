@@ -9,14 +9,16 @@ already authorized operation inside the custody boundary.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from enum import StrEnum
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Protocol
 
 from .delegated_connector import (
     AuthorizationDenied as DelegatedAuthorizationDenied,
+)
+from .delegated_connector import (
     CapabilityReference,
     Channel,
     ConnectorRoute,
@@ -28,7 +30,6 @@ from .delegated_connector import (
     VerifiedDispatchGrant,
     dispatch_request_fingerprint,
 )
-
 
 _FINGERPRINT_RE = re.compile(r"^[a-f0-9]{64}$")
 _CODE_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
@@ -169,9 +170,9 @@ class VerifiedWorkloadAuthorization:
             raise ValueError("authorization timestamps must be timezone-aware")
         if self.not_after <= self.not_before:
             raise ValueError("authorization expiry must be after not_before")
-        if self.max_uses is not None and self.max_uses < 1:
+        if self.max_uses is not None and (type(self.max_uses) is not int or self.max_uses < 1):
             raise ValueError("max_uses must be positive when bounded")
-        if self.max_provider_attempts < 1:
+        if type(self.max_provider_attempts) is not int or self.max_provider_attempts < 1:
             raise ValueError("max_provider_attempts must be positive")
 
 
@@ -210,7 +211,7 @@ class VerifiedDelegatedAuthorization(VerifiedDispatchGrant):
             raise ValueError("not_before must be timezone-aware")
         if self.not_after <= self.not_before:
             raise ValueError("authorization expiry must be after not_before")
-        if self.max_uses != 1:
+        if type(self.max_uses) is not int or self.max_uses != 1:
             raise ValueError("delegated provider authorization must be single-use")
 
     def as_workload_authorization(self) -> VerifiedWorkloadAuthorization:
@@ -282,6 +283,8 @@ class AuthorizedProviderDispatch:
     dispatch_claim_id: str
     reservation_id: str
     max_provider_attempts: int
+    not_before: datetime
+    not_after: datetime
 
     def reservation(self) -> ConsumptionReservation:
         return ConsumptionReservation(
@@ -454,7 +457,7 @@ async def authorize_provider_dispatch(
     authorization, request fingerprint, and idempotency key.
     """
 
-    current_time = now or datetime.now(timezone.utc)
+    current_time = now or datetime.now(UTC)
     if current_time < authorization.not_before or current_time >= authorization.not_after:
         raise CustodyAuthorizationDenied("workload authorization is outside its validity window")
     if authorization.workload_id != request.workload_id:
@@ -515,6 +518,8 @@ async def authorize_provider_dispatch(
         dispatch_claim_id=request.dispatch_claim_id,
         reservation_id=reservation.reservation_id,
         max_provider_attempts=authorization.max_provider_attempts,
+        not_before=authorization.not_before,
+        not_after=authorization.not_after,
     )
 
 
@@ -534,7 +539,7 @@ class CredentialCustodyAuthorizer:
         self._ledger = ledger
         self._audit_sink = audit_sink
         self._failure_notifier = failure_notifier
-        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._clock = clock or (lambda: datetime.now(UTC))
 
     @classmethod
     def for_verified_outcomes(
@@ -693,7 +698,16 @@ class CredentialCustodyAuthorizer:
         dispatch: AuthorizedProviderDispatch,
         authorized_use: AuthorizedCredentialUse,
     ) -> int:
-        return await self._ledger.reserve_attempt(dispatch.reservation(), authorized_use)
+        self._validate_attempt_window(dispatch)
+        attempt = await self._ledger.reserve_attempt(dispatch.reservation(), authorized_use)
+        # Reserving can wait for durable state. Expiry while waiting still denies
+        # provider use; the consumed budget remains consumed.
+        self._validate_attempt_window(dispatch)
+        return attempt
+
+    def _validate_attempt_window(self, dispatch: AuthorizedProviderDispatch) -> None:
+        if not dispatch.not_before <= self._clock() < dispatch.not_after:
+            raise CustodyAuthorizationDenied("provider authorization is outside its validity window")
 
     async def record_invocation_failure(
         self,
@@ -793,6 +807,7 @@ class CredentialCustodyInvokerFactory:
         expected_channel = ProviderChannel(route.channel.value)
         if (
             handle is None
+            or handle.connector_id != route.connector_id
             or handle.handle_id != route.credential_handle
             or handle.provider_key != route.provider_key
             or handle.channel is not expected_channel
@@ -880,6 +895,7 @@ class _ReservedCustodiedProviderInvoker:
         handle = self._handles.get(route.connector_id)
         if (
             handle is None
+            or handle.connector_id != route.connector_id
             or handle.handle_id != route.credential_handle
             or handle.provider_key != route.provider_key
             or handle.channel.value != route.channel.value
@@ -911,7 +927,7 @@ class _ReservedCustodiedProviderInvoker:
             raise DelegatedAuthorizationDenied("custody outcome binding is invalid")
         try:
             await self._authorizer.record_outcome(self._dispatch, handle, outcome)
-        except Exception:
+        except Exception:  # noqa: BLE001 - contain provider/backend failures without leaking material.
             try:
                 await self._authorizer.record_invocation_failure(
                     self._dispatch,

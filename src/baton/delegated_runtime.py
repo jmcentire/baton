@@ -16,7 +16,7 @@ import uuid
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import closing
 from dataclasses import asdict, dataclass, is_dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any, Protocol
@@ -26,9 +26,9 @@ from baton.credential_custody import (
     AuthorizedCredentialUse,
     ConsumptionReservation,
     ConsumptionReservationRequired,
-    CredentialUseRequest,
     CredentialCustodyAuthorizer,
     CredentialCustodyInvokerFactory,
+    CredentialUseRequest,
     CustodiedReferenceResolver,
     CustodyAuditEvent,
     CustodyAuditSink,
@@ -42,8 +42,8 @@ from baton.credential_custody import (
 from baton.delegated_connector import (
     AuthorizationDenied,
     CapabilityReference,
-    ConnectorRoute,
     Channel,
+    ConnectorRoute,
     DelegatedConnectorExecutor,
     DeliveryOutcome,
     DeliveryStatus,
@@ -58,20 +58,19 @@ from baton.delegated_connector import (
     ScopedAuthorizationVerifier,
 )
 
-
 _ZERO_HASH = "0" * 64
 MAX_DELEGATED_PROVIDER_ATTEMPTS = 3
 MAX_DELEGATED_PROVIDER_LIFETIME_SECONDS = 15 * 60
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _iso(value: datetime) -> str:
     if value.tzinfo is None:
         raise ValueError("timestamp must be timezone-aware")
-    return value.astimezone(timezone.utc).isoformat()
+    return value.astimezone(UTC).isoformat()
 
 
 def _parse_time(value: str) -> datetime:
@@ -146,10 +145,14 @@ class DelegatedAuthorizationContext:
                 raise ValueError(f"{name} is required")
         if not self.available_connector_ids or not all(self.available_connector_ids):
             raise ValueError("available_connector_ids are required")
-        if not 1 <= self.provider_attempt_ceiling <= MAX_DELEGATED_PROVIDER_ATTEMPTS:
+        if (
+            type(self.provider_attempt_ceiling) is not int
+            or not 1 <= self.provider_attempt_ceiling <= MAX_DELEGATED_PROVIDER_ATTEMPTS
+        ):
             raise ValueError("provider_attempt_ceiling is outside the hard delegated-provider limit")
         if not (
-            1
+            type(self.authorization_lifetime_ceiling_seconds) is int
+            and 1
             <= self.authorization_lifetime_ceiling_seconds
             <= MAX_DELEGATED_PROVIDER_LIFETIME_SECONDS
         ):
@@ -245,10 +248,14 @@ class ConfiguredVerifierBundle:
         for name in ("audience", "issuer_policy_ref", "rotation_policy_ref"):
             if not getattr(self, name):
                 raise ValueError(f"{name} is required")
-        if not 1 <= self.provider_attempt_ceiling <= MAX_DELEGATED_PROVIDER_ATTEMPTS:
+        if (
+            type(self.provider_attempt_ceiling) is not int
+            or not 1 <= self.provider_attempt_ceiling <= MAX_DELEGATED_PROVIDER_ATTEMPTS
+        ):
             raise ValueError("provider_attempt_ceiling is outside the hard delegated-provider limit")
         if not (
-            1
+            type(self.authorization_lifetime_ceiling_seconds) is int
+            and 1
             <= self.authorization_lifetime_ceiling_seconds
             <= MAX_DELEGATED_PROVIDER_LIFETIME_SECONDS
         ):
@@ -552,16 +559,16 @@ class SqliteDispatchJournal(DispatchJournal):
         return await asyncio.to_thread(self._begin, binding)
 
     def _begin(self, binding: DispatchBinding) -> DispatchClaim | None:
-        now = self._state._clock()
-        lease_expires_at = now + timedelta(seconds=self._state._claim_lease_seconds)
-        claim = DispatchClaim(
-            claim_id=str(uuid.uuid4()),
-            binding=binding,
-            lease_expires_at=lease_expires_at,
-        )
         with closing(self._state._connect()) as connection:
             connection.execute("BEGIN IMMEDIATE")
             try:
+                now = self._state._clock()
+                lease_expires_at = now + timedelta(seconds=self._state._claim_lease_seconds)
+                claim = DispatchClaim(
+                    claim_id=str(uuid.uuid4()),
+                    binding=binding,
+                    lease_expires_at=lease_expires_at,
+                )
                 row = connection.execute(
                     """
                     SELECT request_fingerprint, state, lease_expires_at
@@ -627,33 +634,39 @@ class SqliteDispatchJournal(DispatchJournal):
         await asyncio.to_thread(self._renew, claim)
 
     def _renew(self, claim: DispatchClaim) -> None:
-        now = self._state._clock()
-        lease_expires_at = now + timedelta(seconds=self._state._claim_lease_seconds)
-        with closing(self._state._connect()) as connection:
-            result = connection.execute(
-                """
-                UPDATE dispatch_journal
-                SET lease_expires_at = ?, updated_at = ?
-                WHERE idempotency_key = ? AND request_fingerprint = ?
-                  AND state = 'running' AND claim_id = ? AND lease_expires_at > ?
-                """,
-                (
-                    _iso(lease_expires_at),
-                    _iso(now),
-                    claim.binding.idempotency_key,
-                    claim.binding.request_fingerprint,
-                    claim.claim_id,
-                    _iso(now),
-                ),
-            )
-        if result.rowcount != 1:
-            raise DispatchStateUnavailable("dispatch claim is no longer active")
-
-    def _complete(self, claim: DispatchClaim, outcome: DeliveryOutcome) -> None:
-        now = self._state._clock()
         with closing(self._state._connect()) as connection:
             connection.execute("BEGIN IMMEDIATE")
             try:
+                now = self._state._clock()
+                lease_expires_at = now + timedelta(seconds=self._state._claim_lease_seconds)
+                result = connection.execute(
+                    """
+                    UPDATE dispatch_journal
+                    SET lease_expires_at = ?, updated_at = ?
+                    WHERE idempotency_key = ? AND request_fingerprint = ?
+                      AND state = 'running' AND claim_id = ? AND lease_expires_at > ?
+                    """,
+                    (
+                        _iso(lease_expires_at),
+                        _iso(now),
+                        claim.binding.idempotency_key,
+                        claim.binding.request_fingerprint,
+                        claim.claim_id,
+                        _iso(now),
+                    ),
+                )
+                if result.rowcount != 1:
+                    raise DispatchStateUnavailable("dispatch claim is no longer active")
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+
+    def _complete(self, claim: DispatchClaim, outcome: DeliveryOutcome) -> None:
+        with closing(self._state._connect()) as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                now = self._state._clock()
                 row = connection.execute(
                     """
                     SELECT request_fingerprint, state, claim_id, lease_expires_at
@@ -1077,6 +1090,7 @@ class DelegatedConnectorRuntime:
             handle = handles.get(route.connector_id)
             if (
                 handle is None
+                or handle.connector_id != route.connector_id
                 or handle.handle_id != route.credential_handle
                 or handle.provider_key != route.provider_key
                 or handle.channel.value != route.channel.value

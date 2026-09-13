@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import sqlite3
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -39,17 +39,16 @@ from baton.delegated_connector import (
     dispatch_request_fingerprint,
 )
 from baton.delegated_runtime import (
-    DelegatedAuthorizationVerifier,
     ConfiguredVerifierBundle,
     DelegatedAuthorizationContext,
+    DelegatedAuthorizationVerifier,
     DelegatedConnectorRuntime,
     DelegatedRuntimeComponents,
     SinglePurposeCustodiedResolver,
     SqliteDelegatedRuntimeState,
 )
 
-
-NOW = datetime(2026, 6, 4, tzinfo=timezone.utc)
+NOW = datetime(2026, 6, 4, tzinfo=UTC)
 
 
 def _fingerprint(
@@ -828,4 +827,49 @@ def test_runtime_builder_rejects_non_durable_or_incomplete_construction(tmp_path
             workload_id="mea-comms",
             purpose="case_notification",
             claim_lease_seconds=5,
+        )
+
+
+@pytest.mark.parametrize("operation", ["renew", "complete"])
+async def test_lock_wait_cannot_revive_expired_claim(tmp_path, monkeypatch, operation):
+    clock = MutableClock()
+    state = SqliteDelegatedRuntimeState(tmp_path / "runtime.sqlite3", clock=clock, claim_lease_seconds=1)
+    claim = await state.journal.begin(DispatchBinding("dispatch-once-1", FINGERPRINT))
+    original_connect = state._connect
+
+    class ConnectionAfterWait:
+        def __init__(self):
+            self.connection = original_connect()
+            self.waited = False
+
+        def execute(self, sql, *args):
+            # Model time passing while acquiring a write lock, without a flaky sleep.
+            if not self.waited and (sql == "BEGIN IMMEDIATE" or sql.lstrip().startswith("UPDATE")):
+                clock.now += timedelta(seconds=2)
+                self.waited = True
+            return self.connection.execute(sql, *args)
+
+        def __getattr__(self, name):
+            return getattr(self.connection, name)
+
+    monkeypatch.setattr(state, "_connect", ConnectionAfterWait)
+    with pytest.raises(DispatchStateUnavailable, match="no longer active"):
+        if operation == "renew":
+            await state.journal.renew(claim)
+        else:
+            await state.journal.complete(claim, _delivery())
+
+
+def test_runtime_rejects_misindexed_handle(tmp_path):
+    with pytest.raises(ValueError, match="exact custody handle"):
+        DelegatedConnectorRuntime.build_sqlite_reference(
+            routes=[_route()],
+            handles={"sms-primary": replace(_handle(), connector_id="sms-backup")},
+            verifiers=ConfiguredVerifierBundle(
+                verifier=DispatchVerifier(), audience="baton://executor",
+                issuer_policy_ref="issuer-policy", rotation_policy_ref="rotation-policy",
+                provider_attempt_ceiling=3, authorization_lifetime_ceiling_seconds=900,
+            ),
+            operation_factory=OperationFactory(_accepted_outcome()),
+            state_path=tmp_path / "runtime.sqlite3", workload_id="mea-comms", purpose="case_notification",
         )
